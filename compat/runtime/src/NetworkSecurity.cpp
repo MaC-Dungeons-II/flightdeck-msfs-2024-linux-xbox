@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include "GenuineAsync.h"
 
 namespace {
 using Json=nlohmann::json;
@@ -45,10 +46,16 @@ HRESULT parse_url(LPCWSTR text,Url &url){
     if(!text)return E_POINTER;
     size_t length=0;while(length<=max_url&&text[length])++length;
     if(!length||length>max_url)return E_INVALIDARG;
+    /* mac chain: secure websockets (wss://) use the same TLS policy as https;
+     * WinHttpCrackUrl does not know the wss scheme, so crack it as https.
+     * Plain ws:// stays unsupported. */
+    std::wstring rewritten;
+    if(length>6&&_wcsnicmp(text,L"wss://",6)==0){rewritten=L"https://";rewritten.append(text+6,length-6);text=rewritten.c_str();length=rewritten.size();}
     URL_COMPONENTS parts{};parts.dwStructSize=sizeof(parts);
     parts.dwHostNameLength=parts.dwUrlPathLength=parts.dwExtraInfoLength=parts.dwUserNameLength=parts.dwPasswordLength=DWORD(-1);
     if(!WinHttpCrackUrl(text,static_cast<DWORD>(length),0,&parts))return last_error();
-    if(parts.nScheme!=INTERNET_SCHEME_HTTPS||parts.nPort!=443||parts.dwUserNameLength||parts.dwPasswordLength)return E_INVALIDARG;
+    /* mac chain: a request opened with INTERNET_DEFAULT_PORT (0) reports port 0 here; that is 443 for https */
+    if(parts.nScheme!=INTERNET_SCHEME_HTTPS||(parts.nPort!=443&&parts.nPort!=0)||parts.dwUserNameLength||parts.dwPasswordLength)return E_INVALIDARG;
     if(!parts.dwHostNameLength||parts.dwHostNameLength>253)return E_INVALIDARG;
     url.host.assign(parts.lpszHostName,parts.dwHostNameLength);url.host_ascii.clear();
     for(auto &c:url.host){if(c>=L'A'&&c<=L'Z')c+=L'a'-L'A';if(!((c>=L'a'&&c<=L'z')||(c>=L'0'&&c<=L'9')||c==L'-'||c==L'.'))return E_INVALIDARG;url.host_ascii.push_back(static_cast<char>(c));}
@@ -203,7 +210,13 @@ HRESULT select_combined_policy(const Json &defaults,const Json *title,const Url 
     if(FAILED(base_hr)&&base_hr!=HRESULT_FROM_WIN32(ERROR_NOT_FOUND)){*status=base_status;return base_hr;}
     HRESULT title_hr=title?select_policy(*title,url,extra,&title_status,true):HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
     if(FAILED(title_hr)&&title_hr!=HRESULT_FROM_WIN32(ERROR_NOT_FOUND)){*status=title_status;return title_hr;}
-    if(FAILED(base_hr)&&FAILED(title_hr)){*status="unmatched";return HRESULT_FROM_WIN32(ERROR_NOT_FOUND);}
+    if(FAILED(base_hr)&&FAILED(title_hr)){
+        /* mac chain: hosts outside both policies (e.g. the title's websocket
+         * service) get the platform default: TLS 1.2, no pins. Certificates are
+         * still verified against the system trust store by VerifyServerCertificate. */
+        result.enabledHttpSecurityProtocolFlags=WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+        *status="unmatched-default";return S_OK;
+    }
     // The title overrides authentication routing in the native signer. Here
     // both selected security policies must pass: an unpinned title rule cannot
     // erase default pins/TLS restrictions, even at a more specific path.
@@ -318,7 +331,7 @@ HRESULT NetworkSecurityVerify(void *request,const XNetworkingSecurityInformation
         // so do not claim that its negotiated protocol was queried here.
         size=0;WinHttpQueryOption(request,WINHTTP_OPTION_URL,nullptr,&size);if(!size||size>(max_url+1)*sizeof(WCHAR))return finish(E_INVALIDARG,"url-size");
         std::vector<WCHAR> text(size/sizeof(WCHAR)+1);if(!WinHttpQueryOption(request,WINHTTP_OPTION_URL,text.data(),&size))return finish(last_error(),"url-option");
-        Url url;HRESULT hr=parse_url(text.data(),url);if(FAILED(hr))return finish(hr,"url-parse");
+        Url url;HRESULT hr=parse_url(text.data(),url);if(FAILED(hr)){if(verify_diagnostic_count.load()<8){std::string a;for(WCHAR c:std::wstring(text.data())){if(c==L'?')break;a.push_back(c<128?(char)c:'?');}std::fprintf(stderr,"[xodus-network] verify url-parse scheme/host/path=%.120s\n",a.c_str());}return finish(hr,"url-parse");}
         // Verify the handle still targets a matched unpinned policy. Redirects or
         // a fabricated empty structure cannot turn a pinned/unknown URL into one.
         std::shared_ptr<const Json> policy,title;UINT64 epoch;

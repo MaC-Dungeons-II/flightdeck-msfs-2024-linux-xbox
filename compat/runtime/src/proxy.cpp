@@ -10,6 +10,7 @@
 #include "StoreBridge.h"
 #include "GameSaveBridge.h"
 #include "RuntimeDiagnostics.h"
+#include "MacMode.h"
 
 static INIT_ONCE base_once = INIT_ONCE_STATIC_INIT;
 static HMODULE base_module;
@@ -34,7 +35,10 @@ HRESULT initialize_client(ULONG gdk, ULONG services, char mode, const void *opti
     else if (state.clients == std::numeric_limits<unsigned long long>::max()) hr = E_OUTOFMEMORY;
     else {
         hr = initialize();
-        if (SUCCEEDED(hr)) hr = InitializeUserRuntime(gdk, services, mode, options);
+        if (SUCCEEDED(hr)) {
+            if (MacPureMode()) hr = InitializeUserRuntime(gdk, services, mode, options);
+            else RememberUserRuntimeArgs(gdk, services, mode, options); /* mac chain: init lazily on first Store use */
+        }
         if (SUCCEEDED(hr)) ++state.clients;
     }
     static std::atomic<unsigned> logs{0};
@@ -70,7 +74,7 @@ static FARPROC base_proc(const char *name) {
 extern "C" HRESULT WINAPI QueryApiImpl(const GUID *clsid, REFIID iid, void **out) {
     if (!clsid || !out) return E_POINTER;
     *out = nullptr;
-    if (*clsid == __uuidof(IXThreadingImpl)) {
+    if (MacPureMode() && *clsid == __uuidof(IXThreadingImpl)) { /* mac chain: game-facing XThreading stays genuine */
         static std::atomic<bool> logged{false};
         if(!logged.exchange(true))std::fprintf(stderr, "xodus-taskqueue: using real PR60 threading implementation\n");
         return x_threading_impl->QueryInterface(iid, out);
@@ -78,9 +82,9 @@ extern "C" HRESULT WINAPI QueryApiImpl(const GUID *clsid, REFIID iid, void **out
     if (XodusGameSaveLocalEnabled() && IsGameSaveRuntimeClass(clsid))
         return QueryGameSaveRuntime(clsid,iid,out);
     if (IsStoreRuntimeClass(clsid)) return QueryStoreRuntime(clsid,iid,out);
-    if (*clsid == __uuidof(IXNetworkingImpl)) return x_networking_impl->QueryInterface(iid,out);
+    if (MacPureMode() && *clsid == __uuidof(IXNetworkingImpl)) return x_networking_impl->QueryInterface(iid,out);
     if (IsRuntimeDiagnosticsClass(clsid)) return QueryRuntimeDiagnostics(clsid,iid,out);
-    if (UserRuntimeEnabled() && IsUserRuntimeClass(clsid)) return QueryUserRuntime(clsid,iid,out);
+    if (MacPureMode() && UserRuntimeEnabled() && IsUserRuntimeClass(clsid)) return QueryUserRuntime(clsid,iid,out);
     return QueryOriginalApi(clsid,iid,out);
 }
 HRESULT QueryOriginalApi(const GUID *clsid, REFIID iid, void **out) {
@@ -140,3 +144,8 @@ extern "C" void WINAPI XErrorReport(ULONG a, const char *b) {
     using Fn=void(WINAPI *)(ULONG,const char*); auto fn=reinterpret_cast<Fn>(base_proc("XErrorReport"));
     if (fn) fn(a,b);
 }
+
+/* mac chain: the outer mcd2 adapter forwards XNetworking security-information
+ * calls (used by libHttpClient's WinHTTP websockets) to this implementation. */
+extern IXNetworkingImpl *x_networking_impl;
+extern "C" __declspec(dllexport) void *WINAPI MacNetworkingImpl() { return x_networking_impl; }

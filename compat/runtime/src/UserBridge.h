@@ -7,3 +7,6 @@ bool IsUserRuntimeClass(const GUID *clsid);
 HRESULT InitializeUserRuntime(ULONG gdk, ULONG services, char mode, const void *options);
 HRESULT QueryUserRuntime(const GUID *clsid, REFIID iid, void **out);
 HRESULT ShutdownUserRuntime();
+
+void RememberUserRuntimeArgs(ULONG gdk, ULONG services, char mode, const void *options);
+HRESULT EnsureStoreModule();

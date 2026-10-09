@@ -3,6 +3,9 @@
 // LGPL-2.1-or-later, like the surrounding runtime sources.
 #include "UserBridge.h"
 #include <mutex>
+#include <atomic>
+#include <string>
+#include <cstdio>
 
 namespace {
 using BindFn = HRESULT (WINAPI *)(IXThreadingImpl *);
@@ -113,5 +116,35 @@ HRESULT ShutdownUserRuntime() {
         user.stopping = false;
     }
     std::fprintf(stderr, "xodus-user-bridge: shutdown result=%08lx\n", static_cast<ULONG>(hr));
+    return hr;
+}
+
+/* mac chain: defer the xodus module until the first Store request. The init
+ * options carry a pointer to the game's MicrosoftGame.config path; copy it. */
+namespace {
+struct SavedArgs { bool set=false; ULONG gdk=0, services=0; char mode=0; bool has_options=false;
+    struct { UINT32 unknown; BOOLEAN inline_config; const char *file; } options{}; /* INITIALIZE_OPTIONS */ std::string file; };
+SavedArgs &saved() { static SavedArgs *s = new SavedArgs; return *s; }
+std::mutex saved_lock;
+}
+void RememberUserRuntimeArgs(ULONG gdk, ULONG services, char mode, const void *options) {
+    std::lock_guard<std::mutex> guard(saved_lock);
+    auto &s = saved();
+    if (s.set) return;
+    s.set = true; s.gdk = gdk; s.services = services; s.mode = mode;
+    if (options) {
+        auto o = static_cast<const decltype(s.options) *>(options);
+        s.has_options = true; s.options.unknown = o->unknown; s.options.inline_config = o->inline_config;
+        if (o->file) { s.file = o->file; s.options.file = s.file.c_str(); }
+    }
+}
+HRESULT EnsureStoreModule() {
+    static std::atomic<bool> ready{false};
+    if (ready.load()) return S_OK;
+    { std::lock_guard<std::mutex> guard(saved_lock); if (!saved().set) return CO_E_NOTINITIALIZED; }
+    auto &s = saved();
+    HRESULT hr = InitializeUserRuntime(s.gdk, s.services, s.mode, s.has_options ? &s.options : nullptr);
+    std::fprintf(stderr, "xodus-user-bridge: lazy store init result=%08lx\n", static_cast<ULONG>(hr));
+    if (SUCCEEDED(hr)) ready.store(true);
     return hr;
 }

@@ -1,3 +1,5 @@
+#include <cstdio>
+#include "UserBridge.h"
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 // Isolated Store bridge; LGPL-2.1-or-later, signatures from pinned Xodus IDL.
 // Implemented operations use actual broker results; no commerce answer is invented.
@@ -30,6 +32,7 @@ struct AccountRef { void *owned; Release release; QueryLicense license; QueryPro
 HRESULT WINAPI acquire_account(void *,void **out) {
     if(!out)return E_POINTER; *out=nullptr;
     HMODULE module=GetModuleHandleW(L"xodus_store_test.dll");
+    if(!module){HRESULT lazy=EnsureStoreModule();if(FAILED(lazy))return lazy;module=GetModuleHandleW(L"xodus_store_test.dll");}
     if(!module)return CO_E_NOTINITIALIZED;
     auto acquire=reinterpret_cast<Acquire>(GetProcAddress(module,"XodusStoreAcquireAccount"));
     auto release=reinterpret_cast<Release>(GetProcAddress(module,"XodusStoreReleaseAccount"));
@@ -321,6 +324,8 @@ bool IsStoreRuntimeClass(const GUID *clsid) {return clsid&&*clsid==__uuidof(IXSt
 HRESULT QueryStoreRuntime(const GUID *clsid,REFIID iid,void **out) {
     if(!out||!clsid)return E_POINTER;*out=nullptr;
     if(!IsStoreRuntimeClass(clsid))return E_NOINTERFACE;
-    return instance.QueryInterface(iid,out);
+    HRESULT hr=instance.QueryInterface(iid,out);
+    if(FAILED(hr))std::fprintf(stderr,"[xodus-store] QI failed iid=%08lx hr=%08lx\n",iid.Data1,static_cast<ULONG>(hr));
+    return hr;
 }
 void ShutdownStoreRuntime() {XodusStoreQueriesShutdown();XodusStoreContextShutdown();}

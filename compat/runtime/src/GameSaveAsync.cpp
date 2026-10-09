@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include "GenuineAsync.h"
 
 namespace {
 enum class Kind {Initialize,Quota,Delete,Read,Submit};

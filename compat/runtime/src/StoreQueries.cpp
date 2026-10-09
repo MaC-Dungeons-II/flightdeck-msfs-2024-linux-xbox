@@ -12,6 +12,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "GenuineAsync.h"
 
 namespace {
 enum class Kind { License, Products, NextPage, LicenseToken, ExplicitProducts, Balance, Durable, PackageUpdates, Purchase, CurrentGame, PreviewLicense };
@@ -164,8 +165,12 @@ HRESULT do_work(Job *job) {
             job->product_ids[0].c_str(),job->display_name.c_str(),job->custom.c_str(),&job->cancelled);
         if(SUCCEEDED(hr)&&hr!=S_OK)hr=HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
     } else if(job->kind==Kind::PackageUpdates) {
-        if(!provider->check_package_updates)return E_NOTIMPL;
+        /* mac chain: no package-update service here. The installed copy is the
+         * current Launcher build (exported from the up-to-date Windows install),
+         * so report "no updates" instead of failing the title's update check. */
+        if(!provider->check_package_updates)return S_OK;
         hr=provider->check_package_updates(provider->state,XodusStoreContextAccount(job->context),&job->cancelled);
+        if(hr==E_NOTIMPL)hr=S_OK; /* mac chain: the xodus backend has no update query; report none */
         // The current provider contract proves an exact current revision only.
         // S_FALSE is not proof of an empty result, nor is any failed request.
         if(SUCCEEDED(hr)&&hr!=S_OK)hr=HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
@@ -477,7 +482,7 @@ HRESULT XodusStoreQueryLicenseTokenResult(XAsyncBlock *async,SIZE_T capacity,cha
     if(SUCCEEDED(hr))hr=capacity<required?HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER):
         XAsyncGetResult(async,&token_identity,capacity,out,nullptr);
     static std::atomic<unsigned> calls{0};
-    if(calls.fetch_add(1)<32)std::fprintf(stderr,"[xodus-store-query] LicenseTokenResult hr=%08lx\n",static_cast<ULONG>(hr));
+    if(calls.fetch_add(1)<32)std::fprintf(stderr,"[xodus-store-query] LicenseTokenResult hr=%08lx size=%llu t=%llu\n",static_cast<ULONG>(hr),static_cast<unsigned long long>(required),static_cast<unsigned long long>(timestamp_ms()));
     return hr;
 }
 HRESULT XodusStoreQueryEntitledProductsAsync(XStoreContextHandle handle,XStoreProductKind kinds,UINT32 page_size,XAsyncBlock *async) {
