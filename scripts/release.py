@@ -22,9 +22,9 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "marselnenaj/flightdeck-msfs-2024-linux-xbox"
-RELEASE_BASE = f"https://github.com/{REPOSITORY}/releases/download/v0.2.7/"
+RELEASE_BASE = f"https://github.com/{REPOSITORY}/releases/download/v0.2.8/"
 PREVIOUS = "Flightdeck-Linux-x86_64.tar.gz"
-PREVIOUS_SHA = "90459cf5bab7065bded336ea3d1ba0024f712403c26ae4749b7d88fefe212e02"
+PREVIOUS_SHA = "c5b39ed6ad58c452b5371a4f9a117b4c800b12323980123c92e33e7c45746abc"
 # These corresponding sources describe this exact native binary bundle.
 NATIVE_SHA = "19d2e97e327315dde4563d299dab07d6ff64e09d6df8f51a3a94b26db94751b6"
 SOURCES = {

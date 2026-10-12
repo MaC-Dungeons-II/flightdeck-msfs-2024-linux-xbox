@@ -1,4 +1,4 @@
-# Native desktop and add-on management (0.2.8)
+# Native desktop and add-on management (0.2.9)
 
 All six Flightdeck views now use Rust and iced 0.14: overview, setup, updates,
 saves, mods and diagnostics. The previous artwork, Manrope font, icons, colors
@@ -64,11 +64,13 @@ blocked until its warning is resolved. Synchronization, recovery and running
 work continue to prevent edition switching.
 
 An interrupted session shows **Sitzung prüfen / Check session** beside the launch
-button. This checks that the previous session's processes have ended and backs
-up local saves before clearing the block. It does not start the game or upload
-saves. While the check runs, the button shows its progress and launch and edition
-selection remain unavailable. If a check or backup fails, the block stays in
-place and the reason remains visible.
+button. This ends the previous session's remaining runtime-bound processes
+(since 0.2.9), including another Windows application still open in the profile,
+verifies they have ended and backs up local saves before clearing the block. It does not start the game or upload saves. While the check runs, the
+button shows its progress and launch and edition selection remain unavailable.
+If a process survives or a backup fails, the block stays in place and the launch
+note names the blocking process with its PID; a process stuck in the kernel
+(state D) requires a Linux restart.
 
 Disabled controls have a muted appearance. A blocked launch shows a warning
 instead of a ready checkmark. An abnormal simulator exit shows a failure hint

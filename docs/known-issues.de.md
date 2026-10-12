@@ -2,8 +2,8 @@
 
 [English](known-issues.md) · [Dokumentation](index.md)
 
-Stand: 8. Oktober 2026, für die stabile Version **0.2.8**.
-Siehe [Änderungsübersicht](changelog.md#028--8-october-2026).
+Stand: 12. Oktober 2026, für die stabile Version **0.2.9**.
+Siehe [Änderungsübersicht](changelog.md#029--12-october-2026).
 
 - **NVIDIA:** Die normale MSFS-2024-Darstellung ist durch Nutzertests bestätigt.
   Kleinere Probleme bleiben möglich, etwa ein fehlendes oder schwarzes Startvideo.
@@ -29,10 +29,11 @@ Siehe [Änderungsübersicht](changelog.md#028--8-october-2026).
   Couatl/SimConnect, Menü im Simulator und Bodendienste bleiben unbestätigt.
   **GSX lokal eingerichtet · Funktion unbestätigt** beschreibt nur die lokale
   Einrichtung. [Prüfgrenzen und Einrichtung](addons.de.md#gsx-pro-einrichten-experimentell).
-- **Unterbrochene Sitzungen und Schaltflächen:** In 0.2.6 beheben die sichere
-  Sitzungsprüfung, Reparatur verwaister Dienst-Sockets und korrigierte Anzeigen
-  für Start, Stop und Simulatorauswahl Startblockaden nach unterbrochenen
-  Sitzungen. [Details](native-ui.md#session-and-control-fixes-in-026).
+- **Unterbrochene Sitzungen und Schaltflächen:** Seit 0.2.6 blieb der Start bis
+  zum Neustart blockiert, wenn ein Prozess der vorherigen Sitzung überlebte.
+  Version 0.2.9 beendet solche Prozesse und nennt einen Überlebenden im
+  Starthinweis; ein nach GPU-Geräteverlust im Kernel hängender Prozess braucht
+  weiterhin einen Neustart. [Details](cloud-saves.de.md#sicherungen-und-unterbrechungen).
 - **Cloud-Spielstände:** Wiederholte Sync-Fehler bleiben gemeldet.
   Wiederherstellung und lokales Spielen beschreibt die
   [Cloud-Anleitung](cloud-saves.de.md). Lokales Spielen bestätigt keinen Cloud-Abgleich.

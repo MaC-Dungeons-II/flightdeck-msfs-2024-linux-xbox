@@ -1,7 +1,26 @@
 # Changes and release status
 
-## Unreleased
+## 0.2.9 — 12 October 2026
 
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.8 launchers can use the in-app updater.
+
+- End the remaining processes of an interrupted or stopped session instead of
+  fencing the launch until a reboot. **Check session** and the automatic
+  post-exit release send SIGTERM, then SIGKILL, to processes bound to the runtime,
+  verify they are gone and back up local saves. Since 0.2.6 such a straggler
+  blocked every launch until reboot.
+- End all Fenix processes with the simulator, including the Fenix app and its
+  WebView. An open Fenix app previously kept the next launch blocked.
+- Leave another Windows application in the profile, such as an installer,
+  running when the simulator exits and name it as the reason for the block;
+  **Check session** ends it on request. Processes that cannot be attributed to
+  the runtime are never signalled.
+- Name a surviving process with its PID in the launch note and in diagnostics
+  (`cloud_sync.error_details`). A process stuck in the kernel after a GPU device
+  loss still requires a restart, and the message now says so.
+- Ignore processes bound to a Wine prefix that no longer exists; they previously
+  blocked the launch without a stated reason.
 - Use Fenix patch **0.1.0-preview.5**. Its Flightdeck and earlier Proton
   overlays are identical to preview.4; verified preview.4 installations update
   without reinstalling Fenix. The patch adds an overlay for CachyOS Proton

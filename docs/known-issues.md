@@ -2,8 +2,8 @@
 
 [Deutsch](known-issues.de.md) · [Documentation](index.md)
 
-Status: 8 October 2026, covering the stable **0.2.8** release.
-See the [release changes](changelog.md#028--8-october-2026).
+Status: 12 October 2026, covering the stable **0.2.9** release.
+See the [release changes](changelog.md#029--12-october-2026).
 
 - **NVIDIA:** Normal MSFS 2024 rendering is confirmed by user testing. Smaller
   issues remain possible, including a missing or black startup video. This does
@@ -28,10 +28,11 @@ See the [release changes](changelog.md#028--8-october-2026).
   the in-game menu and ground services remain unverified. **GSX locally
   configured · Functionality unconfirmed** describes local setup only.
   [Test boundaries and setup](addons.md#gsx-pro-experimental).
-- **Interrupted sessions and controls:** In 0.2.6, safe session recovery,
-  stale service-socket recovery and corrected Start/Stop/edition-selection states
-  address launch blocks left after an interrupted run.
-  [Details](native-ui.md#session-and-control-fixes-in-026).
+- **Interrupted sessions and controls:** Since 0.2.6 the launch stayed blocked
+  until a reboot when a process of the previous session survived. Version 0.2.9
+  ends such processes and names a survivor in the launch note; a process stuck
+  in the kernel after a GPU device loss still needs a restart.
+  [Details](cloud-saves.md#backups-and-interruptions).
 - **Cloud saves:** Repeated sync errors remain reported. Use the recovery and
   local-play options in the [cloud-save guide](cloud-saves.md). Local play does
   not confirm a successful cloud transfer.
