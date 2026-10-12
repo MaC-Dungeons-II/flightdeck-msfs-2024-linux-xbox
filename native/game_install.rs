@@ -24,8 +24,21 @@ pub fn verify_cli(cli: &Path, expected: &str) -> Result<PathBuf> {
     )?;
     Ok(cli.into())
 }
+/// WebKitGTK's DMA-BUF renderer aborts the login window with a Wayland protocol
+/// error (Error 71) on NVIDIA drivers, including hybrid AMD/NVIDIA systems. The
+/// shared-memory fallback is sufficient for the sign-in page; an explicit user
+/// value is kept.
+fn disable_webkit_dmabuf(nvidia: bool, configured: Option<&std::ffi::OsStr>) -> bool {
+    nvidia && configured.is_none()
+}
 pub fn environment(command: &mut Command, xdg: Option<&Path>) {
     command.env("XODUS_LOG", "off").env("RUST_BACKTRACE", "0");
+    if disable_webkit_dmabuf(
+        crate::graphics::nvidia_present(),
+        std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").as_deref(),
+    ) {
+        command.env("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
     if let Some(xdg) = xdg {
         for category in ["config", "data", "cache", "state"] {
             command.env(
@@ -321,4 +334,15 @@ pub fn download(request: Request<'_>, ctx: &Context) -> Result<PathBuf> {
     ctx.pause.store(false, Ordering::Relaxed);
     ctx.update(json!({"can_pause":false,"can_resume":false,"transfer":null}));
     result
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::OsStr;
+    #[test]
+    fn webkit_dmabuf_is_disabled_only_for_nvidia_without_user_choice() {
+        assert!(disable_webkit_dmabuf(true, None));
+        assert!(!disable_webkit_dmabuf(false, None));
+        assert!(!disable_webkit_dmabuf(true, Some(OsStr::new("0"))));
+    }
 }
