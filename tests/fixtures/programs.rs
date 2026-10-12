@@ -14,9 +14,14 @@ pub fn program() -> PathBuf {
         .parent()
         .expect("target directory")
         .join("examples/test-programs");
+    const BUILD: &str = "cargo build --locked --example test-programs";
+    assert!(path.is_file(), "Build the test programs first: {BUILD}");
+    // A run of a single test target does not rebuild them after a change.
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/test-programs.rs");
+    let changed = |path: &Path| path.metadata().and_then(|info| info.modified()).ok();
     assert!(
-        path.is_file(),
-        "Build the test programs first: cargo build --locked --example test-programs"
+        changed(&source) <= changed(&path),
+        "The test programs are older than their source: {BUILD}"
     );
     path
 }
