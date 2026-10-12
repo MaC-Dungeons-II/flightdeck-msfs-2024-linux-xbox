@@ -220,7 +220,7 @@ a game crash or **Stop**, with a bounded fallback for stuck processes. Since
 installation or livery download there before quitting MSFS. Other Wine profiles
 are excluded from that cleanup.
 
-Flightdeck uses patch **0.1.0-preview.5**. Newer patch versions are adopted
+Flightdeck uses patch **0.1.0-preview.6**. Newer patch versions are adopted
 through a Flightdeck update; the launcher does not independently check for the
 latest Fenix patch on GitHub. Supported earlier patches update to Flightdeck's
 included version when opening Fenix, its installer or manager, or finishing setup.

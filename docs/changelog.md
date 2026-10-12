@@ -1,5 +1,15 @@
 # Changes and release status
 
+## Unreleased
+
+- Use Fenix patch **0.1.0-preview.6**. Its patched `ntdll.so` no longer needs
+  the host library `libunwind.so.8`, which the patch build had linked by
+  accident. Without that library a patched runtime cannot load `ntdll.so` and
+  no Windows program starts; hosts with GStreamer usually have it installed, so
+  this mainly affected the patch's Steam installation. Every other overlay file
+  is identical to preview.5, and verified preview.5 installations update
+  without reinstalling Fenix.
+
 ## 0.2.10 — 12 October 2026
 
 Stable release with full installer and corresponding source archives.

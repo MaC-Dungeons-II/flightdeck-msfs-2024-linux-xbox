@@ -233,7 +233,7 @@ Fenix-App, falls sie noch geöffnet ist; schließe Installationen oder
 Livery-Downloads dort ab, bevor du MSFS beendest. Andere Wine-Profile bleiben
 davon unberührt.
 
-Flightdeck verwendet Patch **0.1.0-preview.5**. Neuere Patch-Versionen werden
+Flightdeck verwendet Patch **0.1.0-preview.6**. Neuere Patch-Versionen werden
 mit einem Flightdeck-Update übernommen; der Launcher sucht nicht eigenständig
 nach dem neuesten Fenix-Patch auf GitHub. Unterstützte ältere Patches werden
 beim Öffnen von Fenix, seinem Installer oder Manager sowie beim Abschließen der
