@@ -251,8 +251,8 @@ Patch-Paket und Wiederherstellung**, unterhalb von **Verwalten & reparieren**,
 den Ordner mit `bundle.json` auswählen.
 Der GitHub-Quellcode oder das reine Quellarchiv enthält die Wine-Binärdateien nicht.
 Ein leeres Feld verwendet den geprüften Download bzw. Cache. Der eigenständige
-Installer `install.sh` bietet denselben Ablauf ohne Flightdecks Oberfläche; seine
-grafische Oberfläche benötigt Python Tk. Flightdecks Fenix-Bereich benötigt kein Tk.
+Installer `install.sh` bietet denselben Ablauf ohne Flightdecks Oberfläche, als
+geführte Einrichtung im Webbrowser.
 
 ### Liveries
 

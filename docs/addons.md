@@ -235,8 +235,7 @@ containing `bundle.json` under **Local patch bundle and restore**, below
 **Manage & repair**. A GitHub source checkout or the source-only archive lacks
 the Wine payload. Leaving this field
 blank uses the verified download/cache. The standalone `install.sh` provides the
-same setup without Flightdeck's panel and needs Python Tk for its graphical UI;
-the Flightdeck panel does not require Tk.
+same setup without Flightdeck's panel, as a guided setup in the web browser.
 
 #### Liveries
 
