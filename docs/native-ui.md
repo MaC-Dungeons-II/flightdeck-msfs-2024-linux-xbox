@@ -1,4 +1,4 @@
-# Native desktop and add-on management (0.2.9)
+# Native desktop and add-on management (0.2.10)
 
 All six Flightdeck views now use Rust and iced 0.14: overview, setup, updates,
 saves, mods and diagnostics. The previous artwork, Manrope font, icons, colors

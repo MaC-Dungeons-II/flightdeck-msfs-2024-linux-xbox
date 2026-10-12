@@ -1,6 +1,9 @@
 # Changes and release status
 
-## Unreleased
+## 0.2.10 — 12 October 2026
+
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.9 launchers can use the in-app updater.
 
 - Keep Xodus windows open on systems with an NVIDIA GPU. WebKitGTK's DMA-BUF
   renderer aborted the Microsoft sign-in window right after it opened with
