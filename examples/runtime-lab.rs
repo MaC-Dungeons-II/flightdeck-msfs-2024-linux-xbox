@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 //! Development-only driver for synthetic Wine probes. Never shipped or used by
-//! the launcher. The Python harnesses compile probes and collect their logs;
+//! the launcher. The probes of `tools/` compile test programs and collect their logs;
 //! prefix, graphics, VR, Fenix and save logic comes from the Rust library.
 use flightdeck::{
     Error, Result,

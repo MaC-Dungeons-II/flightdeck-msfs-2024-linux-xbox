@@ -91,16 +91,18 @@ listed in [the provenance notes](../compat/THIRD_PARTY_NOTICES.md).
 
 The separate [Fenix patch repository](https://github.com/marselnenaj/fenix-a320-linux-patch)
 owns the Wine overlay and standalone installer. Flightdeck implements the
-installer contract in Rust. `scripts/sync-fenix.py` imports only the payload and
-release manifests and license. Review protocol changes against the Rust
-implementation; no Python engine is copied into Flightdeck.
+installer contract in Rust. The maintainer tool's `probe sync-fenix` command
+imports only the payload and release manifests and license. Review protocol
+changes against the Rust implementation; no Python engine is copied into
+Flightdeck.
 
 1. Build and test the patch with its documented upstream sources. Publish its
    Linux installer ZIP, complete corresponding sources and `SHA256SUMS` as a
    public GitHub release. Keep already pinned release assets immutable.
-2. Run `python3 scripts/sync-fenix.py /absolute/path/to/patch-project` and review
-   the Rust integration, license and both imported manifests. The import command copies
-   files; it does not independently validate a published GitHub asset.
+2. Run `cargo run --locked -p flightdeck-tools -- probe sync-fenix
+   /absolute/path/to/patch-project` and review the Rust integration, license and
+   both imported manifests. The import command copies files; it does not
+   independently validate a published GitHub asset.
 3. Verify the release can be downloaded without GitHub authentication and its
    SHA-256 matches `compat/fenix/release.json`. Run the native add-on/framework/Proton tests,
    installer checks and the native UI interaction tests.

@@ -24,7 +24,7 @@ performance inside MSFS; that needs a separate simulator test.
 The executable embeds the production interface in `native/ui/`. `ui/` contains
 only shared artwork, font and icon assets. The old web implementation is available
 in Git history (`v0.2.2:ui/`); it is no longer duplicated in the working tree.
-Python remains only in maintainer build/test tools. The
+Maintainer build and test tools are Rust as well (`tools/`). The
 Windows add-ons themselves still require their own .NET/Wine components.
 
 ## Compact add-on controls in 0.2.7
@@ -113,7 +113,9 @@ avoids a separate framebuffer-sized clipping mask. Partially clipped text keeps
 the explicit mask needed by the software renderer.
 
 See the [measured 0.2.4/0.2.5 UI comparison](performance.md#native-page-switching-025).
-`scripts/check-edition-update.py` also exercises a real service against a
+`cargo run --locked -p flightdeck-tools -- probe edition-update --package
+/path/to/package --previous-package /path/to/previous-package` also exercises a
+real service against a
 synthetic inactive edition built with the historical package's pinned components;
 it verifies automatic migration, the new helper, repeat switching and retained
 synthetic saves without launching a game or accessing an account.

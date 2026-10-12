@@ -5,11 +5,13 @@ mod compat;
 mod components;
 mod contract;
 mod distro;
+mod drivers;
 #[cfg(test)]
 mod entrypoint_tests;
 mod http;
 mod package;
 mod package_check;
+mod probes;
 #[cfg(test)]
 mod protocol_tests;
 mod release;
@@ -117,9 +119,15 @@ enum Command {
         #[arg(long)]
         output: PathBuf,
     },
+    /// Optional hardware and Wine checks for developers.
+    #[command(subcommand)]
+    Probe(probes::Probe),
     /// Prepare pinned release inputs, or publish a verified Actions build.
     #[command(subcommand)]
     Release(Release),
+    /// Compatibility component tests against a staged source tree.
+    #[command(subcommand)]
+    Driver(drivers::Driver),
 }
 
 #[derive(Subcommand)]
@@ -169,10 +177,13 @@ enum Release {
     },
 }
 
-fn run(command: Command) -> util::Result<()> {
+fn run(command: Command) -> util::Result<u8> {
     // Inside the test container there is no checkout; that command needs none.
     let root = util::root();
-    match command {
+    let done: util::Result<()> = match command {
+        // Probes and drivers end with a status of their own: 2 is inconclusive or misuse.
+        Command::Probe(command) => return probes::run(&root, command),
+        Command::Driver(command) => return drivers::run(&root, command),
         Command::SourceCheck => source::check(&root),
         Command::SourceRelease { output } => source::release(&root, &output),
         Command::BuildNative { offline, toolchain } => {
@@ -286,12 +297,13 @@ fn run(command: Command) -> util::Result<()> {
                 } => release::publish(&host, &root, &pins, &assets, &notes, &readback),
             }
         }
-    }
+    };
+    done.map(|()| 0)
 }
 
 fn main() -> std::process::ExitCode {
     match run(Arguments::parse().command) {
-        Ok(()) => std::process::ExitCode::SUCCESS,
+        Ok(code) => code.into(),
         Err(error) => {
             eprintln!("{error}");
             std::process::ExitCode::FAILURE

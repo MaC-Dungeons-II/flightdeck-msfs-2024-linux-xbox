@@ -73,19 +73,21 @@ The 0.2.1 default loader also exposes mapped DLLs through this view and
 uses it as the working directory. Its executable still uses the native Wine
 mapping and a header-only stub. The pinned native mapping handles the main
 image, so ordinary delayed DLL loads cannot rely on map aliases alone.
-Maintainers can exercise that exact path with `scripts/check-proton.py
---runtime /path/to/runtime --default-runner --native-launcher
-target/debug/flightdeck-rust --output /path/to/new-results`; use `--runner
-/path/to/proton` instead for selection and return tests. Both use own synthetic
-programs in fresh prefixes and leave the source runtime unchanged.
+Maintainers can exercise that exact path with `cargo run --locked -p
+flightdeck-tools -- probe proton --runtime /path/to/runtime --default-runner
+--native-launcher target/debug/flightdeck-rust --output /path/to/new-results`;
+use `--runner /path/to/proton` instead for selection and return tests. Both use
+own synthetic programs in fresh prefixes and leave the source runtime unchanged.
+Build the launcher and the `runtime-lab` executable first, as described in
+[BUILDING.md](../BUILDING.md#synthetic-native-checks).
 
 This is experimental compatibility support. Native overlay, loader, graphics and
 profile-switch checks do not establish a complete Fenix/GSX flight or fix the
 reported NVIDIA black view. Return to Flightdeck before resetting or removing an
 environment. Diagnostics record the chosen version and loader. Maintainers can
-run `scripts/check-proton.py --fenix-bundle /path/to/patch` to verify the matching
-overlay, synthetic Store loading, rendering and add-on-preserving return without
-starting a game or signing in.
+add `--fenix-bundle /path/to/patch` to that `probe proton` command to verify the
+matching overlay, synthetic Store loading, rendering and add-on-preserving
+return without starting a game or signing in.
 
 ## Advanced: prepare a runtime from existing files
 

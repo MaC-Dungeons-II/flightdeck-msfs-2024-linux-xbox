@@ -2,13 +2,18 @@
 
 ## Unreleased
 
-- Move the checks, packaging and release steps from Python scripts to the Rust
-  maintainer tool in `tools/`. Launcher and full packages built by both
-  implementations from the same inputs are identical member for member, and
-  the distribution checks run the same tool inside their containers, so the
-  test images no longer install an interpreter. The installed launcher is not
-  affected. One check stays in Python because it drives the published Python
-  releases: `scripts/check-transition-update.py`.
+- Move the checks, packaging and release steps, the developer probes and the
+  compatibility test drivers from Python scripts to the Rust maintainer tool in
+  `tools/`. Launcher and full packages built by both implementations from the
+  same inputs are identical member for member, and the distribution checks run
+  the same tool inside their containers, so the test images no longer install
+  an interpreter. The native component build script needs no Python either.
+  The installed launcher is not affected. The probes and drivers that need a
+  GPU, a Wine runner or a display were translated and tested against stand-ins,
+  not yet run on real hardware. Python remains where it drives the published
+  Python releases (`scripts/check-transition-update.py`, and the old launcher
+  inside `probe benchmark-launchers`) and in the neural-rendering checks that
+  are still being worked on.
 
 ## 0.2.11 — 12 October 2026
 

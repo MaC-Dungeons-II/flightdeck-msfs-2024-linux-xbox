@@ -6,7 +6,7 @@ The launcher, all six desktop screens, installer, updater and runtime helpers
 use Rust. The desktop is an iced 0.14 window with a software renderer, Wayland
 and X11 support. It embeds the existing artwork, Manrope font and icons. It does
 not need Chromium, JavaScript, Node or Python. Wine/Store ABI components retain
-their C/C++ implementation. Python 3.11+ is maintainer build and test tooling.
+their C/C++ implementation. Maintainer build and test tooling is the Rust crate in `tools/`.
 
 Build with Rust/Cargo 1.98 and `woff2_decompress` (Debian/Ubuntu package `woff2`).
 Linux development packages include `libxkbcommon-dev`, `libwayland-dev`,
@@ -166,7 +166,7 @@ authenticated service response. Linux x86-64 is the tested host architecture.
 
 ## Toolchain
 
-Use Python 3.12+, Git, GNU Make, GCC/G++, a POSIX-threaded x86-64 MinGW toolchain,
+Use Git, GNU Make, GCC/G++, a POSIX-threaded x86-64 MinGW toolchain,
 Rust/Cargo 1.98+, protobuf `protoc`, pkg-config and the development packages
 required by Xodus's GTK/WebKit login and Store windows and OpenSSL. The original native
 build used MinGW GCC 16.2 and the pinned Wine source's WIDL 11.8. The builtin
@@ -239,9 +239,11 @@ Results and private setup logs stay under `build/`. No Fenix license or game is
 needed. This check takes several minutes and is separate from the synthetic CI
 suite.
 
-The hardware and C++ interchange harnesses invoke `examples/runtime-lab.rs` to
-use the actual Rust prefix, graphics, VR, Fenix and save implementations. Build
-this development-only executable before running them:
+The hardware probes of the maintainer tool (`cargo run --locked -p
+flightdeck-tools -- probe --help` lists them) and the C++ interchange harnesses
+invoke `examples/runtime-lab.rs` to use the actual Rust prefix, graphics, VR,
+Fenix and save implementations. Build this development-only executable before
+running them:
 
 ```sh
 cargo build --locked --bin flightdeck-rust --example runtime-lab
@@ -254,10 +256,10 @@ cannot use an ordinary game runtime as its test destination.
 With a separately supplied compatible Wine runner:
 
 ```sh
-python3 tests/compat/run-native.py --stage build/compat \
+cargo run --locked -p flightdeck-tools -- driver run-native --stage build/compat \
   --wine "$RUNNER/files/bin/wine"
 # Run just one family when investigating a change:
-python3 tests/compat/run-native.py --suite store --stage build/compat \
+cargo run --locked -p flightdeck-tools -- driver run-native --suite store --stage build/compat \
   --wine "$RUNNER/files/bin/wine"
 # --suite gamesave selects local storage and Rust/C++ interchange tests.
 # --suite catalog selects only the three catalog/mapper tests.
@@ -293,7 +295,7 @@ signed licenses, Microsoft-hosted checkout or in-game content availability.
 To exercise the built Wine broker transport with delayed synthetic responses:
 
 ```sh
-python3 tests/compat/ipc-timeout-test.py --stage build/compat \
+cargo run --locked -p flightdeck-tools -- driver ipc-timeout --stage build/compat \
   --wine "$RUNNER/files/bin/wine"
 ```
 
@@ -306,14 +308,14 @@ The purchase host also has browser and native Linux window checks:
 
 ```sh
 node tests/compat/purchase-ui-test.mjs build/compat
-python3 tests/compat/store-window-test.py --stage build/compat --backend x11
-python3 tests/compat/store-navigation-test.py --stage build/compat --backend x11
+cargo run --locked -p flightdeck-tools -- driver store-window --stage build/compat --backend x11
+cargo run --locked -p flightdeck-tools -- driver store-navigation --stage build/compat --backend x11
 # On a Hyprland desktop, also check the native Wayland attachment:
-python3 tests/compat/store-window-test.py --stage build/compat --backend wayland
+cargo run --locked -p flightdeck-tools -- driver store-window --stage build/compat --backend wayland
 ```
 
 The browser check requires Chromium. The window check uses the native build's
-Cargo environment, a running desktop, Pillow and ImageMagick; its Wayland
+Cargo environment, a running desktop and ImageMagick; its Wayland
 screenshot check also uses Hyprland and grim. Both use synthetic content and
 block external requests. The native check renders the production host, captures
 its window and verifies cancellation without opening a real Microsoft checkout.
@@ -329,7 +331,7 @@ the built artifacts and user-owned runner, package and Wine prefix.
 The Microsoft sign-in browser handoff has a separate native regression check:
 
 ```sh
-python3 tests/compat/login-flow-test.py --stage build/compat \
+cargo run --locked -p flightdeck-tools -- driver login-flow --stage build/compat \
   --output build/login-flow-check --backend x11
 # Use --backend wayland to check the native Wayland attachment as well.
 ```
@@ -350,12 +352,13 @@ It requires the Khronos Vulkan validation layer and compares the previous
 bundle, the corrected bundle, and controls with maintenance9 disabled. Passing
 pixel readback alone does not pass this check.
 
-With a graphical session, a working Vulkan driver, one discrete GPU and the
-MinGW toolchain, check the runner's actual DXGI/DirectX 12 adapter handoff:
+With a graphical session, a working Vulkan driver, one discrete GPU, the
+MinGW toolchain and the built `runtime-lab` executable from above, check the
+runner's actual DXGI/DirectX 12 adapter handoff:
 
 ```sh
-python3 scripts/check-graphics-adapter.py --runner "$RUNNER" \
-  --output build/graphics-adapter-check
+cargo run --locked -p flightdeck-tools -- probe graphics-adapter \
+  --runner "$RUNNER" --output build/graphics-adapter-check
 ```
 
 The output directory must be new. The check creates an isolated Wine prefix,
@@ -400,7 +403,8 @@ After building and verifying a new patch release, maintainers import its license
 and manifests with:
 
 ```sh
-python3 scripts/sync-fenix.py /absolute/path/to/fenix-a320-linux-patch
+cargo run --locked -p flightdeck-tools -- probe sync-fenix \
+  /absolute/path/to/fenix-a320-linux-patch
 cargo test --locked --test native_addons --test native_framework --test native_proton
 cargo test --locked -p flightdeck-ui fenix
 ```

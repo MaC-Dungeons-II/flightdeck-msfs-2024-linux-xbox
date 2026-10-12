@@ -135,7 +135,7 @@ window/preparation/storage meanings, including compatibility with older native
 components. URLs, email addresses, tokens, codes entered by the user and raw
 responses are not included in these messages.
 
-`tests/compat/login-flow-test.py` runs the production webview with synthetic
+`flightdeck-tools driver login-flow` runs the production webview with synthetic
 loopback pages through password, email code and final completion. It reproduces
 lost HttpOnly session cookies and duplicate callbacks on 0.1.14, checks both
 handoffs together, and verifies that response errors retain their classification.

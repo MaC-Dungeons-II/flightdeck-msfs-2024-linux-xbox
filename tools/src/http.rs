@@ -71,6 +71,9 @@ pub fn request(
         match stream.read(&mut buffer) {
             Ok(0) => break,
             Ok(count) => raw.extend_from_slice(&buffer[..count]),
+            // A read with a timeout is not restarted after a signal, and the
+            // exit of any child of this process can be one. It is no answer.
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
             // A reset after a complete early answer still leaves that answer.
             Err(_) if raw.windows(4).any(|window| window == b"\r\n\r\n") => break,
             Err(error) => return Err(failed(error)),
@@ -150,6 +153,17 @@ pub mod fixtures {
         thread::JoinHandle,
     };
 
+    /// One read. The exit of a child of some other test interrupts a timed
+    /// read now and then; that is neither an error nor the end of a request.
+    fn read(stream: &mut TcpStream, buffer: &mut [u8]) -> std::io::Result<usize> {
+        loop {
+            match stream.read(buffer) {
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+                result => return result,
+            }
+        }
+    }
+
     /// A local service that answers every request through `answer`, which
     /// receives the method, the path and the request headers.
     pub struct Service {
@@ -180,7 +194,7 @@ pub mod fixtures {
                     let mut raw = Vec::new();
                     let mut buffer = [0; 4096];
                     let (head, mut body) = loop {
-                        let Ok(count) = stream.read(&mut buffer) else {
+                        let Ok(count) = read(&mut stream, &mut buffer) else {
                             break (String::new(), Vec::new());
                         };
                         raw.extend_from_slice(&buffer[..count]);
@@ -213,7 +227,7 @@ pub mod fixtures {
                         .and_then(|values| values[0].parse::<usize>().ok())
                         .unwrap_or(0);
                     while body.len() < length {
-                        let Ok(count) = stream.read(&mut buffer) else {
+                        let Ok(count) = read(&mut stream, &mut buffer) else {
                             break;
                         };
                         if count == 0 {
