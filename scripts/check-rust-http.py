@@ -29,7 +29,9 @@ def main():
         try:
             with selectors.DefaultSelector() as selector:
                 selector.register(child.stdout, selectors.EVENT_READ)
-                assert selector.select(15), "Native service did not announce its loopback listener"
+                # An unoptimized debug binary announces after about 5 seconds on
+                # a fast machine and has exceeded 15 seconds on a CI runner.
+                assert selector.select(60), "Native service did not announce its loopback listener"
                 line = child.stdout.readline().decode()
             match = re.fullmatch(r"Flightdeck: http://127\.0\.0\.1:(\d+)\n", line)
             assert match, "Unexpected service startup output"
