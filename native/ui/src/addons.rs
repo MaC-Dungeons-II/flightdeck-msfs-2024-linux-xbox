@@ -207,6 +207,16 @@ impl App {
                             Some(Message::Navigate(Page::Overview)),
                             true,
                         ));
+                        if data["readouts"] == false {
+                            // Otherwise only reachable in the collapsed management section.
+                            let action = Fenix("configure");
+                            let message = self.request(&action).map(|_| Message::Action(action));
+                            content = content.push(self.control(
+                                "Einstellungen erneut anwenden",
+                                message,
+                                false,
+                            ));
+                        }
                     } else if data["state"] == "legacy" {
                         if yes(data, "fenix_installed") {
                             content =
@@ -254,6 +264,10 @@ impl App {
                     (
                         self.tr("Anzeigen & Autostart", "Displays & auto-start"),
                         yes(data, "configured"),
+                    ),
+                    (
+                        self.tr("Legacy-FCU-Anzeigen", "Legacy FCU readouts"),
+                        yes(data, "configured") && data["readouts"] != false,
                     ),
                 ]));
             }

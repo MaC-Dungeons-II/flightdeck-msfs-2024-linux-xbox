@@ -304,6 +304,7 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
         ] {
             state[key] = previous[key].clone();
         }
+        state["readouts"] = json!(readouts(previous));
         state["upgrade_backup"] = json!(
             backup
                 .strip_prefix(root)
@@ -371,7 +372,7 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
         if upgrade.is_none() {
             ctx.progress("Preparing fonts, graphics dependencies and Fenix settings …");
             setup::graphics_fonts(&wine)?;
-            state["configured"] = json!(setup::configure_prefix(&staged)?);
+            apply_settings(&mut state, &staged)?;
         }
         setup::geometry(&wine, &root.join("private/fenix-downloads"), payload, ctx)
     })();
@@ -529,12 +530,25 @@ pub fn configure(ctx: &Context) -> Result<()> {
             tx::copy_path(&path, &backup.join(name), None, &ctx.cancel)?;
         }
     }
-    state["configured"] = json!(setup::configure_prefix(&prefix)?);
+    apply_settings(&mut state, &prefix)?;
     files::atomic_json(&root.join(MARKER), &state)?;
     require(
         state["configured"] == true,
-        "Start Fenix once and sign in, then close it and apply settings again. CPU rendering and Legacy readouts need its initial settings files.",
+        "Start Fenix once and sign in, then close it and apply settings again. CPU rendering needs its initial settings file.",
     )
+}
+/// Records what could be written; the Legacy readouts wait for Fenix's own file.
+fn apply_settings(state: &mut Value, prefix: &Path) -> Result<()> {
+    let (displays, readouts) = setup::configure_prefix(prefix)?;
+    state["configured"] = json!(displays);
+    state["readouts"] = json!(readouts);
+    Ok(())
+}
+// Before this key existed, "configured" already required the readout setting.
+fn readouts(state: &Value) -> bool {
+    state
+        .get("readouts")
+        .map_or(state["configured"] == true, |v| v == true)
 }
 fn invocation_log(
     wine: &Wine<'_>,
@@ -855,17 +869,17 @@ pub fn snapshot(app: &Launcher) -> Value {
             value["fenix_installed"] =
                 json!(prefix.join(setup::PROGRAM).join("Fenix.exe").is_file());
             value["manager_installed"] = json!(setup::manager(&prefix).is_ok());
+            // Fenix writes this file at sign-in; persistancy.xml can follow later.
             value["settings_ready"] = json!(
                 value["fenix_installed"] == true
-                    && ["fenixConfig.xml", "persistancy.xml"]
-                        .iter()
-                        .all(|name| prefix.join(setup::CONFIG).join(name).is_file())
+                    && prefix.join(setup::CONFIG).join("fenixConfig.xml").is_file()
             );
             if files::exists(&root.join(MARKER)) {
                 let state = runtime::value(&root.join(MARKER))?;
                 value["state"] = state["state"].clone();
                 value["installed"] = json!(state["state"] == "installed");
                 value["configured"] = json!(state["configured"] == true);
+                value["readouts"] = json!(readouts(&state));
                 value["can_restore"] = json!(state["migrated"] != true);
                 value["can_retry"] = json!(retryable(&root, &state));
                 value["installed_version"] = state["version"].clone();

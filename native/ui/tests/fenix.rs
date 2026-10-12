@@ -199,3 +199,39 @@ fn current_detection_error_is_visible_before_opening_management()
     assert!(app.request(&Action::Fenix("installer")).is_none());
     Ok(())
 }
+
+#[test]
+fn pending_readouts_keep_setup_complete_and_offer_to_reapply()
+-> Result<(), Box<dyn std::error::Error>> {
+    for language in [Language::De, Language::En] {
+        let mut app = common::localized_fixture(language);
+        app.page = Page::Mods;
+        let _ = app.update(Message::Toggle(Disclosure::Fenix));
+        let text = |de: &'static str, en: &'static str| {
+            if language == Language::De { de } else { en }
+        };
+        {
+            let mut ui =
+                iced_test::Simulator::with_size(settings(), Size::new(960.0, 1400.0), app.view());
+            ui.find(text("✓ Legacy-FCU-Anzeigen", "✓ Legacy FCU readouts"))?;
+        }
+        // Fenix has not created persistancy.xml yet: displays and auto-start
+        // are in place, the readout setting follows after the first load.
+        app.snapshot.get_mut("fenix").expect("fenix")["readouts"] = json!(false);
+        let mut ui =
+            iced_test::Simulator::with_size(settings(), Size::new(960.0, 1400.0), app.view());
+        ui.find(text("Fenix lokal eingerichtet", "Fenix locally configured"))?;
+        ui.find(text("✓ Anzeigen & Autostart", "✓ Displays & auto-start"))?;
+        ui.find(text("– Legacy-FCU-Anzeigen", "– Legacy FCU readouts"))?;
+        ui.find(text(
+            "Anzeigen und Autostart sind eingerichtet. Fenix hat die Datei für die Legacy-FCU-Anzeigen noch nicht angelegt: Lade das Flugzeug einmal im Simulator, beende MSFS und wähle danach „Einstellungen erneut anwenden“.",
+            "Displays and auto-start are set up. Fenix has not created the file for the Legacy FCU readouts yet: load the aircraft once in the simulator, quit MSFS, then choose “Reapply settings”.",
+        ))?;
+        ui.click(text("Einstellungen erneut anwenden", "Reapply settings"))?;
+        assert!(matches!(
+            ui.into_messages().next(),
+            Some(Message::Action(Action::Fenix("configure")))
+        ));
+    }
+    Ok(())
+}

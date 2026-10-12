@@ -281,9 +281,11 @@ pub fn user_folders(prefix: &Path) -> Result<Vec<PathBuf>> {
     }
     Ok(found)
 }
-pub fn configure_prefix(prefix: &Path) -> Result<bool> {
+/// Whether the display settings with auto-start, and the Legacy readouts, could
+/// be written. Fenix can create persistancy.xml later than fenixConfig.xml.
+pub fn configure_prefix(prefix: &Path) -> Result<(bool, bool)> {
     if !prefix.join(PROGRAM).join("Fenix.exe").is_file() {
-        return Ok(false);
+        return Ok((false, false));
     }
     let settings = bundle::contained(prefix, &format!("{CONFIG}/fenixConfig.xml"))?;
     let persisted = bundle::contained(prefix, &format!("{CONFIG}/persistancy.xml"))?;
@@ -372,7 +374,7 @@ pub fn configure_prefix(prefix: &Path) -> Result<bool> {
         entry.set(key, value);
     }
     files::atomic(&path, &root.bytes()?)?;
-    Ok(ready && legacy)
+    Ok((ready, ready && legacy))
 }
 pub fn manager(prefix: &Path) -> Result<PathBuf> {
     let mut candidates = Vec::new();

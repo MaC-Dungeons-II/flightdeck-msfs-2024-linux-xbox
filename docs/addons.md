@@ -164,6 +164,8 @@ then close MSFS and all Fenix applications before setup.
    or use **Stop Fenix** in Flightdeck.
 4. Choose **Finish setup** to configure CPU displays, Legacy readouts and autostart.
    Once local setup is complete, return to the overview and start MSFS normally.
+   If Fenix has not created its readout settings yet, the panel says so: load the
+   aircraft once in the simulator, quit MSFS and choose **Reapply settings**.
 
 **Fenix locally configured** confirms Flightdeck's settings only. It does not confirm
 your Fenix license, activation or functioning cockpit. Fenix checks sign-in and

@@ -170,6 +170,9 @@ MSFS und alle Fenix-Anwendungen.
 4. **Einrichtung abschließen** setzt CPU-Anzeigen, Legacy-Readouts und Autostart.
    Sobald die lokale Einrichtung abgeschlossen ist, zur Übersicht wechseln und
    MSFS ganz normal starten.
+   Hat Fenix seine Readout-Einstellungen noch nicht angelegt, weist das Panel
+   darauf hin: Flugzeug einmal im Simulator laden, MSFS beenden und
+   **Einstellungen erneut anwenden** wählen.
 
 **Fenix lokal eingerichtet** bestätigt nur Flightdecks Einstellungen.
 Sie bestätigt weder deine Fenix-Lizenz und Aktivierung noch ein funktionierendes

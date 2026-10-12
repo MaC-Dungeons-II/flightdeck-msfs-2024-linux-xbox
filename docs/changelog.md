@@ -9,6 +9,13 @@
   this mainly affected the patch's Steam installation. Every other overlay file
   is identical to preview.5, and verified preview.5 installations update
   without reinstalling Fenix.
+- Let **Finish setup** for Fenix proceed once `fenixConfig.xml` exists. It
+  required `persistancy.xml` as well; a user of the patch's Steam installation
+  reported that Fenix creates that file only when the aircraft is first loaded,
+  which would leave the setup waiting at sign-in. CPU displays and auto-start
+  are now applied without it, and the panel asks to reapply the settings after
+  the first load for the Legacy FCU readouts. Not reproduced in Flightdeck;
+  installations that already have both files behave as before.
 
 ## 0.2.10 — 12 October 2026
 
