@@ -196,7 +196,21 @@ pub fn output_status(
     }
     result
 }
+/// A log that several runs append to starts anew beyond this size. The one
+/// before it is kept once, as `<name>.1`.
+pub const LOG_MAXIMUM: u64 = 8 * 1024 * 1024;
 pub fn log(path: &Path) -> Result<File> {
+    if std::fs::symlink_metadata(path).is_ok_and(|info| {
+        info.is_file()
+            && info.uid() == crate::files::uid()
+            && info.nlink() == 1
+            && info.len() > LOG_MAXIMUM
+    }) {
+        let mut previous = path.as_os_str().to_owned();
+        previous.push(".1");
+        // A log that cannot be set aside is appended to as before.
+        let _ = std::fs::rename(path, previous);
+    }
     let file = OpenOptions::new()
         .create(true)
         .append(true)

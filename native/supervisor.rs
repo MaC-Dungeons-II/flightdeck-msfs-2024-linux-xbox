@@ -393,6 +393,9 @@ pub fn run(root: &Path, lease: Option<i32>) -> Result<u8> {
             && game_dir.join(".xodus-streaming.msixvc").is_file(),
         "The configured game package is incomplete.",
     )?;
+    // Older sessions make room first. A log that cannot be removed safely is
+    // no reason to refuse the start.
+    let _ = crate::run_logs::prune(&root.join("private"), crate::run_logs::KEPT);
     let run = tx::new_directory(
         &root.join("private"),
         &format!("run-{}-", chrono::Utc::now().format("%Y%m%d-%H%M%S")),
@@ -402,18 +405,23 @@ pub fn run(root: &Path, lease: Option<i32>) -> Result<u8> {
         service: None,
         game: None,
     };
+    let mut logs = Vec::new();
     executor.block_on(async{
         let service_ready=prepare_service_socket(&root,&socket_dir,&_lease)?;
         if let Some(code)=pending_stop(&mut term,&mut interrupt).await{return Ok(code);}
-        if !service_ready{let log=process::log(&run.join("service.log"))?;let mut command=Command::new(root.join("bin/xodus-service"));command.env_clear().envs(&env).env("XDG_RUNTIME_DIR",&socket_dir).stdin(Stdio::null()).stdout(log.try_clone()?).stderr(log).process_group(0);session.service=Some(process::spawn(&mut command,None)?);
+        if !service_ready{let log=process::log(&run.join("service.log"))?;let mut command=Command::new(root.join("bin/xodus-service"));command.env_clear().envs(&env).env("XDG_RUNTIME_DIR",&socket_dir).stdin(Stdio::null()).stdout(log.try_clone()?).stderr(log.try_clone()?).process_group(0);session.service=Some(process::spawn(&mut command,None)?);logs.push(crate::run_logs::Bounded::new(&log,crate::run_logs::LIMIT)?);
             let end=Instant::now()+Duration::from_secs(60);loop{if socket_ready(&socket_dir.join("xodus.sock")){break;}require(Instant::now()<end&&session.service.as_mut().is_some_and(|v|v.try_wait().is_ok_and(|v|v.is_none())),"Xodus service did not start. See the private service log.")?;tokio::select!{_ = term.recv()=>return Ok(143),_ = interrupt.recv()=>return Ok(130),_ = tokio::time::sleep(Duration::from_millis(200))=>{}}}
         }
         if let Some(code)=pending_stop(&mut term,&mut interrupt).await{return Ok(code);}
         // The self-contained native launcher acts as the Xodus exec target. Its
         // executable-name dispatch supplies the runtime without a shell script.
         let helper=run.join("xodus-wine-launch");std::os::unix::fs::symlink(std::env::current_exe()?,&helper)?;
-        let log=process::log(&run.join("game.log"))?;let mut command=Command::new(root.join("bin/xodus-cli"));command.arg("run").arg(&game_dir).arg(&helper).args(["--exe",game.executable(),"--market",env.get("XODUS_STORE_MARKET").ok_or(Error::Invalid("Invalid Store market."))?]).env_clear().envs(&env).env("FLIGHTDECK_HELPER_RUNTIME",&root).current_dir(&game_dir).stdin(Stdio::null()).stdout(log.try_clone()?).stderr(log).process_group(0);session.game=Some(process::spawn(&mut command,None)?);
-        println!("Starting MSFS. Private logs: {}",run.display());let status=loop{let game=session.game.as_mut().ok_or(Error::Invalid("Missing game process."))?;if let Some(status)=game.try_wait()?{break status;}let stop=tokio::select!{_ = term.recv()=>true,_ = interrupt.recv()=>true,_ = tokio::time::sleep(Duration::from_millis(50))=>false};if stop{stop_group(game)?;break game.wait()?;}};
+        let log=process::log(&run.join("game.log"))?;let mut command=Command::new(root.join("bin/xodus-cli"));command.arg("run").arg(&game_dir).arg(&helper).args(["--exe",game.executable(),"--market",env.get("XODUS_STORE_MARKET").ok_or(Error::Invalid("Invalid Store market."))?]).env_clear().envs(&env).env("FLIGHTDECK_HELPER_RUNTIME",&root).current_dir(&game_dir).stdin(Stdio::null()).stdout(log.try_clone()?).stderr(log.try_clone()?).process_group(0);session.game=Some(process::spawn(&mut command,None)?);logs.push(crate::run_logs::Bounded::new(&log,crate::run_logs::LIMIT)?);let mut checked=Instant::now();
+        println!("Starting MSFS. Private logs: {}",run.display());let status=loop{let game=session.game.as_mut().ok_or(Error::Invalid("Missing game process."))?;if let Some(status)=game.try_wait()?{break status;}
+            // The game and the service keep their logs open. What they write
+            // beyond the kept start and end is given back every few seconds.
+            if checked.elapsed()>=Duration::from_secs(10){checked=Instant::now();for log in &mut logs{log.enforce();}}
+            let stop=tokio::select!{_ = term.recv()=>true,_ = interrupt.recv()=>true,_ = tokio::time::sleep(Duration::from_millis(50))=>false};if stop{stop_group(game)?;break game.wait()?;}};
         let code=status.code().unwrap_or_else(||128+status.signal().unwrap_or(1));println!("MSFS process ended with status {code}. Log: {}/game.log",run.display());Ok(code.clamp(0,255) as u8)
     })
 }

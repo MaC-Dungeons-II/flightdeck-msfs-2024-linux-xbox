@@ -826,6 +826,84 @@ fn cloud_prefix_reuses_only_clean_profile_and_retains_dirty_same_boot_copy() {
     assert!(cached_path.join("prefix/system.reg").is_file());
 }
 #[test]
+fn cloud_prefixes_of_other_bindings_are_removed_once_nothing_uses_them() {
+    use flightdeck::cloud_prefix::Prefix;
+    let root = runtime();
+    let libraries: BTreeMap<String, Vec<u8>> = [
+        ("xgameruntime.dll".into(), b"one".to_vec()),
+        ("xgameruntime_original.dll".into(), b"two".to_vec()),
+        ("xodus_store_test.dll".into(), b"three".to_vec()),
+    ]
+    .into();
+    // A helper run that prepared its prefix, as Wine would, and ended cleanly.
+    let prepare = |binding: &str| {
+        let prefix = Prefix::new(root.path(), binding, libraries.clone()).expect("prefix");
+        for name in ["drive_c/windows/system32", "dosdevices"] {
+            fs::create_dir_all(prefix.path().join(name)).expect("wine dirs");
+        }
+        for name in ["system.reg", "user.reg", "userdef.reg"] {
+            files::atomic(&prefix.path().join(name), b"WINE REGISTRY Version 2\n")
+                .expect("registry");
+        }
+        symlink("../drive_c", prefix.path().join("dosdevices/c:")).expect("c drive");
+        symlink("/", prefix.path().join("dosdevices/z:")).expect("z drive");
+        prefix.install_libraries().expect("dlls");
+        prefix
+    };
+    let cache = root.path().join("private/cloud-helper-prefixes");
+    let [first, crashed, held, current] = ["a", "b", "c", "d"].map(|letter| letter.repeat(64));
+    let mut prefix = prepare(&first);
+    prefix.complete();
+    drop(prefix);
+    // This one never completed: its Wine server may still run since this boot.
+    drop(prepare(&crashed));
+    assert!(
+        cache.join(&first).is_dir(),
+        "only a completed run removes anything"
+    );
+    let mut prefix = prepare(&held);
+    prefix.complete();
+    drop(prefix);
+    assert!(
+        !cache.join(&first).exists(),
+        "an idle prefix of another binding"
+    );
+    assert!(cache.join(&crashed).join("prefix/system.reg").is_file());
+    // Another process still holds this one.
+    let holder = fs::File::open(cache.join(&held).join("use.lock")).expect("lock");
+    rustix::fs::flock(&holder, rustix::fs::FlockOperation::LockExclusive).expect("held");
+    // Whatever else lies there is not a prefix of ours.
+    fs::create_dir(cache.join("notes")).expect("foreign");
+    fs::write(cache.join("notes/kept"), "kept").expect("foreign");
+    let outside = root.path().join("outside");
+    fs::write(&outside, "kept").expect("outside");
+
+    let mut prefix = prepare(&current);
+    prefix.complete();
+    drop(prefix);
+    assert!(cache.join(&crashed).join("prefix/system.reg").is_file());
+    assert!(cache.join(&held).join("prefix/system.reg").is_file());
+    assert!(cache.join(&current).join("prefix/system.reg").is_file());
+    assert_eq!(
+        fs::read(cache.join("notes/kept")).expect("foreign"),
+        b"kept"
+    );
+    // A prefix's drive Z: links to the whole file system. It is unlinked,
+    // never followed.
+    assert_eq!(fs::read(&outside).expect("outside"), b"kept");
+    assert!(std::path::Path::new("/usr").is_dir());
+    // Once released, the held prefix goes with the next completed run. The
+    // current one is reused as before.
+    drop(holder);
+    let mut prefix = Prefix::new(root.path(), &current, libraries.clone()).expect("reuse");
+    assert!(prefix.reusable);
+    prefix.complete();
+    drop(prefix);
+    assert!(!cache.join(&held).exists());
+    assert!(cache.join(&crashed).is_dir());
+    assert!(cache.join(&current).join("prefix/system.reg").is_file());
+}
+#[test]
 fn native_title_binding_rejects_duplicate_title_ids_and_decodes_utf16() {
     let root = runtime();
     let path = root.path().join("games/MSFS2024");

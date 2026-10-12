@@ -160,7 +160,7 @@ heruntergeladene Cloud-Kopien ersetzen diese Nachweise nicht.
 | --- | --- |
 | `private/cloud-saves/` | Getrennte Cloud-Kopien, auch vom Stand vor einem Upload |
 | `private/cloud-cache/` | Profilgebundene Verweise auf geprüfte Kopien für schnellere Starts |
-| `private/cloud-helper-prefixes/` | Separate, versionsgebundene Wine-Umgebung des Cloud-Hilfsprozesses |
+| `private/cloud-helper-prefixes/` | Separate, versionsgebundene Wine-Umgebung des Cloud-Hilfsprozesses; die früherer Versionen werden nach einem abgeschlossenen Lauf entfernt |
 | `private/cloud-import-backups/` | Lokale Spielstände vor Übernahme und Rücknahme |
 | `private/cloud-import-receipts/` | Nachweise für geprüfte abgeschlossene Übertragungen |
 | `private/local-saves/` | Aktive lokale Spielstände und Vergleichsstand |

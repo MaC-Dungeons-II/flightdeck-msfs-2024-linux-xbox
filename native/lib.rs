@@ -66,6 +66,7 @@ pub mod progress;
 pub mod proton;
 pub mod resources;
 pub mod run_diagnostics;
+pub mod run_logs;
 pub mod runtime;
 pub mod save_state;
 pub mod server;

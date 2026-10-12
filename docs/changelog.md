@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Bound what Flightdeck leaves on disk. Session logs are kept for the newest
+  ten sessions besides the current one; until now every session's directory
+  stayed, and a single `game.log` reached 162 MiB. A log that a running game
+  keeps filling keeps its first and newest 16 MiB and gives the middle back to
+  the file system. Logs that runs append to start anew beyond 8 MiB. The cloud
+  helper's Wine prefix, about 630 MiB, exists once per combination of runner
+  and components, and the ones of earlier versions were never removed; they
+  are now removed after a completed cloud run, unless a process still uses one
+  or one was left in use since the last boot. Save backups, cloud snapshots
+  and import backups are not limited by this change.
 - Move the checks, packaging and release steps, the developer probes and the
   compatibility test drivers from Python scripts to the Rust maintainer tool in
   `tools/`. Launcher and full packages built by both implementations from the

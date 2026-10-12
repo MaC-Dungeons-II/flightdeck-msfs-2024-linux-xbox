@@ -64,6 +64,13 @@ flightdeck diagnose-run --runtime /path/to/runtime --output flightdeck-session.j
 flightdeck diagnose-run --run /path/to/private/run-YYYYMMDD-HHMMSS-XXXXXX --output flightdeck-session.json
 ```
 
+Flightdeck keeps the logs of the newest ten sessions besides the current one
+and removes older ones at the next start. While a session runs, a log keeps
+its first 16 MiB and its newest 16 MiB on disk. What lies between is released
+once it exceeds another 16 MiB: the file keeps its length and reads as zero
+bytes there. Logs that several runs append to, such as `launcher.log`, start
+anew beyond 8 MiB; the one before is kept as `<name>.1`.
+
 Use a new output filename. Send the JSON, the exact visible symptom and whether
 it occurred before entering Marketplace, on opening it, or during a purchase.
 For NVIDIA, distinguish a black 3D scene with working menus from a stalled

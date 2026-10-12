@@ -67,6 +67,14 @@ fn command(root: &Path, base: &Path) -> Command {
 fn native_supervisor_owns_service_and_game_but_never_lends_them_the_lease() {
     let temp = tempfile::tempdir().unwrap();
     let root = fixture(temp.path());
+    // Earlier sessions left their logs; a start keeps the newest ten of them.
+    let earlier: Vec<PathBuf> = (10..23)
+        .map(|second| root.join(format!("private/run-20260101-0000{second}-Old{second}")))
+        .collect();
+    for run in &earlier {
+        files::private_dir(run).unwrap();
+        files::atomic(&run.join("game.log"), b"an earlier session").unwrap();
+    }
     let lease = files::Lease::acquire(&root.join("private/play.lock"), true).unwrap();
     let mut c = command(&root, temp.path());
     c.arg("--lock-fd").arg(lease.0.as_raw_fd().to_string());
@@ -76,6 +84,17 @@ fn native_supervisor_owns_service_and_game_but_never_lends_them_the_lease() {
     assert_eq!(status.code(), Some(7));
     assert!(root.join("private/service-stopped").exists());
     assert!(root.join("private/game-started").exists());
+    for (index, run) in earlier.iter().enumerate() {
+        assert_eq!(run.exists(), index >= 3, "{}", run.display());
+    }
+    let sessions = fs::read_dir(root.join("private"))
+        .unwrap()
+        .filter(|entry| {
+            let name = entry.as_ref().unwrap().file_name();
+            name.to_string_lossy().starts_with("run-")
+        })
+        .count();
+    assert_eq!(sessions, 11, "ten earlier sessions and this one");
     assert!(files::Lease::acquire(&root.join("private/play.lock"), false).is_err());
     drop(lease);
     files::Lease::acquire(&root.join("private/play.lock"), false).unwrap();

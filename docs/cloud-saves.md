@@ -135,7 +135,7 @@ All local copies remain in the selected runtime:
 | --- | --- |
 | `private/cloud-saves/` | Separate cloud snapshots, including the cloud state before an upload |
 | `private/cloud-cache/` | Profile-bound references to verified snapshots for faster starts |
-| `private/cloud-helper-prefixes/` | Separate version-bound Wine environment for the cloud helper |
+| `private/cloud-helper-prefixes/` | Separate version-bound Wine environment for the cloud helper; those of earlier versions are removed after a completed run |
 | `private/cloud-import-backups/` | Local saves before imports and undo operations |
 | `private/cloud-import-receipts/` | Records used to validate previous completed transfers |
 | `private/local-saves/` | Active local saves and their comparison baseline |
