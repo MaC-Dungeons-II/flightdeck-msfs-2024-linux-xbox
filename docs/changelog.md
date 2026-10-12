@@ -11,6 +11,13 @@
   @gut-engel on nvidia-open 615 with KDE Plasma Wayland. The other two windows
   use the same webview and setting but are not yet confirmed on an affected
   system.
+- Repaint the whole window after a change. Scrolled panels such as
+  **What's new?** showed stale or overlapping text when the pointer moved over
+  them, because the software renderer repainted text regions without their
+  scroll offset. In a local measurement of a 1280×900 window, one complete
+  repaint took about 6 ms instead of 40–90 ms for the region-wise repaint.
+- Keep hard-wrapped list items in release notes together. Continuation lines of
+  a list item were shown as separate paragraphs.
 
 ## 0.2.9 — 12 October 2026
 

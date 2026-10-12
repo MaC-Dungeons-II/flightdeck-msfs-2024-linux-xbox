@@ -66,17 +66,15 @@ fn parse(notes: &str) -> (Vec<Block>, bool) {
     const LIMIT: usize = 160;
     let clipped: String = notes.chars().take(12000).collect();
     let mut blocks = Vec::new();
-    let mut paragraph = String::new();
+    // A paragraph or list item stays open until a blank line or the next
+    // block, so hard-wrapped continuation lines remain part of it.
+    let mut paragraph = None::<(Kind, String)>;
     let mut code = None::<String>;
     let mut truncated = notes.chars().count() > 12000;
-    let flush = |text: &mut String, blocks: &mut Vec<Block>| {
-        if !text.is_empty() {
-            let (text, links) = inline(&std::mem::take(text));
-            blocks.push(Block {
-                kind: Kind::Paragraph,
-                text,
-                links,
-            });
+    let flush = |open: &mut Option<(Kind, String)>, blocks: &mut Vec<Block>| {
+        if let Some((kind, text)) = open.take() {
+            let (text, links) = inline(&text);
+            blocks.push(Block { kind, text, links });
         }
     };
     for line in clipped.lines() {
@@ -132,15 +130,24 @@ fn parse(notes: &str) -> (Vec<Block>, bool) {
         } else {
             None
         };
-        if let Some((kind, text)) = kind_and_text {
-            flush(&mut paragraph, &mut blocks);
-            let (text, links) = inline(text);
-            blocks.push(Block { kind, text, links });
-        } else {
-            if !paragraph.is_empty() {
-                paragraph.push(' ');
+        let line = trimmed.strip_prefix("> ").unwrap_or(trimmed);
+        match kind_and_text {
+            Some((kind @ Kind::Bullet(_), text)) => {
+                flush(&mut paragraph, &mut blocks);
+                paragraph = Some((kind, text.to_string()));
             }
-            paragraph.push_str(trimmed.strip_prefix("> ").unwrap_or(trimmed));
+            Some((kind, text)) => {
+                flush(&mut paragraph, &mut blocks);
+                let (text, links) = inline(text);
+                blocks.push(Block { kind, text, links });
+            }
+            None => match paragraph.as_mut() {
+                Some((_, text)) => {
+                    text.push(' ');
+                    text.push_str(line);
+                }
+                None => paragraph = Some((Kind::Paragraph, line.to_string())),
+            },
         }
     }
     flush(&mut paragraph, &mut blocks);
@@ -271,6 +278,27 @@ mod tests {
         ] {
             assert!(safe_url(url).is_none(), "{url}");
         }
+    }
+
+    #[test]
+    fn hard_wrapped_list_items_stay_one_block() {
+        let (blocks, _) = parse(
+            "Intro line\ncontinued.\n\n- First item starts\n  and **continues** here.\n- Second item\n1. Numbered item\n   wraps too.\n\nClosing paragraph.",
+        );
+        let text: Vec<_> = blocks.iter().map(|block| block.text.as_str()).collect();
+        assert_eq!(
+            text,
+            [
+                "Intro line continued.",
+                "First item starts and continues here.",
+                "Second item",
+                "Numbered item wraps too.",
+                "Closing paragraph."
+            ]
+        );
+        assert_eq!(blocks[1].kind, Kind::Bullet("•".into()));
+        assert_eq!(blocks[3].kind, Kind::Bullet("1.".into()));
+        assert_eq!(blocks[4].kind, Kind::Paragraph);
     }
 
     #[test]

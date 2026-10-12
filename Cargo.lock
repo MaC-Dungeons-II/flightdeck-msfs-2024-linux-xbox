@@ -909,11 +909,14 @@ name = "flightdeck-ui"
 version = "0.2.9"
 dependencies = [
  "iced",
+ "iced_runtime",
  "iced_test",
+ "iced_tiny_skia",
  "image",
  "reqwest",
  "serde_json",
  "tempfile",
+ "tiny-skia",
  "tokio",
 ]
 
