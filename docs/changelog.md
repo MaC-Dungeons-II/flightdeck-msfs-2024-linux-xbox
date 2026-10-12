@@ -1,6 +1,9 @@
 # Changes and release status
 
-## Unreleased
+## 0.2.11 — 12 October 2026
+
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.10 launchers can use the in-app updater.
 
 - Use Fenix patch **0.1.0-preview.6**. Its patched `ntdll.so` no longer needs
   the host library `libunwind.so.8`, which the patch build had linked by

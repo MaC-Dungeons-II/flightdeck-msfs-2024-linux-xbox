@@ -2,8 +2,8 @@
 
 [Deutsch](known-issues.de.md) · [Documentation](index.md)
 
-Status: 12 October 2026, covering the stable **0.2.10** release.
-See the [release changes](changelog.md#0210--12-october-2026).
+Status: 12 October 2026, covering the stable **0.2.11** release.
+See the [release changes](changelog.md#0211--12-october-2026).
 
 - **NVIDIA:** Normal MSFS 2024 rendering is confirmed by user testing. Smaller
   issues remain possible, including a missing or black startup video. This does

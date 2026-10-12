@@ -20,20 +20,19 @@ of MSFS 2024 or 2020** through Wine/Proton. Sign in with your Microsoft account,
 download the licensed game and start it from the native Rust desktop application.
 Windows, the Xbox app and a previous MSFS installation are not required.
 
-**Current stable release: [Flightdeck 0.2.10](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.10).**
+**Current stable release: [Flightdeck 0.2.11](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.11).**
 The launcher, installer and updater need no Python.
 
-**New in 0.2.10:** On systems with an NVIDIA GPU, the Microsoft sign-in window
-no longer closes right after opening with a Wayland protocol error. The in-game
-Store purchase window and the Store window check use the same setting. Scrolled
-panels such as the release notes no longer show stale text under the pointer.
-See the [changelog](docs/changelog.md) and
-[sign-in and Store recovery](docs/store-session-refresh.md).
+**New in 0.2.11:** The Fenix patch moves to 0.1.0-preview.6, whose Wine module
+no longer depends on a host library that some systems lack. **Finish setup**
+for Fenix no longer waits for a settings file that Fenix may create only after
+the aircraft has been loaded once.
+See the [changelog](docs/changelog.md) and [add-on guide](docs/addons.md).
 
 ## Get started
 
 1. Download **Flightdeck-Linux-x86_64.tar.gz** from the
-   [0.2.10 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.10),
+   [0.2.11 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.11),
    extract it and open **Install Flightdeck.desktop**. Your file manager may ask
    you to trust this local launcher. Alternatively, run `./install.sh` there.
 2. Choose **Install MSFS**, select 2024 or 2020 and a destination, then

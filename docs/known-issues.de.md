@@ -2,8 +2,8 @@
 
 [English](known-issues.md) · [Dokumentation](index.md)
 
-Stand: 12. Oktober 2026, für die stabile Version **0.2.10**.
-Siehe [Änderungsübersicht](changelog.md#0210--12-october-2026).
+Stand: 12. Oktober 2026, für die stabile Version **0.2.11**.
+Siehe [Änderungsübersicht](changelog.md#0211--12-october-2026).
 
 - **NVIDIA:** Die normale MSFS-2024-Darstellung ist durch Nutzertests bestätigt.
   Kleinere Probleme bleiben möglich, etwa ein fehlendes oder schwarzes Startvideo.
