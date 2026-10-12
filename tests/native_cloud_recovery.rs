@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MIT
+#[path = "fixtures/programs.rs"]
+mod programs;
 use flightdeck::{cloud_process_guard as guard, files};
 use std::{
     fs,
@@ -173,8 +175,13 @@ fn interrupted_session_recovers_only_after_writers_exit_and_backup_is_durable() 
     guard::clear(root, &lease.0).expect("a missing prefix is not this runtime");
     guard::mark(root, &lease.0).expect("next session fence");
     let ready = root.join("protected.ready");
-    let mut writer = Process(Command::new("python3").args(["-c", "import ctypes,pathlib,sys,time; assert ctypes.CDLL(None).prctl(4,0)==0; pathlib.Path(sys.argv[1]).touch(); time.sleep(30)"])
-        .arg(&ready).env("FLIGHTDECK_HELPER_RUNTIME", root).spawn().expect("protected writer"));
+    let mut writer = Process(
+        programs::peer("undumpable")
+            .arg(&ready)
+            .env("FLIGHTDECK_HELPER_RUNTIME", root)
+            .spawn()
+            .expect("protected writer"),
+    );
     let deadline = Instant::now() + Duration::from_secs(5);
     while !ready.exists() {
         assert!(Instant::now() < deadline);
@@ -187,7 +194,7 @@ fn interrupted_session_recovers_only_after_writers_exit_and_backup_is_durable() 
     assert_eq!(blocking["pid"], writer.0.id());
     assert_eq!(blocking["identified"], false);
     assert_eq!(blocking["unkillable"], false);
-    assert_eq!(blocking["name"], "python3");
+    assert_eq!(blocking["name"], "test-programs");
     assert!(
         writer.0.try_wait().expect("reap").is_none(),
         "protected process must survive"

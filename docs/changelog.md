@@ -10,10 +10,19 @@
   an interpreter. The native component build script needs no Python either.
   The installed launcher is not affected. The probes and drivers that need a
   GPU, a Wine runner or a display were translated and tested against stand-ins,
-  not yet run on real hardware. Python remains where it drives the published
-  Python releases (`scripts/check-transition-update.py`, and the old launcher
-  inside `probe benchmark-launchers`) and in the neural-rendering checks that
-  are still being worked on.
+  not yet run on real hardware.
+- Replace the last Python scripts and the Python stand-ins inside the Rust
+  tests. The rendering check is `probe graphics-rendering`; the loader test and
+  the test peers (a stand-in Xodus service, Wine, cloud helper and others) are
+  Rust, in `tests/native_loader.rs` and `examples/test-programs.rs`; the whole
+  test suite passes with no interpreter available. The transition check is
+  `probe transition-update`. It gives the same result as the script for a
+  0.2.3 candidate. For candidates from 0.2.8 on the script could no longer
+  pass: those launchers end without a session before they start their
+  service, so the check now starts the installed service itself. An
+  interpreter is needed only where a Python release is the subject: the
+  transition check, `probe benchmark-launchers` and a rollback to a retained
+  0.1.x release.
 
 ## 0.2.11 — 12 October 2026
 

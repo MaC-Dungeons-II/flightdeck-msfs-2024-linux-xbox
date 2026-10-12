@@ -40,6 +40,8 @@ uuid = { version = "1.26.0", features = ["v4"] }
 
 [dev-dependencies]
 tempfile = "3.27.0"
+# Test peers bind sockets that never listen.
+rustix = { version = "1.1.4", features = ["net"] }
 
 [profile.release]
 lto = "thin"

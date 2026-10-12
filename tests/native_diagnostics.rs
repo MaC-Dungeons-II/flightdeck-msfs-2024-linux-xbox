@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 //! Synthetic diagnostics and owned helper processes; no accounts or game.
 #![allow(clippy::unwrap_used)]
+#[path = "fixtures/programs.rs"]
+mod programs;
 use flightdeck::{
     backend::Launcher, files, graphics_diagnostics as gd, log_reader, run_diagnostics, store_check,
     store_diagnostics,
@@ -213,10 +215,10 @@ fn store_events_reject_extra_fields_duplicate_keys_and_terminal_changes() {
 fn store_protocol_uses_runtime_account_and_rejects_private_output() {
     let t = tempfile::tempdir().unwrap();
     let ctx = context(t.path());
-    let body = "import os,sys;assert os.environ['XDG_DATA_HOME']==os.getcwd()+'/private/xdg/data';assert 'FLIGHTDECK_STORE_LAUNCH' not in os.environ;assert sys.stdin.buffer.read()==b'{}';print('{\"stage\":\"account\",\"state\":\"passed\",\"code\":\"local_session\"}',flush=True)";
+    let body = r#"[ "$XDG_DATA_HOME" = "$(pwd -P)/private/xdg/data" ] && [ -z "${FLIGHTDECK_STORE_LAUNCH+set}" ] && [ "$(cat)" = '{}' ] && echo '{"stage":"account","state":"passed","code":"local_session"}'"#;
     let code = store_check::check_process(
         &ctx,
-        Command::new("python3")
+        Command::new("sh")
             .args(["-c", body])
             .env("FLIGHTDECK_STORE_LAUNCH", "private-token"),
         b"{}",
@@ -231,7 +233,7 @@ fn store_protocol_uses_runtime_account_and_rejects_private_output() {
     );
     let code = store_check::check_process(
         &ctx,
-        Command::new("python3").args(["-c", "print('private-token')"]),
+        Command::new("sh").args(["-c", "echo private-token"]),
         b"",
         &["account"],
         Duration::from_secs(3),
@@ -248,11 +250,10 @@ fn store_protocol_uses_runtime_account_and_rejects_private_output() {
 fn store_timeout_cleans_up_descendants_even_after_leader_exit() {
     let t = tempfile::tempdir().unwrap();
     let ctx = context(t.path());
-    let body = "import os,signal,time\nif os.fork()==0:\n def done(*_):\n  open('private/stopped','w').write('yes');os._exit(0)\n signal.signal(signal.SIGTERM,done)\n open('private/ready','w').write('yes')\n while True:time.sleep(.02)\nelse:\n while not os.path.exists('private/ready'):time.sleep(.01)\n os._exit(0)\n";
     assert_eq!(
         store_check::check_process(
             &ctx,
-            Command::new("python3").args(["-c", body]),
+            &mut programs::peer("leader"),
             b"",
             &["account"],
             Duration::from_millis(400)
@@ -279,15 +280,13 @@ fn stale_store_recovery_never_overwrites_previous_job_or_reserves_runtime() {
 fn legacy_support_drafts_preserve_order_unicode_float_hashes_and_reject_tampering() {
     let t = tempfile::tempdir().unwrap();
     let path = t.path().join("problem-report.json");
-    let code = "import json,hashlib,sys,os\nr={'schema':1,'id':'a'*32,'created_at':'2026-10-03T12:00:00+00:00','category':'graphics','description':'Menü läd nicht 😕','observations':['menus_visible'],'system':{},'diagnostics':{'floats':[1.0,0.000001,1e-5,1e-4,1e16,1e20,-0.0],'summary':{}}}\ndef encoded(v):return (json.dumps(v,ensure_ascii=False,indent=2)+'\\n').encode()\nd={'report':r,'sha256':hashlib.sha256(encoded(r)).hexdigest()}\nwith open(sys.argv[1],'wb') as f:f.write(encoded(d))\nos.chmod(sys.argv[1],0o600)\n";
-    assert!(
-        Command::new("python3")
-            .args(["-c", code])
-            .arg(&path)
-            .status()
-            .unwrap()
-            .success()
-    );
+    // A draft exactly as the Python releases wrote it, with their float
+    // spellings and the hash over their encoding of the report.
+    files::atomic(
+        &path,
+        include_bytes!("fixtures/legacy-python/problem-report-draft.json"),
+    )
+    .unwrap();
     let mut draft = flightdeck::problem_reports::read(&path).unwrap().unwrap();
     assert_eq!(draft["report"]["description"], "Menü läd nicht 😕");
     draft["report"]["description"] = json!("changed contents");

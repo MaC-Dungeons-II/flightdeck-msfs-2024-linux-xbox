@@ -339,8 +339,16 @@ pub fn first_line(child: &mut Child, seconds: u64, missing: &str) -> Result<Stri
 }
 
 pub fn interrupt(child: &Child) {
+    signal(child, rustix::process::Signal::INT);
+}
+
+pub fn terminate(child: &Child) {
+    signal(child, rustix::process::Signal::TERM);
+}
+
+fn signal(child: &Child, signal: rustix::process::Signal) {
     if let Some(pid) = rustix::process::Pid::from_raw(child.id() as i32) {
-        let _ = rustix::process::kill_process(pid, rustix::process::Signal::INT);
+        let _ = rustix::process::kill_process(pid, signal);
     }
 }
 

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 //! Exercise prefix-scoped cleanup with disposable processes, without launching Wine.
 #![allow(clippy::unwrap_used)]
+#[path = "fixtures/programs.rs"]
+mod programs;
 use flightdeck::wine_processes;
 use std::{
     fs,
     os::unix::process::CommandExt,
     path::Path,
-    process::{Child, Command, Stdio},
+    process::{Child, Stdio},
     time::{Duration, Instant},
 };
 
@@ -15,15 +17,8 @@ impl Fixture {
     fn start(prefix: &Path, name: &str) -> Self {
         fs::create_dir_all(prefix).unwrap();
         let ready = prefix.join(format!("{name}.ready"));
-        let child = Command::new("/usr/bin/python3")
+        let child = programs::peer("unstoppable")
             .arg0(name)
-            .args([
-                "-c",
-                "import signal,sys,time; from pathlib import Path; \
-                 signal.signal(signal.SIGINT,signal.SIG_IGN); \
-                 signal.signal(signal.SIGTERM,signal.SIG_IGN); \
-                 Path(sys.argv[1]).write_text('ready'); time.sleep(60)",
-            ])
             .arg(&ready)
             .env("WINEPREFIX", prefix)
             .stdin(Stdio::null())

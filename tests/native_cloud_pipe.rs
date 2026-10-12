@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MIT
+#[path = "fixtures/programs.rs"]
+mod programs;
 use flightdeck::{
     cloud_pipe::{Pipe, helper_error},
     process,
@@ -6,36 +8,19 @@ use flightdeck::{
 use serde_json::json;
 use std::{
     os::unix::process::CommandExt,
-    process::{Command, Stdio},
+    process::Stdio,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
     time::{Duration, Instant},
 };
-// An account-free protocol fixture. Python is only the deliberately adversarial
-// test peer; the launcher and production helper transport are Rust.
+// An account-free protocol fixture: the deliberately adversarial peer of
+// `examples/test-programs.rs`. The launcher and production helper transport
+// are the code under test.
 fn pipe(mode: &str, cancel: Arc<AtomicBool>) -> Pipe {
-    let script = r#"
-import sys,struct,json,time
-mode=sys.argv[1]
-for i in range(3):
-    header=sys.stdin.buffer.read(4)
-    if not header: break
-    n=struct.unpack('<I',header)[0]
-    request=json.loads(sys.stdin.buffer.read(n))
-    if mode=='timeout': time.sleep(.3); break
-    if mode=='oversize': sys.stdout.buffer.write(struct.pack('<I',300000)); sys.stdout.buffer.flush(); break
-    raw=b'{"ok":true,"ok":true}' if mode=='duplicate' else json.dumps({'ok':True,'body_bytes':3}).encode()
-    data=struct.pack('<I',len(raw))+raw+b'abc'
-    for b in data:
-        sys.stdout.buffer.write(bytes([b]));sys.stdout.buffer.flush()
-        if mode=='fragmented': time.sleep(.001)
-"#;
     let child = process::spawn(
-        Command::new("python3")
-            .arg("-c")
-            .arg(script)
+        programs::peer("pipe")
             .arg(mode)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

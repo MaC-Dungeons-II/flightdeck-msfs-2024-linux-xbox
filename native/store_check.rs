@@ -519,12 +519,12 @@ mod tests {
     #[test]
     fn passed_rows_do_not_authorize_cloud_retry_after_helper_failure() {
         for (tail, expected) in [
-            ("raise SystemExit(0)", "passed"),
-            ("raise SystemExit(7)", "failed"),
-            ("import time;time.sleep(30)", "failed"),
-            ("print('private-token',flush=True)", "failed"),
+            ("exit 0", "passed"),
+            ("exit 7", "failed"),
+            ("sleep 30", "failed"),
+            ("echo private-token", "failed"),
             (
-                "print('{\"stage\":\"check\",\"state\":\"failed\",\"code\":\"timeout\"}',flush=True)",
+                r#"echo '{"stage":"check","state":"failed","code":"timeout"}'"#,
                 "failed",
             ),
         ] {
@@ -538,11 +538,11 @@ mod tests {
                 .expect("reservation");
             ctx.update(json!({"steps":[{"stage":"account","state":"pending","code":"checking"}]}));
             let body = format!(
-                "print('{{\"stage\":\"account\",\"state\":\"passed\",\"code\":\"local_session\"}}',flush=True)\n{tail}"
+                "echo '{{\"stage\":\"account\",\"state\":\"passed\",\"code\":\"local_session\"}}'\n{tail}"
             );
             let outcome = check_process(
                 &ctx,
-                Command::new("python3").args(["-c", &body]),
+                Command::new("sh").args(["-c", &body]),
                 b"",
                 &["account"],
                 Duration::from_millis(400),

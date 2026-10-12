@@ -56,7 +56,23 @@ impl Fixture {
         write(&prefix.join("user.reg"), b"old user settings");
         executable(
             &root.join("runner/files/bin/wine"),
-            "#!/usr/bin/python3\nimport os,sys\nfrom pathlib import Path\nbin=Path(sys.argv[0]).parent\nif (bin/'fail').exists():sys.exit(1)\nif sys.argv[1]=='wineboot':\n p=Path(os.environ['WINEPREFIX']);(p/'drive_c/windows/system32').mkdir(parents=True);(p/'drive_c/windows/syswow64').mkdir();(p/'system.reg').write_text('fresh settings');(p/'user.reg').write_text('fresh user settings')\n if (bin/'redirect').exists():(p/'drive_c/users').symlink_to((bin/'redirect').read_text())\n",
+            // Wine as far as maintenance needs it: `wineboot` creates a new
+            // prefix, and marker files next to the program make it fail or
+            // leave a redirected user folder behind.
+            r#"#!/bin/sh
+set -e
+bin=$(dirname "$0")
+if [ -e "$bin/fail" ]; then exit 1; fi
+if [ "$1" = wineboot ]; then
+    p=$WINEPREFIX
+    [ ! -e "$p/drive_c/windows/system32" ]
+    mkdir -p "$p/drive_c/windows/system32"
+    mkdir "$p/drive_c/windows/syswow64"
+    printf %s 'fresh settings' > "$p/system.reg"
+    printf %s 'fresh user settings' > "$p/user.reg"
+    if [ -e "$bin/redirect" ]; then ln -s "$(cat "$bin/redirect")" "$p/drive_c/users"; fi
+fi
+"#,
         );
         executable(
             &root.join("runner/files/bin/wineserver"),

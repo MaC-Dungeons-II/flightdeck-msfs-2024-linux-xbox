@@ -325,8 +325,8 @@ original licenses with the release, separately from the WineGDK/Xodus sources.
 ## Validation
 
 ```sh
-python3 scripts/check-graphics-rendering.py --runner /path/to/runner \
-  --bundle /path/to/graphics --output build/new-render-check
+cargo run --locked -p flightdeck-tools -- probe graphics-rendering \
+  --runner /path/to/runner --bundle /path/to/graphics --output build/new-render-check
 ```
 
 This creates an isolated prefix and compares the original libraries, the patched

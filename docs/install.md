@@ -512,7 +512,7 @@ For full packages, `cargo run --locked -p flightdeck-tools -- package-check --pa
 real installation with no program on PATH, service handoff on the same port
 and rollback to the previous native release. Both package arguments refer to
 extracted package directories. The update from the Python releases is covered
-by `scripts/check-transition-update.py`. The package check
+by the tool's `probe transition-update` command. The package check
 uses fake browser launchers and isolated settings; it never opens a game.
 
 The suite covers source/resource hashes, updates, rollback after write failures,

@@ -250,7 +250,10 @@ cargo build --locked --bin flightdeck-rust --example runtime-lab
 ```
 
 It is not shipped in installer packages. `FLIGHTDECK_PROBE_BINARY` can select
-another built copy. Each mutating probe requires a new synthetic runtime; it
+another built copy. The integration tests start stand-ins for the programs the
+launcher supervises (`examples/test-programs.rs`). Cargo builds them with the
+whole suite; before running a single test target, build them once with
+`cargo build --locked --example test-programs`. Each mutating probe requires a new synthetic runtime; it
 cannot use an ordinary game runtime as its test destination.
 
 With a separately supplied compatible Wine runner:

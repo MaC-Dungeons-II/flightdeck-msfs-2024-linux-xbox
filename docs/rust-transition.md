@@ -87,15 +87,17 @@ archive with a stable version. Use the actual release version in the candidate;
 keep already published tags and artifact bytes unchanged.
 
 ```sh
-python3 scripts/check-transition-update.py \
+cargo run --locked -p flightdeck-tools -- probe transition-update \
   --legacy-package build/old-package/flightdeck-linux \
   --bridge-archive build/releases/flightdeck-0.1.22/Flightdeck-Linux-x86_64.tar.gz \
   --native-archive build/native-candidate/Flightdeck-Linux-x86_64.tar.gz \
   --output build/transition-check
 ```
 
-The script installs the unchanged 0.1.21 package in a fresh directory, runs its
-actual service and sends normal update/check/install/restart requests. A
+The check installs the unchanged 0.1.21 package in a fresh directory, runs its
+actual service and sends normal update/check/install/restart requests. The
+releases under test are Python programs, so `python3` must be installed;
+`--python /path/to/interpreter` selects another one. A
 test-only network adapter supplies local GitHub metadata and archive bytes:
 the fixture Latest endpoint offers the bridge, and the release list includes
 the native candidate. This checks the historical two-step transition, not the
@@ -105,5 +107,8 @@ Checks cover 0.1.21 → 0.1.22 → native → 0.1.22 → native; the same browse
 retained preference data; no extra browser during handoff; the bridge bootstrap;
 terminal `flightdeck --update`; rejection of a modified native executable
 without changing the installation; and a final wrapper that requires no Python.
+A launcher from 0.2.8 on ends without a session to open its window in before it
+starts its service, so after the terminal update the check starts the service
+of the installed package itself and reads its version.
 All state and service processes belong to the temporary installation. The check
 does not use a real account, game installation or simulator session.

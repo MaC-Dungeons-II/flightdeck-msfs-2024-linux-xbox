@@ -57,7 +57,10 @@ metadata and duplicated tests. Rust tests consume frozen synthetic Python
 results in `tests/fixtures/legacy-python/`, including the producing commit and
 source hashes. Migration and benchmark harnesses take explicit historical
 packages or checkouts; they cannot import an application from the current tree.
-Python remains only in maintainer build, packaging and test tools. The
+The maintainer build, packaging and test tools are Rust as well (`tools/`),
+and the tests start no interpreter. Python runs only where a retained or
+published Python release is itself the subject: an explicit rollback to one,
+the transition check and the launcher comparison. The
 proprietary Fenix application remains a Windows .NET application: changing the
 launcher's implementation language does not remove that prerequisite.
 

@@ -12,10 +12,12 @@ mod edition_update;
 #[cfg(test)]
 mod fixtures;
 mod graphics_adapter;
+mod graphics_rendering;
 mod host;
 pub(crate) mod lab;
 mod proton;
 mod sync_fenix;
+mod transition_update;
 mod volume_layout;
 mod vr;
 
@@ -23,6 +25,8 @@ mod vr;
 pub enum Probe {
     /// Optional GPU integration check. Always create a new, isolated Wine prefix.
     GraphicsAdapter(graphics_adapter::Arguments),
+    /// Exercise real rendering in new prefixes; never launch a game or use an account.
+    GraphicsRendering(graphics_rendering::Arguments),
     /// Optional real OpenXR stereo test using an isolated, disposable Wine prefix.
     Vr(vr::Arguments),
     /// Reproduce the maintenance9 3D-copy layout bug in an isolated Wine prefix.
@@ -35,6 +39,8 @@ pub enum Probe {
     BenchmarkLaunchers(benchmark::Arguments),
     /// Explicit maintainer import from the matching, locally built Fenix project.
     SyncFenix(sync_fenix::Arguments),
+    /// Exercise legacy -> bridge -> native updates with real packages and local GitHub fixtures.
+    TransitionUpdate(transition_update::Arguments),
 }
 
 /// A host or argument the probe cannot work with, reported like a usage
@@ -64,12 +70,14 @@ pub fn run(root: &Path, command: Probe) -> Result<u8> {
 fn dispatch(site: &Site, command: Probe) -> Result<u8> {
     match command {
         Probe::GraphicsAdapter(arguments) => graphics_adapter::run(site, &arguments),
+        Probe::GraphicsRendering(arguments) => graphics_rendering::run(site, &arguments),
         Probe::Vr(arguments) => vr::run(site, &arguments),
         Probe::VolumeLayout(arguments) => volume_layout::run(site, &arguments),
         Probe::Proton(arguments) => proton::run(site, &arguments),
         Probe::EditionUpdate(arguments) => edition_update::run(&arguments),
         Probe::BenchmarkLaunchers(arguments) => benchmark::run(&arguments),
         Probe::SyncFenix(arguments) => sync_fenix::run(site.root, &arguments),
+        Probe::TransitionUpdate(arguments) => transition_update::run(&arguments),
     }
 }
 
@@ -101,6 +109,10 @@ mod tests {
     fn every_script_kept_its_flags() {
         for (name, expected) in [
             ("graphics-adapter", &["output", "runner"][..]),
+            (
+                "graphics-rendering",
+                &["bundle", "output", "runner", "visible"],
+            ),
             (
                 "vr",
                 &[
@@ -149,6 +161,16 @@ mod tests {
                 ],
             ),
             ("sync-fenix", &[]),
+            (
+                "transition-update",
+                &[
+                    "bridge-archive",
+                    "legacy-package",
+                    "native-archive",
+                    "output",
+                    "python",
+                ],
+            ),
         ] {
             let found: Vec<String> = flags(name)
                 .into_iter()

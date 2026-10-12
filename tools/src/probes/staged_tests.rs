@@ -1011,3 +1011,149 @@ fn the_fenix_import_replaces_the_manifests_of_the_checkout() {
         r#"{"version":"1.4.0"}"#
     );
 }
+
+const RENDER_WINE: &str = r#"printf 'uuid=%s prepared=%s mode=%s args=%s cwd=%s\n' "$DXVK_FILTER_DEVICE_UUID" "$PREPARED" "$MODE" "$*" "$PWD"
+case "$PREPARED" in blank) echo 'warn: image has never been rendered to' ;; esac
+echo 'PASS: two windows'"#;
+
+#[test]
+fn the_rendering_probe_runs_runner_bundle_and_automatic_mode() {
+    for (gpu, nvidia) in [(NVIDIA, true), (AMD, false)] {
+        let (_temp, work) = work();
+        // The renderer answers with what was asked of it; "mode" marks the
+        // environment, so that the opt-out on other hardware can be seen.
+        let arms = format!(
+            "{gpu}\n{PREFIX}\n{}\n{}\n{}\n{}",
+            r#"*'"operation":"graphics"'*) echo '[{"PREPARED":"yes","DXVK_FILTER_DEVICE_UUID":"aabb"},{}]' ;;"#,
+            r#"*'"bundle":null'*'"operation":"renderer"'*) echo '"runner"' ;;"#,
+            r#"*'"operation":"renderer"'*) echo '"backport"' ;;"#,
+            r#"*'"operation":"mode"'*) echo '{"PREPARED":"yes","MODE":"opted-out","DXVK_FILTER_DEVICE_UUID":"aabb"}' ;;"#,
+        );
+        let site = fixtures::site(&work, &arms);
+        let runner = fixtures::runner(&work, RENDER_WINE);
+        let bundle = work.join("bundle");
+        fs::create_dir(&bundle).expect("bundle");
+        let output = work.join("results/rendering");
+        let words: [&dyn AsRef<OsStr>; 8] = [
+            &"graphics-rendering",
+            &"--runner",
+            &runner,
+            &"--bundle",
+            &bundle,
+            &"--output",
+            &output,
+            &"--visible",
+        ];
+        assert_eq!(probe(&site, &words).expect("probe"), 0);
+        let case = |name: &str| json!({"case": name, "exit_code": 0, "passed": true, "blank_present_warning": false});
+        assert_eq!(
+            host::read_json(&output.join("result.json")).expect("result"),
+            json!({"scope": "Mixed D3D11/D3D12 clear/readback/present and swapchain lifetime",
+                "gpu": if nvidia { "RTX" } else { "RX" }, "nvidia_hardware": nvidia,
+                "cases": [case("runner"), case("backport"), case("backport-automatic")]})
+        );
+        let program = output.join("multiwindow.exe");
+        let line = |mode: &str, arguments: String| {
+            format!(
+                "uuid=aabb prepared=yes mode={mode} args={arguments} cwd={}\nPASS: two windows\n",
+                output.display()
+            )
+        };
+        assert_eq!(
+            text(&output.join("runner.log")),
+            line("", program.display().to_string())
+        );
+        // Only the bundle case keeps its windows visible.
+        assert_eq!(
+            text(&output.join("backport.log")),
+            line("", format!("{} --visible", program.display()))
+        );
+        assert_eq!(
+            text(&output.join("backport-automatic.log")),
+            line(
+                if nvidia { "" } else { "opted-out" },
+                program.display().to_string()
+            )
+        );
+        assert_eq!(fixtures::wineserver_calls(&runner), "-k\n-w\n".repeat(3));
+        let runtime = output.join("runtime");
+        assert_eq!(text(&runtime.join("private/synthetic-probe")), lab::MARKER);
+        assert_eq!(
+            text(&runtime.join("private/graphics-settings.json")),
+            r#"{"schema": 1, "nvidia_mode": "auto"}"#
+        );
+        let mut expected = vec![
+            "probe", "prefix", "graphics", "renderer", "graphics", "renderer", "graphics",
+            "renderer",
+        ];
+        if !nvidia {
+            expected.push("mode");
+        }
+        assert_eq!(operations(&work), expected);
+        let requests = fixtures::requests(&work);
+        assert_eq!(requests[3]["bundle"], Value::Null);
+        assert_eq!(requests[5]["bundle"], host::text(&bundle));
+        assert_eq!(
+            text(&work.join("mingw-gcc.calls")),
+            format!(
+                "-O2 -Wall -Wextra -Werror {} -o {} -ld3d12 -ld3d11 -ldxgi -ldxguid -lgdi32\n",
+                site.root.join("tests/graphics/multiwindow.c").display(),
+                program.display()
+            )
+        );
+        assert!(
+            probe(&site, &words).is_err(),
+            "an earlier result is never overwritten"
+        );
+    }
+}
+
+#[test]
+fn the_rendering_probe_fails_without_a_pass_and_refuses_wrong_bundles_and_hosts() {
+    let renderer = r#"*'"operation":"renderer"'*) echo '"runner"' ;;"#;
+    let graphics = r#"*'"operation":"graphics"'*) echo '[{"PREPARED":"blank"},{}]' ;;"#;
+    let run = |arms: String, wine: &str| {
+        let (temp, work) = work();
+        let site = fixtures::site(&work, &arms);
+        let runner = fixtures::runner(&work, wine);
+        let output = work.join("out");
+        let words: [&dyn AsRef<OsStr>; 7] = [
+            &"graphics-rendering",
+            &"--runner",
+            &runner,
+            &"--bundle",
+            &work,
+            &"--output",
+            &output,
+        ];
+        let result = probe(&site, &words);
+        (temp, output, runner, result)
+    };
+    // A program that exits cleanly without its own verdict fails the probe.
+    let silent = r#"*'"operation":"renderer"'*) case "$request" in *'"bundle":null'*) echo '"runner"' ;; *) echo '"backport"' ;; esac ;;"#;
+    let (_temp, output, runner, result) = run(
+        format!("{NVIDIA}\n{PREFIX}\n{graphics}\n{silent}"),
+        "echo rendered",
+    );
+    assert_eq!(result.expect("probe"), 1);
+    let report = host::read_json(&output.join("result.json")).expect("result");
+    assert_eq!(report["cases"][0]["passed"], false);
+    assert_eq!(fixtures::wineserver_calls(&runner), "-k\n-w\n".repeat(3));
+    // A bundle the driver does not accept stops the probe before Wine runs twice.
+    let (_temp, output, _runner, result) = run(
+        format!("{NVIDIA}\n{PREFIX}\n{graphics}\n{renderer}"),
+        RENDER_WINE,
+    );
+    assert!(
+        result
+            .expect_err("bundle")
+            .0
+            .contains("does not match the runner")
+    );
+    assert!(!output.join("result.json").exists());
+    // Two discrete GPUs: the probe cannot know which one it would test.
+    let (_temp, output, runner, result) = run(format!("{TWO_GPUS}\n{PREFIX}"), RENDER_WINE);
+    assert_eq!(result.expect("refused"), 2);
+    assert!(!output.join("result.json").exists());
+    assert_eq!(fixtures::wineserver_calls(&runner), "");
+}
