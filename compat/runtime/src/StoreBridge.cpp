@@ -1,8 +1,7 @@
-#include <cstdio>
-#include "UserBridge.h"
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 // Isolated Store bridge; LGPL-2.1-or-later, signatures from pinned Xodus IDL.
 // Implemented operations use actual broker results; no commerce answer is invented.
+#include "UserBridge.h"
 #include <initguid.h>
 #include "StoreBridge.h"
 #include "StoreContext.h"
@@ -324,8 +323,6 @@ bool IsStoreRuntimeClass(const GUID *clsid) {return clsid&&*clsid==__uuidof(IXSt
 HRESULT QueryStoreRuntime(const GUID *clsid,REFIID iid,void **out) {
     if(!out||!clsid)return E_POINTER;*out=nullptr;
     if(!IsStoreRuntimeClass(clsid))return E_NOINTERFACE;
-    HRESULT hr=instance.QueryInterface(iid,out);
-    if(FAILED(hr))std::fprintf(stderr,"[xodus-store] QI failed iid=%08lx hr=%08lx\n",iid.Data1,static_cast<ULONG>(hr));
-    return hr;
+    return instance.QueryInterface(iid,out);
 }
 void ShutdownStoreRuntime() {XodusStoreQueriesShutdown();XodusStoreContextShutdown();}

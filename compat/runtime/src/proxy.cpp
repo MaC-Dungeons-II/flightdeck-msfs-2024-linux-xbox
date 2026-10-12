@@ -10,7 +10,7 @@
 #include "StoreBridge.h"
 #include "GameSaveBridge.h"
 #include "RuntimeDiagnostics.h"
-#include "MacMode.h"
+#include <cstdlib>
 
 static INIT_ONCE base_once = INIT_ONCE_STATIC_INIT;
 static HMODULE base_module;
@@ -35,10 +35,9 @@ HRESULT initialize_client(ULONG gdk, ULONG services, char mode, const void *opti
     else if (state.clients == std::numeric_limits<unsigned long long>::max()) hr = E_OUTOFMEMORY;
     else {
         hr = initialize();
-        if (SUCCEEDED(hr)) {
-            if (MacPureMode()) hr = InitializeUserRuntime(gdk, services, mode, options);
-            else RememberUserRuntimeArgs(gdk, services, mode, options); /* mac chain: init lazily on first Store use */
-        }
+        /* mac chain: the Store/User module starts lazily on first use; starting it
+         * here shut the game down before its window opened. */
+        if (SUCCEEDED(hr)) RememberUserRuntimeArgs(gdk, services, mode, options);
         if (SUCCEEDED(hr)) ++state.clients;
     }
     static std::atomic<unsigned> logs{0};
@@ -74,25 +73,27 @@ static FARPROC base_proc(const char *name) {
 extern "C" HRESULT WINAPI QueryApiImpl(const GUID *clsid, REFIID iid, void **out) {
     if (!clsid || !out) return E_POINTER;
     *out = nullptr;
-    if (MacPureMode() && *clsid == __uuidof(IXThreadingImpl)) { /* mac chain: game-facing XThreading stays genuine */
-        static std::atomic<bool> logged{false};
-        if(!logged.exchange(true))std::fprintf(stderr, "xodus-taskqueue: using real PR60 threading implementation\n");
-        return x_threading_impl->QueryInterface(iid, out);
-    }
+    /* mac chain: XThreading, XNetworking and XUser stay with the genuine
+     * runtime (the outer mcd2 adapter owns users), so only Store, GameSave and
+     * diagnostics are answered here; everything else is forwarded. */
     if (XodusGameSaveLocalEnabled() && IsGameSaveRuntimeClass(clsid))
         return QueryGameSaveRuntime(clsid,iid,out);
     if (IsStoreRuntimeClass(clsid)) return QueryStoreRuntime(clsid,iid,out);
-    if (MacPureMode() && *clsid == __uuidof(IXNetworkingImpl)) return x_networking_impl->QueryInterface(iid,out);
     if (IsRuntimeDiagnosticsClass(clsid)) return QueryRuntimeDiagnostics(clsid,iid,out);
-    if (MacPureMode() && UserRuntimeEnabled() && IsUserRuntimeClass(clsid)) return QueryUserRuntime(clsid,iid,out);
     return QueryOriginalApi(clsid,iid,out);
 }
+/* Per-call tracing; the game calls QueryApi constantly, so only with
+ * XODUS_TRACE_QUERYAPI=1. */
+static bool TraceQueryApi() {
+    static const bool on = [] { const char *v = std::getenv("XODUS_TRACE_QUERYAPI"); return v && *v == '1'; }();
+    return on;
+}
 HRESULT QueryOriginalApi(const GUID *clsid, REFIID iid, void **out) {
-    std::fprintf(stderr, "xodus-taskqueue: forward QueryApi clsid=%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x\n", clsid->Data1, clsid->Data2, clsid->Data3, clsid->Data4[0], clsid->Data4[1], clsid->Data4[2], clsid->Data4[3], clsid->Data4[4], clsid->Data4[5], clsid->Data4[6], clsid->Data4[7]);
+    if (TraceQueryApi()) std::fprintf(stderr, "xodus-taskqueue: forward QueryApi clsid=%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x\n", clsid->Data1, clsid->Data2, clsid->Data3, clsid->Data4[0], clsid->Data4[1], clsid->Data4[2], clsid->Data4[3], clsid->Data4[4], clsid->Data4[5], clsid->Data4[6], clsid->Data4[7]);
     using Fn = HRESULT(WINAPI *)(const GUID *, REFIID, void **);
     auto fn = reinterpret_cast<Fn>(base_proc("QueryApiImpl"));
     HRESULT hr=fn ? fn(clsid, iid, out) : HRESULT_FROM_WIN32(GetLastError());
-    std::fprintf(stderr,"xodus-taskqueue: forwarded QueryApi result=%08lx\n",static_cast<ULONG>(hr));
+    if (TraceQueryApi()) std::fprintf(stderr,"xodus-taskqueue: forwarded QueryApi result=%08lx\n",static_cast<ULONG>(hr));
     return hr;
 }
 extern "C" HRESULT WINAPI InitializeApiImpl(ULONG a, ULONG b) {

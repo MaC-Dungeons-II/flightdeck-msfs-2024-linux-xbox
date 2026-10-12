@@ -1,10 +1,6 @@
 #pragma once
-/* mac chain: route provider-side XAsync calls to the threading runtime that
- * owns the game's task queues (genuine runtime in the mcd2 chain). */
 #include <windows.h>
 #include <xasyncprovider.h>
-#include "MacMode.h"
-extern IXThreadingImpl *x_threading_impl;
 
 /* mac chain: XThreading stays with the genuine runtime, so the game's task
  * queues are genuine objects. Drive Store async blocks through the genuine
@@ -19,7 +15,7 @@ IXThreadingImpl *genuine_threading() {
     }();
     return impl;
 }
-#define G_THREADING() (MacPureMode() ? x_threading_impl : genuine_threading())
+#define G_THREADING() genuine_threading()
 HRESULT g_begin(XAsyncBlock *a, void *c, const void *i, const char *n, XAsyncProvider *p) { auto t=G_THREADING(); return t ? t->XAsyncBegin(a,c,i,n,p) : E_UNEXPECTED; }
 HRESULT g_schedule(XAsyncBlock *a, UINT32 d) { auto t=G_THREADING(); return t ? t->XAsyncSchedule(a,d) : E_UNEXPECTED; }
 void g_complete(XAsyncBlock *a, HRESULT hr, SIZE_T n) { if (auto t=G_THREADING()) t->XAsyncComplete(a,hr,n); }

@@ -3,14 +3,7 @@
 #define __WINESRC__
 #include "GameSaveBridge.h"
 #include "GameSaveAsync.h"
-#include "MacMode.h"
 #include "UserBridge.h"
-
-/* mac diag: GameSave call trace (API name, container/blob name, result only) */
-static void gs_log(const char* api,const char* name,HRESULT hr){
-    static std::atomic<unsigned> count{0};
-    if(count.fetch_add(1)<400)std::fprintf(stderr,"[xodus-gamesave-api] %s name=%.80s hr=%08lx\n",api,name?name:"-",static_cast<ULONG>(hr));
-}
 #include <bcrypt.h>
 #include <algorithm>
 #include <atomic>
@@ -37,10 +30,9 @@ HRESULT user_api(IXUserImpl** out) {
         /* mac chain: the game's XUser handles come from the outer adapter
          * (xgameruntime.dll), so GameSave must use that implementation. */
         using QueryFn=HRESULT(WINAPI*)(const GUID*,REFIID,void**);
-        HMODULE outer=MacPureMode()?nullptr:GetModuleHandleW(L"xgameruntime.dll");
+        HMODULE outer=GetModuleHandleW(L"xgameruntime.dll");
         auto query=outer?reinterpret_cast<QueryFn>(GetProcAddress(outer,"QueryApiImpl")):nullptr;
-        HRESULT hr=MacPureMode()?QueryUserRuntime(&id,id,reinterpret_cast<void**>(&retained_user_api)):query?query(&id,id,reinterpret_cast<void**>(&retained_user_api)):HRESULT_FROM_WIN32(ERROR_MOD_NOT_FOUND);
-        std::fprintf(stderr,"[xodus-gamesave] outer user api hr=%08lx\n",static_cast<ULONG>(hr));
+        HRESULT hr=query?query(&id,id,reinterpret_cast<void**>(&retained_user_api)):HRESULT_FROM_WIN32(ERROR_MOD_NOT_FOUND);
         if(FAILED(hr))return hr;
         if(!retained_user_api)return E_UNEXPECTED;
     }
@@ -67,8 +59,8 @@ HRESULT actual_title(UINT32* result) {
     *result=0;
     static const GUID id={0x973a344e,0x24bf,0x4d0f,{0x84,0x57,0x56,0xc5,0x34,0x89,0x2b,0x29}};
     XodusGameSaveTitleRuntime* title=nullptr;
-    /* mac chain: the xodus module starts lazily; settings load before any Store call */
-    if(!MacPureMode()){HRESULT ready=EnsureStoreModule();if(FAILED(ready))return ready;}
+    /* mac chain: settings load before any Store call, so start the module here */
+    if(HRESULT ready=EnsureStoreModule();FAILED(ready))return ready;
     HRESULT hr=QueryUserRuntime(&id,id,reinterpret_cast<void**>(&title));
     if(FAILED(hr))return hr;
     if(!title)return E_UNEXPECTED;
@@ -156,7 +148,6 @@ HRESULT enumerate_blobs(XGameSaveContainerHandle container,const char* filter,vo
     return safe([&]()->HRESULT {
         std::vector<local_save::BlobInfo> items;
         HRESULT hr=local_save::blob_info(container,filter,&items);if(FAILED(hr))return hr;
-        {char m[64];std::snprintf(m,sizeof m,"filter=%.20s blobs=%zu",filter?filter:"*",items.size());gs_log("enumerate_blobs",m,S_OK);}
         for(const auto& item:items){XGameSaveBlobInfo info{item.name.c_str(),item.size};if(!callback(&info,context))break;}
         return S_OK;
     });
@@ -171,39 +162,38 @@ public:
     }
     ULONG WINAPI AddRef() override{return ++refs;}
     ULONG WINAPI Release() override{return --refs;}
-    HRESULT WINAPI XGameSaveInitializeProvider(XUserHandle u,const char* c,bool sync,XGameSaveProviderHandle* p) override{HRESULT gs_hr=[&]()->HRESULT{return XodusGameSaveInitializeProvider(u,c,sync,p);}();gs_log("XGameSaveInitializeProvider","-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveInitializeProviderAsync(XUserHandle u,const char* c,bool sync,XAsyncBlock* a) override{HRESULT gs_hr=[&]()->HRESULT{return XodusGameSaveInitializeProviderAsync(u,c,sync,a);}();gs_log("XGameSaveInitializeProviderAsync","-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveInitializeProviderResult(XAsyncBlock* a,XGameSaveProviderHandle* p) override{HRESULT gs_hr=[&]()->HRESULT{return XodusGameSaveInitializeProviderResult(a,p);}();gs_log("XGameSaveInitializeProviderResult","-",gs_hr);return gs_hr;}
+    HRESULT WINAPI XGameSaveInitializeProvider(XUserHandle u,const char* c,bool sync,XGameSaveProviderHandle* p) override{return XodusGameSaveInitializeProvider(u,c,sync,p);}
+    HRESULT WINAPI XGameSaveInitializeProviderAsync(XUserHandle u,const char* c,bool sync,XAsyncBlock* a) override{return XodusGameSaveInitializeProviderAsync(u,c,sync,a);}
+    HRESULT WINAPI XGameSaveInitializeProviderResult(XAsyncBlock* a,XGameSaveProviderHandle* p) override{return XodusGameSaveInitializeProviderResult(a,p);}
     void WINAPI XGameSaveCloseProvider(XGameSaveProviderHandle p) override{local_save::close_provider(p);}
-    HRESULT WINAPI XGameSaveGetRemainingQuota(XGameSaveProviderHandle p,int64_t* q) override{HRESULT gs_hr=[&]()->HRESULT{return local_save::remaining_quota(p,q);}();gs_log("XGameSaveGetRemainingQuota","-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveGetRemainingQuotaAsync(XGameSaveProviderHandle p,XAsyncBlock* a) override{HRESULT gs_hr=[&]()->HRESULT{return XodusGameSaveGetRemainingQuotaAsync(p,a);}();gs_log("XGameSaveGetRemainingQuotaAsync","-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveGetRemainingQuotaResult(XAsyncBlock* a,int64_t* q) override{HRESULT gs_hr=[&]()->HRESULT{return XodusGameSaveGetRemainingQuotaResult(a,q);}();gs_log("XGameSaveGetRemainingQuotaResult","-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveDeleteContainer(XGameSaveProviderHandle p,const char* n) override{HRESULT gs_hr=[&]()->HRESULT{return local_save::delete_container(p,n);}();gs_log("XGameSaveDeleteContainer",n?n:"-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveDeleteContainerAsync(XGameSaveProviderHandle p,const char* n,XAsyncBlock* a) override{HRESULT gs_hr=[&]()->HRESULT{return XodusGameSaveDeleteContainerAsync(p,n,a);}();gs_log("XGameSaveDeleteContainerAsync",n?n:"-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveDeleteContainerResult(XAsyncBlock* a) override{HRESULT gs_hr=[&]()->HRESULT{return XodusGameSaveDeleteContainerResult(a);}();gs_log("XGameSaveDeleteContainerResult","-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveGetContainerInfo(XGameSaveProviderHandle p,const char* n,void* c,XGameSaveContainerInfoCallback* f) override{HRESULT gs_hr=[&]()->HRESULT{if(!n)return E_POINTER;return enumerate_containers(p,n,true,c,f);}();gs_log("XGameSaveGetContainerInfo",n?n:"-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveEnumerateContainerInfo(XGameSaveProviderHandle p,void* c,XGameSaveContainerInfoCallback* f) override{HRESULT gs_hr=[&]()->HRESULT{return enumerate_containers(p,nullptr,false,c,f);}();gs_log("XGameSaveEnumerateContainerInfo","-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveEnumerateContainerInfoByName(XGameSaveProviderHandle p,const char* n,void* c,XGameSaveContainerInfoCallback* f) override{HRESULT gs_hr=[&]()->HRESULT{if(!n)return E_POINTER;return enumerate_containers(p,n,false,c,f);}();gs_log("XGameSaveEnumerateContainerInfoByName",n?n:"-",gs_hr);return gs_hr;}
+    HRESULT WINAPI XGameSaveGetRemainingQuota(XGameSaveProviderHandle p,int64_t* q) override{return local_save::remaining_quota(p,q);}
+    HRESULT WINAPI XGameSaveGetRemainingQuotaAsync(XGameSaveProviderHandle p,XAsyncBlock* a) override{return XodusGameSaveGetRemainingQuotaAsync(p,a);}
+    HRESULT WINAPI XGameSaveGetRemainingQuotaResult(XAsyncBlock* a,int64_t* q) override{return XodusGameSaveGetRemainingQuotaResult(a,q);}
+    HRESULT WINAPI XGameSaveDeleteContainer(XGameSaveProviderHandle p,const char* n) override{return local_save::delete_container(p,n);}
+    HRESULT WINAPI XGameSaveDeleteContainerAsync(XGameSaveProviderHandle p,const char* n,XAsyncBlock* a) override{return XodusGameSaveDeleteContainerAsync(p,n,a);}
+    HRESULT WINAPI XGameSaveDeleteContainerResult(XAsyncBlock* a) override{return XodusGameSaveDeleteContainerResult(a);}
+    HRESULT WINAPI XGameSaveGetContainerInfo(XGameSaveProviderHandle p,const char* n,void* c,XGameSaveContainerInfoCallback* f) override{if(!n)return E_POINTER;return enumerate_containers(p,n,true,c,f);}
+    HRESULT WINAPI XGameSaveEnumerateContainerInfo(XGameSaveProviderHandle p,void* c,XGameSaveContainerInfoCallback* f) override{return enumerate_containers(p,nullptr,false,c,f);}
+    HRESULT WINAPI XGameSaveEnumerateContainerInfoByName(XGameSaveProviderHandle p,const char* n,void* c,XGameSaveContainerInfoCallback* f) override{if(!n)return E_POINTER;return enumerate_containers(p,n,false,c,f);}
     HRESULT WINAPI XGameSaveCreateContainer(XGameSaveProviderHandle p,const char* n,XGameSaveContainerHandle* out) override{
-        if(!out)return E_POINTER;*out=nullptr;local_save::Handle h=nullptr;HRESULT hr=local_save::create_container(p,n,&h);if(SUCCEEDED(hr))*out=static_cast<XGameSaveContainerHandle>(h);gs_log("XGameSaveCreateContainer",n,hr);return hr;}
+        if(!out)return E_POINTER;*out=nullptr;local_save::Handle h=nullptr;HRESULT hr=local_save::create_container(p,n,&h);if(SUCCEEDED(hr))*out=static_cast<XGameSaveContainerHandle>(h);return hr;}
     void WINAPI XGameSaveCloseContainer(XGameSaveContainerHandle c) override{local_save::close_container(c);}
-    HRESULT WINAPI XGameSaveEnumerateBlobInfo(XGameSaveContainerHandle c,void* p,XGameSaveBlobInfoCallback* f) override{HRESULT gs_hr=[&]()->HRESULT{return enumerate_blobs(c,nullptr,p,f);}();gs_log("XGameSaveEnumerateBlobInfo","-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveEnumerateBlobInfoByName(XGameSaveContainerHandle c,const char* n,void* p,XGameSaveBlobInfoCallback* f) override{HRESULT gs_hr=[&]()->HRESULT{if(!n)return E_POINTER;return enumerate_blobs(c,n,p,f);}();gs_log("XGameSaveEnumerateBlobInfoByName",n?n:"-",gs_hr);return gs_hr;}
+    HRESULT WINAPI XGameSaveEnumerateBlobInfo(XGameSaveContainerHandle c,void* p,XGameSaveBlobInfoCallback* f) override{return enumerate_blobs(c,nullptr,p,f);}
+    HRESULT WINAPI XGameSaveEnumerateBlobInfoByName(XGameSaveContainerHandle c,const char* n,void* p,XGameSaveBlobInfoCallback* f) override{if(!n)return E_POINTER;return enumerate_blobs(c,n,p,f);}
     HRESULT WINAPI XGameSaveReadBlobData(XGameSaveContainerHandle c,const char** names,uint32_t* count,size_t bytes,XGameSaveBlob* out) override{
         if(!count)return E_POINTER;const uint32_t requested=*count;*count=0;
-        HRESULT rd=safe([&]()->HRESULT{std::vector<std::string> copied;std::vector<local_save::Blob> blobs;HRESULT hr=XodusGameSaveCopyBlobNames(names,requested,&copied);if(FAILED(hr))return hr;
-            hr=local_save::read_blobs(c,names?&copied:nullptr,&blobs);return FAILED(hr)?hr:XodusGameSavePackBlobs(blobs,bytes,out,count);});
-        char m[48];std::snprintf(m,sizeof m,"req=%u got=%u bytes=%zu",requested,*count,bytes);gs_log("XGameSaveReadBlobData",m,rd);return rd;}
-    HRESULT WINAPI XGameSaveReadBlobDataAsync(XGameSaveContainerHandle c,const char** n,uint32_t count,XAsyncBlock* a) override{HRESULT gs_hr=[&]()->HRESULT{return XodusGameSaveReadBlobDataAsync(c,n,count,a);}();gs_log("XGameSaveReadBlobDataAsync","-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveReadBlobDataResult(XAsyncBlock* a,size_t s,XGameSaveBlob* b,uint32_t* n) override{HRESULT gs_hr=[&]()->HRESULT{return XodusGameSaveReadBlobDataResult(a,s,b,n);}();gs_log("XGameSaveReadBlobDataResult","-",gs_hr);return gs_hr;}
+        return safe([&]()->HRESULT{std::vector<std::string> copied;std::vector<local_save::Blob> blobs;HRESULT hr=XodusGameSaveCopyBlobNames(names,requested,&copied);if(FAILED(hr))return hr;
+            hr=local_save::read_blobs(c,names?&copied:nullptr,&blobs);return FAILED(hr)?hr:XodusGameSavePackBlobs(blobs,bytes,out,count);});}
+    HRESULT WINAPI XGameSaveReadBlobDataAsync(XGameSaveContainerHandle c,const char** n,uint32_t count,XAsyncBlock* a) override{return XodusGameSaveReadBlobDataAsync(c,n,count,a);}
+    HRESULT WINAPI XGameSaveReadBlobDataResult(XAsyncBlock* a,size_t s,XGameSaveBlob* b,uint32_t* n) override{return XodusGameSaveReadBlobDataResult(a,s,b,n);}
     HRESULT WINAPI XGameSaveCreateUpdate(XGameSaveContainerHandle c,const char* n,XGameSaveUpdateHandle* out) override{
-        if(!out)return E_POINTER;*out=nullptr;local_save::Handle h=nullptr;HRESULT hr=local_save::create_update(c,n,&h);if(SUCCEEDED(hr))*out=static_cast<XGameSaveUpdateHandle>(h);gs_log("XGameSaveCreateUpdate",n,hr);return hr;}
+        if(!out)return E_POINTER;*out=nullptr;local_save::Handle h=nullptr;HRESULT hr=local_save::create_update(c,n,&h);if(SUCCEEDED(hr))*out=static_cast<XGameSaveUpdateHandle>(h);return hr;}
     void WINAPI XGameSaveCloseUpdate(XGameSaveUpdateHandle u) override{local_save::close_update(u);}
-    HRESULT WINAPI XGameSaveSubmitBlobWrite(XGameSaveUpdateHandle u,const char* n,const uint8_t* p,size_t s) override{HRESULT gs_hr=[&]()->HRESULT{return local_save::write_blob(u,n,p,s);}();gs_log("XGameSaveSubmitBlobWrite",n?n:"-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveSubmitBlobDelete(XGameSaveUpdateHandle u,const char* n) override{HRESULT gs_hr=[&]()->HRESULT{return local_save::delete_blob(u,n);}();gs_log("XGameSaveSubmitBlobDelete",n?n:"-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveSubmitUpdate(XGameSaveUpdateHandle u) override{HRESULT gs_hr=[&]()->HRESULT{return local_save::submit_update(u);}();gs_log("XGameSaveSubmitUpdate","-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveSubmitUpdateAsync(XGameSaveUpdateHandle u,XAsyncBlock* a) override{HRESULT gs_hr=[&]()->HRESULT{return XodusGameSaveSubmitUpdateAsync(u,a);}();gs_log("XGameSaveSubmitUpdateAsync","-",gs_hr);return gs_hr;}
-    HRESULT WINAPI XGameSaveSubmitUpdateResult(XAsyncBlock* a) override{HRESULT gs_hr=[&]()->HRESULT{return XodusGameSaveSubmitUpdateResult(a);}();gs_log("XGameSaveSubmitUpdateResult","-",gs_hr);return gs_hr;}
+    HRESULT WINAPI XGameSaveSubmitBlobWrite(XGameSaveUpdateHandle u,const char* n,const uint8_t* p,size_t s) override{return local_save::write_blob(u,n,p,s);}
+    HRESULT WINAPI XGameSaveSubmitBlobDelete(XGameSaveUpdateHandle u,const char* n) override{return local_save::delete_blob(u,n);}
+    HRESULT WINAPI XGameSaveSubmitUpdate(XGameSaveUpdateHandle u) override{return local_save::submit_update(u);}
+    HRESULT WINAPI XGameSaveSubmitUpdateAsync(XGameSaveUpdateHandle u,XAsyncBlock* a) override{return XodusGameSaveSubmitUpdateAsync(u,a);}
+    HRESULT WINAPI XGameSaveSubmitUpdateResult(XAsyncBlock* a) override{return XodusGameSaveSubmitUpdateResult(a);}
     HRESULT WINAPI XGameSaveFilesGetFolderWithUiAsync(XUserHandle,const char*,XAsyncBlock*) override{return E_NOTIMPL;}
     HRESULT WINAPI XGameSaveFilesGetFolderWithUiResult(XAsyncBlock*,size_t,char*) override{return E_NOTIMPL;}
     HRESULT WINAPI XGameSaveFilesGetRemainingQuota(XUserHandle,const char*,int64_t* q) override{if(!q)return E_POINTER;*q=0;return E_NOTIMPL;}
@@ -243,7 +233,7 @@ HRESULT WINAPI XodusGameSaveInitializeProvider(XUserHandle user,const char* scid
         local_save::Handle handle=nullptr;status=local_save::initialize(options,sync,&handle);
         if(SUCCEEDED(status)&&stopped.load()){local_save::close_provider(handle);return E_ABORT;}
         if(SUCCEEDED(status))*out=static_cast<XGameSaveProviderHandle>(handle);return status;});
-    static std::atomic<unsigned> logs{0};if(logs.fetch_add(1)<16)std::fprintf(stderr,"[xodus-gamesave] local_init enabled=%u sync_on_demand=%u scid=%.36s hr=%08lx\n",XodusGameSaveLocalEnabled(),sync,scid?scid:"(null)",static_cast<ULONG>(hr));
+    static std::atomic<unsigned> logs{0};if(logs.fetch_add(1)<16)std::fprintf(stderr,"[xodus-gamesave] local_init enabled=%u sync_on_demand=%u hr=%08lx\n",XodusGameSaveLocalEnabled(),sync,static_cast<ULONG>(hr));
     return hr;
 }
 HRESULT XodusGameSaveCopyBlobNames(const char* const* names,uint32_t count,std::vector<std::string>* out) {

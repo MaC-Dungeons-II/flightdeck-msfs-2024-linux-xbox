@@ -54,7 +54,7 @@ HRESULT parse_url(LPCWSTR text,Url &url){
     URL_COMPONENTS parts{};parts.dwStructSize=sizeof(parts);
     parts.dwHostNameLength=parts.dwUrlPathLength=parts.dwExtraInfoLength=parts.dwUserNameLength=parts.dwPasswordLength=DWORD(-1);
     if(!WinHttpCrackUrl(text,static_cast<DWORD>(length),0,&parts))return last_error();
-    /* mac chain: a request opened with INTERNET_DEFAULT_PORT (0) reports port 0 here; that is 443 for https */
+    /* mac chain: a request opened with INTERNET_DEFAULT_PORT reports port 0 here */
     if(parts.nScheme!=INTERNET_SCHEME_HTTPS||(parts.nPort!=443&&parts.nPort!=0)||parts.dwUserNameLength||parts.dwPasswordLength)return E_INVALIDARG;
     if(!parts.dwHostNameLength||parts.dwHostNameLength>253)return E_INVALIDARG;
     url.host.assign(parts.lpszHostName,parts.dwHostNameLength);url.host_ascii.clear();
@@ -331,7 +331,7 @@ HRESULT NetworkSecurityVerify(void *request,const XNetworkingSecurityInformation
         // so do not claim that its negotiated protocol was queried here.
         size=0;WinHttpQueryOption(request,WINHTTP_OPTION_URL,nullptr,&size);if(!size||size>(max_url+1)*sizeof(WCHAR))return finish(E_INVALIDARG,"url-size");
         std::vector<WCHAR> text(size/sizeof(WCHAR)+1);if(!WinHttpQueryOption(request,WINHTTP_OPTION_URL,text.data(),&size))return finish(last_error(),"url-option");
-        Url url;HRESULT hr=parse_url(text.data(),url);if(FAILED(hr)){if(verify_diagnostic_count.load()<8){std::string a;for(WCHAR c:std::wstring(text.data())){if(c==L'?')break;a.push_back(c<128?(char)c:'?');}std::fprintf(stderr,"[xodus-network] verify url-parse scheme/host/path=%.120s\n",a.c_str());}return finish(hr,"url-parse");}
+        Url url;HRESULT hr=parse_url(text.data(),url);if(FAILED(hr))return finish(hr,"url-parse");
         // Verify the handle still targets a matched unpinned policy. Redirects or
         // a fabricated empty structure cannot turn a pinned/unknown URL into one.
         std::shared_ptr<const Json> policy,title;UINT64 epoch;
