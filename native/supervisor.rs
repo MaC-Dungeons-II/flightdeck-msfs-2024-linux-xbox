@@ -56,6 +56,10 @@ pub fn environment(root: &Path) -> Result<(Environment, PathBuf)> {
     }
     env.insert("RUST_LOG".into(), "warn".into());
     env.insert("XODUS_LOG".into(), "warn".into());
+    // The Xodus service opens the in-game Store purchase window from this session.
+    if let Some((key, value)) = crate::game_install::webkit() {
+        env.insert(key.into(), value.into());
+    }
     Ok((env, socket_dir))
 }
 pub fn game_environment(root: &Path, mut env: Environment) -> Result<Environment> {

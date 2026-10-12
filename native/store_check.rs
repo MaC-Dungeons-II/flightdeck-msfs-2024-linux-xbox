@@ -213,6 +213,7 @@ pub fn check_process(
         .env("RUST_LOG", "off")
         .env("RUST_BACKTRACE", "0")
         .env_remove("FLIGHTDECK_STORE_LAUNCH")
+        .envs(game_install::webkit())
         .current_dir(ctx.root()?)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

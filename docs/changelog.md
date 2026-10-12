@@ -1,5 +1,17 @@
 # Changes and release status
 
+## Unreleased
+
+- Keep Xodus windows open on systems with an NVIDIA GPU. WebKitGTK's DMA-BUF
+  renderer aborted the Microsoft sign-in window right after it opened with
+  “Error 71 (Protocol error) dispatching to Wayland display”. Flightdeck now
+  starts sign-in, the in-game Store purchase window and the Store window check
+  with `WEBKIT_DISABLE_DMABUF_RENDERER=1` when an NVIDIA GPU is present. A value
+  set in the launcher's environment is kept. Reported and fixed for sign-in by
+  @gut-engel on nvidia-open 615 with KDE Plasma Wayland. The other two windows
+  use the same webview and setting but are not yet confirmed on an affected
+  system.
+
 ## 0.2.9 — 12 October 2026
 
 Stable release with full installer and corresponding source archives.

@@ -24,20 +24,27 @@ pub fn verify_cli(cli: &Path, expected: &str) -> Result<PathBuf> {
     )?;
     Ok(cli.into())
 }
-/// WebKitGTK's DMA-BUF renderer aborts the login window with a Wayland protocol
+/// WebKitGTK's DMA-BUF renderer aborts a Xodus window with a Wayland protocol
 /// error (Error 71) on NVIDIA drivers, including hybrid AMD/NVIDIA systems. The
-/// shared-memory fallback is sufficient for the sign-in page; an explicit user
-/// value is kept.
+/// shared-memory fallback is sufficient for these pages; an explicit user value
+/// is kept.
 fn disable_webkit_dmabuf(nvidia: bool, configured: Option<&std::ffi::OsStr>) -> bool {
     nvidia && configured.is_none()
 }
+/// The variable every Xodus window needs on this system, if any: sign-in, the
+/// in-game Store purchase window and the Store window check share one webview.
+pub fn webkit() -> Option<(&'static str, &'static str)> {
+    const KEY: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
+    disable_webkit_dmabuf(
+        crate::graphics::nvidia_present(),
+        std::env::var_os(KEY).as_deref(),
+    )
+    .then_some((KEY, "1"))
+}
 pub fn environment(command: &mut Command, xdg: Option<&Path>) {
     command.env("XODUS_LOG", "off").env("RUST_BACKTRACE", "0");
-    if disable_webkit_dmabuf(
-        crate::graphics::nvidia_present(),
-        std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").as_deref(),
-    ) {
-        command.env("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    if let Some((key, value)) = webkit() {
+        command.env(key, value);
     }
     if let Some(xdg) = xdg {
         for category in ["config", "data", "cache", "state"] {

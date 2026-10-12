@@ -97,6 +97,13 @@ The positive regression fails against the 0.1.13 source and passes with the
 correction. The immediately closing window still needs confirmation on an
 affected installation. Update and restart Flightdeck before retrying sign-in.
 
+A separate cause is confirmed on one NVIDIA system (nvidia-open 615, KDE Plasma
+Wayland, WebKitGTK 2.54): WebKitGTK's DMA-BUF renderer aborts the window with
+“Error 71 (Protocol error) dispatching to Wayland display”. When an NVIDIA GPU
+is present, Flightdeck starts every Xodus window with
+`WEBKIT_DISABLE_DMABUF_RENDERER=1`. To keep the accelerated renderer, start
+Flightdeck with `WEBKIT_DISABLE_DMABUF_RENDERER=0`.
+
 A local X11/GTK/WebKit probe using the actual login webview module and a fresh
 isolated browser profile displayed Microsoft's real sign-in form and kept the
 window open. It did not initialize account storage, exchange credentials or
