@@ -330,11 +330,9 @@ impl Drop for Session<'_> {
     fn drop(&mut self) {
         if let Some(game) = &mut self.game {
             let _ = stop_group(game);
-            let mut companions = wine_processes::FENIX
-                .iter()
-                .copied()
-                .filter(|v| !["fenixapp.exe", "fenix-webview2"].contains(v))
-                .collect::<Vec<_>>();
+            // Fenix belongs to the simulator session: end all of it, including
+            // the app and its WebView, rather than fencing the next launch.
+            let mut companions = wine_processes::FENIX.to_vec();
             if runtime::value(&self.root.join(gsx::STARTUP))
                 .is_ok_and(|v| v["format"].as_u64() == Some(1) && v["enabled"] == true)
             {

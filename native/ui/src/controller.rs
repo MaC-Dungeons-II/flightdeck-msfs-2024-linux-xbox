@@ -762,7 +762,28 @@ impl App {
                 .as_i64()
                 .is_some_and(|code| ![0, 130, 143].contains(&code))
     }
-    pub fn launch_note(&self) -> &str {
+    /// The launch note, naming the process that still blocks a fenced session.
+    pub fn launch_note(&self) -> std::borrow::Cow<'_, str> {
+        let note = self.launch_note_text();
+        let process = &self.status()["cloud"]["error_details"]["blocking_process"];
+        if self.status()["cloud"]["state"] == "attention"
+            && self.status()["cloud"]["error_code"] == "unsafe_session"
+            && let (Some(name), Some(pid)) = (process["name"].as_str(), process["pid"].as_u64())
+        {
+            return format!(
+                "{note} {}: {name} (PID {pid}{})",
+                self.tr("Prozess", "Process"),
+                if process["unkillable"] == true {
+                    self.tr(", Zustand D", ", state D")
+                } else {
+                    ""
+                }
+            )
+            .into();
+        }
+        note.into()
+    }
+    fn launch_note_text(&self) -> &str {
         if self.pending_action == Some(Action::Launch) {
             self.tr(
                 "Dein Start wurde angefordert. Flightdeck bereitet den Simulator vor.",

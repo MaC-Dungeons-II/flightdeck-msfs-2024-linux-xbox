@@ -17,6 +17,8 @@ pub struct Failure {
     pub recovery_required: bool,
     pub http_status: Option<u16>,
     pub native_hresult: Option<u32>,
+    /// Bounded local diagnostics, such as the process that keeps a session fenced.
+    pub detail: Option<Value>,
 }
 impl Failure {
     pub fn new(code: &'static str) -> Self {
@@ -26,6 +28,7 @@ impl Failure {
             recovery_required: false,
             http_status: None,
             native_hresult: None,
+            detail: None,
         }
     }
     pub fn status(mut self, status: u16) -> Self {
@@ -45,7 +48,7 @@ impl fmt::Display for Failure {
             "quota" => "Der verfügbare Xbox-Cloud-Speicher reicht für diese Spielstände nicht aus.",
             "cancelled" => "Der Cloud-Vorgang wurde abgebrochen.",
             "deadline" => "Der Cloud-Vorgang hat sein Zeitlimit überschritten.",
-            "unsafe_session" => "Die vorherige Spielsitzung muss geprüft werden. Beende die zugehörigen Prozesse und versuche es erneut.",
+            "unsafe_session" => "Die vorherige Spielsitzung ist noch nicht freigegeben. Sitzung prüfen beendet ihre verbliebenen Prozesse.",
             "invalid_snapshot" => "Die Cloud-Kopie ist ungültig. Bitte erneut herunterladen.",
             "invalid_plan" => "Dieser Spielstandvergleich ist nicht mehr gültig. Bitte erneut vergleichen.",
             "local_storage" | "durability_unknown" => "Die Spielstandsicherung konnte nicht sicher abgeschlossen werden.",

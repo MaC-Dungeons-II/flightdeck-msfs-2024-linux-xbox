@@ -337,8 +337,6 @@
   "Die neue Spielumgebung existiert bereits und wird nicht überschrieben.": "The new game environment already exists and will not be overwritten.",
   "Die neue Spielumgebung wurde nicht vollständig eingerichtet.": "The new game environment was not prepared completely.",
   "Die vollständige Reparatur ist vorbereitet. Das Store-Basispaket wird nach Bestätigung neu heruntergeladen.": "Full repair is ready. The Store base package will be downloaded again after confirmation.",
-  "Die vorherige Spielsitzung ist noch nicht freigegeben. Erneut versuchen prüft, ob alle zugehörigen Prozesse beendet sind, und sichert die lokalen Spielstände.": "The previous game session has not been released yet. Retry checks that all associated processes have exited and backs up local saves.",
-  "Die vorherige Spielsitzung muss geprüft werden. Beende die zugehörigen Prozesse und versuche es erneut.": "The previous game session needs to be checked. Close its associated processes and try again.",
   "Vorherige Spielsitzung wird geprüft und lokale Spielstände werden gesichert …": "Checking the previous game session and backing up local saves …",
   "Die vorherige Sitzung ist beendet und lokale Spielstände sind gesichert. Der Simulator kann wieder gestartet werden.": "The previous session has ended and local saves have been backed up. You can start the simulator again.",
   "Die vorherige Spielumgebung ist wieder aktiv.": "The previous game environment is active again.",
@@ -680,5 +678,11 @@
   "Fenix-Linux-Patch": "Fenix Linux patch",
   "Fenix-Reparatur fehlgeschlagen": "Fenix repair failed",
   "Diagnose öffnen": "Open diagnostics",
-  "Die letzte Reparatur ist fehlgeschlagen. Prüfe den Diagnosebericht, bevor du einen weiteren Versuch startest.": "The last repair failed. Review the diagnostics before trying again."
+  "Die letzte Reparatur ist fehlgeschlagen. Prüfe den Diagnosebericht, bevor du einen weiteren Versuch startest.": "The last repair failed. Review the diagnostics before trying again.",
+  "Die vorherige Spielsitzung ist noch nicht freigegeben. Sitzung prüfen beendet ihre verbliebenen Prozesse und sichert die lokalen Spielstände.": "The previous game session has not been released yet. Check session ends its remaining processes and backs up local saves.",
+  "Ein Prozess der vorherigen Spielsitzung hängt im Kernel und lässt sich nicht beenden. Erst ein Neustart von Linux gibt den Start wieder frei.": "A process from the previous game session is stuck in the kernel and cannot be ended. Only a Linux restart releases the launch.",
+  "Ein Prozess lässt sich der vorherigen Spielsitzung nicht sicher zuordnen. Beende ihn und versuche es erneut.": "A process cannot be reliably matched to the previous game session. Close it and try again.",
+  "Eine andere Windows-Anwendung verwendet dieses Profil noch. Schließe sie oder beende sie mit Sitzung prüfen.": "Another Windows application is still using this profile. Close it, or end it with Check session.",
+  "Ein Prozess der vorherigen Spielsitzung ließ sich nicht beenden. Beende ihn und versuche es erneut.": "A process from the previous game session could not be ended. Close it and try again.",
+  "Vorherige Spielsitzung wird beendet und lokale Spielstände werden gesichert …": "Ending the previous game session and backing up local saves …"
 }

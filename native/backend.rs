@@ -429,6 +429,12 @@ impl Launcher {
                         job["result"] = Value::Null;
                         job["finished_at"] = json!(files::now());
                         job["error_details"] = json!({"http_status":error.http_status,"native_hresult":error.native_hresult});
+                        if let (Some(target), Some(extra)) = (
+                            job["error_details"].as_object_mut(),
+                            error.detail.as_ref().and_then(Value::as_object),
+                        ) {
+                            target.extend(extra.clone());
+                        }
                         job["auth_required"] = json!(error.code == "authentication");
                     }
                 }

@@ -228,8 +228,10 @@ beobachteten CLR-Code, keine rohen Fehlermeldungen;
 Nach der Einrichtung startet Fenix automatisch mit MSFS. Du musst es nicht
 separat öffnen. Beim normalen Spielende, einem Absturz oder **Stoppen** beendet
 Flightdeck die Fenix-Begleitprozesse dieser Sitzung; hängende Prozesse werden
-nach einer kurzen Wartezeit beendet. Der offizielle Fenix-Installer und andere
-Wine-Profile bleiben davon unberührt.
+nach einer kurzen Wartezeit beendet. Seit 0.2.9 gilt das auch für die offizielle
+Fenix-App, falls sie noch geöffnet ist; schließe Installationen oder
+Livery-Downloads dort ab, bevor du MSFS beendest. Andere Wine-Profile bleiben
+davon unberührt.
 
 Flightdeck verwendet Patch **0.1.0-preview.5**. Neuere Patch-Versionen werden
 mit einem Flightdeck-Update übernommen; der Launcher sucht nicht eigenständig

@@ -150,7 +150,7 @@ fn failed_session_is_visible_but_start_remains_retryable() {
         let mut ui =
             iced_test::Simulator::with_size(settings(), Size::new(1061.0, 1125.0), app.view());
         ui.find(state).expect("session failure is visible");
-        ui.find(app.launch_note())
+        ui.find(&*app.launch_note())
             .expect("failure guidance is visible");
         ui.click(retry).expect("retry remains enabled");
         assert!(matches!(

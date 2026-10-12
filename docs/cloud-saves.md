@@ -102,14 +102,21 @@ require a Linux restart before another automatic session. This prevents save
 changes while an orphaned game process might still be running. A normal game
 exit and the launcher's Stop button do not require a restart.
 
-**In 0.2.6:** **Check session** can release this block without a
-Linux restart. Flightdeck first verifies that the runtime's processes have ended
-and backs up local saves. A failed check keeps the block in place. The action
-does not start MSFS or upload saves; the next normal launch reconciles pending
-local and cloud changes. [Details](native-ui.md#session-and-control-fixes-in-026).
+**Since 0.2.6:** **Check session** can release this block without a
+Linux restart. Since 0.2.9 Flightdeck ends the runtime's remaining processes
+(SIGTERM, then SIGKILL), verifies they are gone and backs up local saves. When
+the simulator exits, the same happens automatically for the game, Fenix, GSX
+and Wine's services; another Windows application in the profile, such as an
+installer, is left running and named, and **Check session** ends it on request.
+Processes that cannot be matched to the runtime are never signalled. If a
+process survives, the block stays in place and the message names it with its
+PID; a process stuck in the kernel (state D, typically after a GPU device loss)
+only ends with a Linux restart. The action does not start MSFS or upload saves;
+the next normal launch reconciles pending local and cloud changes.
+[Details](native-ui.md#session-and-control-fixes-in-026).
 
 This check also protects the normal exit path: if another Windows application
-is still using that profile, close it before retrying session recovery and sync.
+is still using that profile, close it or end it with **Check session**.
 
 ## Advanced tools
 

@@ -42,6 +42,27 @@ fn fixture() -> (tempfile::TempDir, files::Lease) {
     guard::mark(root.path(), &lease.0).expect("fence");
     (root, lease)
 }
+/// A process named like a Windows executable and bound to a Wine prefix.
+fn windows(name: &str, prefix: &Path) -> Process {
+    use std::os::unix::process::CommandExt;
+    let process = Process(
+        Command::new("sleep")
+            .arg0(name)
+            .arg("30")
+            .env("WINEPREFIX", prefix)
+            .spawn()
+            .expect("windows process"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !fs::read(format!("/proc/{}/environ", process.0.id())).is_ok_and(|env| {
+        env.split(|b| *b == 0)
+            .any(|e| e.starts_with(b"WINEPREFIX="))
+    }) {
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    process
+}
 fn bytes(root: &Path, name: &str) -> Vec<u8> {
     fs::read(root.join("private").join(name)).expect("read")
 }
@@ -52,19 +73,20 @@ fn bytes(root: &Path, name: &str) -> Vec<u8> {
 fn interrupted_session_recovers_only_after_writers_exit_and_backup_is_durable() {
     let (root, lease) = fixture();
     let root = root.path();
-    let fence = bytes(root, "cloud-interrupted-process.json");
     let request = guard::recovery_id(root).expect("status").expect("pending");
     assert_eq!(
         guard::recovery_id(root).expect("status").as_ref(),
         Some(&request)
     );
+    // Confirmed runtime-bound stragglers are ended by recovery instead of
+    // fencing the launch until a reboot. Recovery proves they are gone first.
     for key in ["WINEPREFIX", "MSFS_LINUX_ROOT", "FLIGHTDECK_HELPER_RUNTIME"] {
         let path = if key == "WINEPREFIX" {
             root.join("local/msfs-prefix")
         } else {
             root.to_path_buf()
         };
-        let writer = Process(
+        let mut writer = Process(
             Command::new("sleep")
                 .arg("30")
                 .env(key, path)
@@ -80,38 +102,95 @@ fn interrupted_session_recovers_only_after_writers_exit_and_backup_is_durable() 
             assert!(Instant::now() < deadline);
             std::thread::sleep(Duration::from_millis(10));
         }
-        assert_eq!(
-            guard::clear(root, &lease.0)
-                .expect_err("a supervisor exit cannot release a live descendant")
-                .code,
-            "unsafe_session"
+        let result = guard::recover(root, &lease.0).expect("recovery ends the straggler");
+        assert_eq!(result["game_started"], false);
+        assert!(
+            writer.0.try_wait().expect("reap").is_some(),
+            "{key} writer must have been ended"
         );
-        assert_eq!(
-            guard::recover(root, &lease.0)
-                .expect_err("live writer")
-                .code,
-            "unsafe_session"
-        );
-        assert_eq!(bytes(root, "cloud-interrupted-process.json"), fence);
-        assert!(!root.join("private/save-backups").exists());
+        assert!(!root.join("private/cloud-interrupted-process.json").exists());
         drop(writer);
+        guard::mark(root, &lease.0).expect("next session fence");
     }
-    guard::clear(root, &lease.0).expect("all descendants have exited");
+    let straggler = Process(
+        Command::new("sleep")
+            .arg("30")
+            .env("WINEPREFIX", root.join("local/msfs-prefix"))
+            .spawn()
+            .expect("writer"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !fs::read(format!("/proc/{}/environ", straggler.0.id())).is_ok_and(|env| {
+        env.split(|b| *b == 0)
+            .any(|e| e.starts_with(b"WINEPREFIX="))
+    }) {
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let mut straggler = straggler;
+    guard::clear(root, &lease.0).expect("a supervisor exit ends its remaining descendants");
+    assert!(straggler.0.try_wait().expect("reap").is_some());
+    drop(straggler);
     assert!(!root.join("private/cloud-interrupted-process.json").exists());
     guard::mark(root, &lease.0).expect("next session fence");
+    let fence = bytes(root, "cloud-interrupted-process.json");
+
+    // Fenix belongs to the simulator session and ends with it.
+    let prefix = root.join("local/msfs-prefix");
+    let mut fenix = windows("FenixApp.exe", &prefix);
+    guard::clear(root, &lease.0).expect("Fenix ends with the game session");
+    assert!(fenix.0.try_wait().expect("reap").is_some());
+    drop(fenix);
+    guard::mark(root, &lease.0).expect("next session fence");
+
+    // Another Windows application in the profile is left running and reported
+    // by the automatic release; only the explicit session check ends it.
+    let mut installer = windows("Setup.exe", &prefix);
+    let error = guard::clear(root, &lease.0).expect_err("an installer is not ended implicitly");
+    assert_eq!(error.code, "unsafe_session");
+    let blocking = &error.detail.expect("blocker detail")["blocking_process"];
+    assert_eq!(blocking["pid"], installer.0.id());
+    assert_eq!(blocking["name"], "setup.exe");
+    assert_eq!(blocking["application"], true);
+    assert_eq!(blocking["spared"], true);
+    assert!(installer.0.try_wait().expect("reap").is_none());
+    assert_eq!(bytes(root, "cloud-interrupted-process.json"), fence);
+    guard::recover(root, &lease.0).expect("the session check ends the installer");
+    assert!(installer.0.try_wait().expect("reap").is_some());
+    drop(installer);
+    guard::mark(root, &lease.0).expect("next session fence");
+
+    // An empty binding cannot be attributed: it blocks but is never signalled.
+    let mut unbound = windows("sleep", Path::new(""));
+    let error = guard::recover(root, &lease.0).expect_err("unresolved binding");
+    let blocking = &error.detail.expect("blocker detail")["blocking_process"];
+    assert_eq!(blocking["pid"], unbound.0.id());
+    assert_eq!(blocking["identified"], false);
+    assert!(unbound.0.try_wait().expect("reap").is_none());
+    drop(unbound);
+    // A prefix that does not exist cannot be this runtime and does not block.
+    let _absent = windows("sleep", &root.join("local/absent-prefix"));
+    guard::clear(root, &lease.0).expect("a missing prefix is not this runtime");
+    guard::mark(root, &lease.0).expect("next session fence");
     let ready = root.join("protected.ready");
-    let writer = Process(Command::new("python3").args(["-c", "import ctypes,pathlib,sys,time; assert ctypes.CDLL(None).prctl(4,0)==0; pathlib.Path(sys.argv[1]).touch(); time.sleep(30)"])
+    let mut writer = Process(Command::new("python3").args(["-c", "import ctypes,pathlib,sys,time; assert ctypes.CDLL(None).prctl(4,0)==0; pathlib.Path(sys.argv[1]).touch(); time.sleep(30)"])
         .arg(&ready).env("FLIGHTDECK_HELPER_RUNTIME", root).spawn().expect("protected writer"));
     let deadline = Instant::now() + Duration::from_secs(5);
     while !ready.exists() {
         assert!(Instant::now() < deadline);
         std::thread::sleep(Duration::from_millis(10));
     }
-    assert_eq!(
-        guard::recover(root, &lease.0)
-            .expect_err("unknown inaccessible writer")
-            .code,
-        "unsafe_session"
+    // An unresolved protected process is reported, never signalled.
+    let error = guard::recover(root, &lease.0).expect_err("unknown inaccessible writer");
+    assert_eq!(error.code, "unsafe_session");
+    let blocking = &error.detail.expect("blocker detail")["blocking_process"];
+    assert_eq!(blocking["pid"], writer.0.id());
+    assert_eq!(blocking["identified"], false);
+    assert_eq!(blocking["unkillable"], false);
+    assert_eq!(blocking["name"], "python3");
+    assert!(
+        writer.0.try_wait().expect("reap").is_none(),
+        "protected process must survive"
     );
     assert_eq!(bytes(root, "cloud-interrupted-process.json"), fence);
     drop(writer);

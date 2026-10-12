@@ -215,8 +215,10 @@ exception messages; `<runtime>/private/fenix-app.log` remains local.
 
 After setup, Fenix starts automatically with MSFS; you do not need to start it
 separately. Flightdeck closes the session's Fenix companions after normal exit,
-a game crash or **Stop**, with a bounded fallback for stuck processes. The
-official Fenix installer and other Wine profiles are excluded from that cleanup.
+a game crash or **Stop**, with a bounded fallback for stuck processes. Since
+0.2.9 this includes the official Fenix app when it is still open, so finish any
+installation or livery download there before quitting MSFS. Other Wine profiles
+are excluded from that cleanup.
 
 Flightdeck uses patch **0.1.0-preview.5**. Newer patch versions are adopted
 through a Flightdeck update; the launcher does not independently check for the

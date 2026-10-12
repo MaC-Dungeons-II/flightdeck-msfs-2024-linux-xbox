@@ -74,15 +74,18 @@ fn automatic_enabled(s: &crate::backend::State, enabled: bool) -> Value {
         None
     };
     if let Some(id) = &pending {
+        // A failed recovery already names the blocking process; keep its
+        // request, message and details instead of the generic fence notice.
         if !current || value["error_code"] != "unsafe_session" {
             value["request_id"] = json!(id);
+            value["error_details"] = json!({});
+            value["message"] = json!(
+                "Die vorherige Spielsitzung ist noch nicht freigegeben. Sitzung prüfen beendet ihre verbliebenen Prozesse und sichert die lokalen Spielstände."
+            );
         }
         value["state"] = json!("attention");
         value["phase"] = json!("before_start");
         value["error_code"] = json!("unsafe_session");
-        value["message"] = json!(
-            "Die vorherige Spielsitzung ist noch nicht freigegeben. Erneut versuchen prüft, ob alle zugehörigen Prozesse beendet sind, und sichert die lokalen Spielstände."
-        );
     }
     let attention = enabled
         && (current || pending.is_some())

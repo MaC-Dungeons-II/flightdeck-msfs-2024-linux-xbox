@@ -117,16 +117,23 @@ weiteren automatischen Sitzung ein Linux-Neustart erforderlich sein. Dadurch
 werden Spielstände nicht verändert, während ein verwaister Spielprozess noch
 laufen könnte. Nach normalem Beenden oder dem Stoppknopf ist kein Neustart nötig.
 
-**In 0.2.6:** **Sitzung prüfen** kann diese Sperre
-ohne Linux-Neustart lösen. Flightdeck prüft zunächst, ob die zugehörigen Prozesse
-beendet sind, und sichert lokale Spielstände. Scheitert die Prüfung, bleibt die
-Sperre bestehen. Die Aktion startet MSFS nicht und lädt keine Spielstände hoch;
+**Seit 0.2.6:** **Sitzung prüfen** kann diese Sperre
+ohne Linux-Neustart lösen. Seit 0.2.9 beendet Flightdeck dabei die verbliebenen
+Prozesse der Runtime (SIGTERM, dann SIGKILL), prüft, dass sie weg sind, und
+sichert lokale Spielstände. Beim Ende des Simulators geschieht dasselbe
+automatisch für das Spiel, Fenix, GSX und die Wine-Dienste; eine andere
+Windows-Anwendung im Profil, etwa ein Installer, läuft weiter und wird genannt,
+**Sitzung prüfen** beendet sie auf Wunsch. Prozesse, die sich der Runtime nicht
+zuordnen lassen, werden nie signalisiert. Überlebt ein Prozess, bleibt die Sperre
+bestehen und die Meldung nennt ihn mit PID; ein im Kernel hängender Prozess
+(Zustand D, meist nach einem GPU-Geräteverlust) endet nur mit einem
+Linux-Neustart. Die Aktion startet MSFS nicht und lädt keine Spielstände hoch;
 der nächste normale Start gleicht ausstehende lokale und Cloud-Änderungen ab.
 [Details](native-ui.md#session-and-control-fixes-in-026).
 
 Die Prüfung schützt auch den normalen Beendigungspfad. Verwendet noch eine
-Windows-Anwendung dasselbe Profil, schließe sie vor der erneuten Sitzungsprüfung
-und dem Abgleich.
+andere Windows-Anwendung dasselbe Profil, schließe sie oder beende sie mit
+**Sitzung prüfen**.
 
 ## Erweiterte Werkzeuge
 

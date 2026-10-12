@@ -782,10 +782,8 @@ impl App {
             }
         }
         let mut launcher_view=column![self.paragraph(self.t("Lade neue Flightdeck-Versionen direkt von GitHub. Deine Einstellungen bleiben erhalten.").to_string()),self.job("launcher-update"),self.actions(&launcher_actions)].spacing(16);
-        for key in ["unavailable_reason"] {
-            if !s(launcher, key).is_empty() {
-                launcher_view = launcher_view.push(self.paragraph(s(launcher, key)));
-            }
+        if !s(launcher, "unavailable_reason").is_empty() {
+            launcher_view = launcher_view.push(self.paragraph(s(launcher, "unavailable_reason")));
         }
         if !s(launcher, "notes").is_empty() {
             launcher_view = launcher_view

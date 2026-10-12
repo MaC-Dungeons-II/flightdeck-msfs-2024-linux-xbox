@@ -951,3 +951,36 @@ fn mod_uninstall_reviews_the_exact_entry_and_rejects_changed_confirmation()
     }
     Ok(())
 }
+#[test]
+fn fenced_session_names_the_surviving_process_in_the_launch_note()
+-> Result<(), Box<dyn std::error::Error>> {
+    for (language, suffix) in [
+        (
+            Language::De,
+            "Prozess: FlightSimulator2 (PID 4242, Zustand D)",
+        ),
+        (
+            Language::En,
+            "Process: FlightSimulator2 (PID 4242, state D)",
+        ),
+    ] {
+        let mut app = fixture();
+        app.language = language;
+        app.client = Some(flightdeck_ui::Client::new(
+            1,
+            "synthetic-session-0000000000000000".into(),
+        )?);
+        let reason = "A process from the previous game session is stuck in the kernel.";
+        app.snapshot.get_mut("status").expect("status")["cloud"] = json!({
+            "state":"attention", "enabled":true, "error_code":"unsafe_session",
+            "message":reason, "can_retry":true, "request_id":"interrupted-1",
+            "error_details":{"blocking_process":{"pid":4242,"name":"FlightSimulator2",
+                "state":"D (disk sleep)","identified":true,"unkillable":true}}
+        });
+        assert_eq!(app.launch_note(), format!("{reason} {suffix}"));
+        // Without a recorded blocker the note stays as delivered by the service.
+        app.snapshot.get_mut("status").expect("status")["cloud"]["error_details"] = json!({});
+        assert_eq!(app.launch_note(), reason);
+    }
+    Ok(())
+}
