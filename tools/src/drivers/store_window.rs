@@ -602,7 +602,6 @@ mod tests {
         let (temp, path) = program("echo 'thread main panicked'; exec sleep 30");
         assert!(observe(&path, &[], "x11", temp.path(), &mut desktop).is_err());
         assert!(started.elapsed() < Duration::from_secs(10));
-        drop(desktop);
         assert_eq!(asked, ["clients"]);
     }
 }
