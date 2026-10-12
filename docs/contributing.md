@@ -71,15 +71,15 @@ account identifiers, authentication responses and raw game logs stay in local
 private directories. Use Flightdeck's diagnostic export for a report that omits
 those details; screenshots still need a separate check for personal information.
 
-Run `python3 scripts/check-source-export.py` before committing. Source archives
+Run `cargo run --locked -p flightdeck-tools -- source-check` before committing. Source archives
 use the same explicit allowlist and record every included file's hash:
 
 ```sh
-python3 scripts/source-release.py --output build/flightdeck-source.tar.gz
+cargo run --locked -p flightdeck-tools -- source-release --output build/flightdeck-source.tar.gz
 ```
 
-Build and package the Rust launcher with `scripts/build-native.py` and
-`scripts/native-release.py` as described in [BUILDING.md](../BUILDING.md#native-packages).
+Build and package the Rust launcher with the `build-native` and `package`
+commands of the same tool as described in [BUILDING.md](../BUILDING.md#native-packages).
 The full package combines the native launcher with the component archive
 matching `compat/bootstrap.lock.json` and the [pinned renderer bundle](nvidia-renderer.md).
 These commands create local archives. Binary distributions also require the

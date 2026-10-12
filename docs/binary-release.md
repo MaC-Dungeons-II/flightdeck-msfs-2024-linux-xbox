@@ -67,8 +67,8 @@ use HTTPS with checksums checked before use. Build/test archive readers also enf
 ## Build and sources
 
 The launcher source archive contains `native/`, `Cargo.toml`, `Cargo.lock`,
-embedded UI/scripts and the build/test tools. `scripts/build-native.py` remaps
-local checkout/cache/toolchain paths. `scripts/native-release.py` assembles
+embedded UI/scripts and the build/test tools in `tools/`. Its `build-native`
+command remaps local checkout/cache/toolchain paths. Its `package` command assembles
 deterministic tar/ZIP packages, validates the Linux x86-64 executable and records
 the locked Cargo graph and each included license file. The launcher build and
 full-package commands are in [BUILDING.md](../BUILDING.md#native-packages).
@@ -81,7 +81,7 @@ The distributable build removes Wine DLL debug paths and remaps Rust source
 locations so personal checkout/Cargo-cache paths are not embedded in the package.
 The checked source manifest connects each patched source to its build artifacts.
 
-`scripts/binary-release.py` creates both the native archive and its matching
+The `compat-release` command of `tools/` creates both the native archive and its matching
 `flightdeck-native-sources-<version>.tar.gz`. The source archive contains full patched
 WineGDK and Xodus sources, proxy and cloud-helper sources, all 686 locked Cargo vendor packages,
 the source manifest, original notices and an offline Cargo configuration. The

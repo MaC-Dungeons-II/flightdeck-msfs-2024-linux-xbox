@@ -93,7 +93,7 @@ No Microsoft login or game download is needed for the automated regression tests
 
 ```sh
 cargo test --locked --test native_setup --test native_updates
-python3 scripts/check-rust-http.py --binary target/debug/flightdeck-rust
+cargo run --locked -p flightdeck-tools -- http-contract --binary target/debug/flightdeck-rust
 cargo test --locked --manifest-path build/compat/xodus-src/Cargo.toml -p msixvc
 cargo test --locked --manifest-path build/compat/xodus-src/Cargo.toml -p xodus-cli
 cargo test --locked --manifest-path build/compat/xodus-src/Cargo.toml -p xodus resume_expiry_tests

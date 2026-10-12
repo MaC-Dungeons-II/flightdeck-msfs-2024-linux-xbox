@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Exercise legacy -> bridge -> native updates with real packages and local GitHub fixtures."""
+"""Exercise legacy -> bridge -> native updates with real packages and local GitHub fixtures.
+
+This is the one maintainer check that stays in Python: it installs and drives
+the published Python releases 0.1.21 and 0.1.22 and injects a fixture into
+their interpreter. Everything else is in tools/ (cargo run -p flightdeck-tools).
+"""
 import argparse
 import hashlib
 import http.client
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -12,11 +16,61 @@ import re
 import subprocess
 import sys
 import tarfile
+import time
 
-ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("package_check", ROOT / "scripts/check-native-package.py")
-check = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(check)
+
+class RequestFailure(AssertionError):
+    def __init__(self, status, path, value):
+        super().__init__((status, path, value))
+        self.status = status
+
+
+def request(record, path, data=None):
+    connection = http.client.HTTPConnection("127.0.0.1", record["port"], timeout=5)
+    try:
+        headers = {"X-Flightdeck-Token": record["token"], "Content-Type": "application/json"}
+        connection.request("POST" if data is not None else "GET", path,
+                           body=json.dumps(data) if data is not None else None, headers=headers)
+        response = connection.getresponse()
+        value = json.loads(response.read())
+        if response.status != 200:
+            raise RequestFailure(response.status, path, value)
+        return value
+    finally:
+        connection.close()
+
+
+def wait_for(check, timeout=60):
+    deadline = time.monotonic() + timeout
+    last = None
+    while time.monotonic() < deadline:
+        try:
+            value = check()
+            if value:
+                return value
+        except (OSError, ValueError, http.client.HTTPException) as error:
+            last = error
+        time.sleep(.05)
+    raise AssertionError("Timed out waiting for the isolated service") from last
+
+
+def record_at(state):
+    record = json.loads((state / "desktop-service.json").read_text())
+    try:
+        status = request(record, "/api/status")
+    except RequestFailure as error:
+        if error.status not in (401, 403):
+            raise
+        # The replacement may rotate authentication after the record was read.
+        # Only bounded discovery polling retries this; mutation errors stay fatal.
+        raise ValueError("Service authentication changed during handoff") from error
+    if status["csrf_token"] != record["token"] or status["service"]["release"] != record["release"]:
+        # The replacement can publish its record between our file read and
+        # HTTP request. Retry this observation; never reuse the stale token.
+        raise ValueError("Service record changed during handoff")
+    assert not status["runtime"]["configured"]
+    return record
+
 
 # This hook exists only in the private test directory. It replaces GitHub reads
 # in the isolated Python services, including the legacy service before upgrading.
@@ -92,25 +146,25 @@ def main(args):
 
     def current(previous=None, wanted=None):
         def ready():
-            record = check.record_at(state)
+            record = record_at(state)
             if previous and record["token"] == previous["token"]:
                 return None
             if previous:
                 assert record["port"] == previous["port"]
             if wanted:
-                assert check.request(record, "/api/status")["app"]["version"] == wanted
+                assert request(record, "/api/status")["app"]["version"] == wanted
             return record
-        return check.wait_for(ready)
+        return wait_for(ready)
 
     def finished(record):
         def ready():
-            status = check.request(record, "/api/launcher-update")
+            status = request(record, "/api/launcher-update")
             assert status["job"]["state"] != "failed", status["job"]
             return status if status["job"]["state"] == "complete" else None
-        return check.wait_for(ready)
+        return wait_for(ready)
 
     def restart(record, wanted):
-        check.request(record, "/api/launcher-update/restart", {})
+        request(record, "/api/launcher-update/restart", {})
         return current(record, wanted)
 
     try:
@@ -133,10 +187,10 @@ def main(args):
         hops = []
         for target in (bridge_version, native_version):
             before = installed()["current"]
-            check.request(record, "/api/launcher-update/check", {})
+            request(record, "/api/launcher-update/check", {})
             status = finished(record)
             assert status["latest_version"] == target and status["can_install"], status
-            check.request(record, "/api/launcher-update/install", {"check_id": status["check_id"]})
+            request(record, "/api/launcher-update/install", {"check_id": status["check_id"]})
             status = finished(record)
             assert status["pending_restart"] and status["can_restart"]
             assert installed()["previous"] == before
@@ -145,7 +199,7 @@ def main(args):
         # Crossing back to Python and then forward to native must retain the
         # native manager and a shell wrapper that no longer needs Python.
         for target in (bridge_version, native_version):
-            check.request(record, "/api/launcher-update/rollback", {})
+            request(record, "/api/launcher-update/rollback", {})
             status = finished(record)
             assert status["pending_restart"] and status["can_restart"]
             record = restart(record, target)
@@ -153,7 +207,7 @@ def main(args):
         assert (bin_dir / "flightdeck").read_text().startswith("#!/bin/sh\n")
         assert marker.read_text() == "synthetic browser preference"
         assert not (output / "unexpected-browser").exists()
-        check.request(record, "/api/desktop/refresh", {})
+        request(record, "/api/desktop/refresh", {})
 
         # Exercise the downloaded bootstrap and terminal update route as well.
         # The initial command is Python; successful update must exec a shell
@@ -190,12 +244,12 @@ def main(args):
         # must still install the checked package and start its verified service.
         assert updated.returncode == 0 or (updated.returncode == 1 and
             b"X11" in updated.stderr and b"Wayland" in updated.stderr), updated.stderr.decode(errors="replace")
-        cli_record = check.wait_for(lambda: check.record_at(cli_state))
-        assert check.request(cli_record, "/api/status")["app"]["version"] == native_version
+        cli_record = wait_for(lambda: record_at(cli_state))
+        assert request(cli_record, "/api/status")["app"]["version"] == native_version
         assert json.loads((cli_data / "installation.json").read_text())["previous"] == json.loads(before)["current"]
         assert (cli_bin / "flightdeck").read_text().startswith("#!/bin/sh\n")
         assert not (cli / "browser-opened").exists(), "Native startup must not launch a browser"
-        check.request(cli_record, "/api/desktop/refresh", {})
+        request(cli_record, "/api/desktop/refresh", {})
         report = {"status": "PASS", "initial_version": "0.1.21", "hops": hops, "same_browser_origin": True,
                   "settings_preserved": True, "no_additional_browser": True, "final_wrapper_requires_python": False,
                   "terminal_update": "PASS", "native_window": "headless; checked separately", "tampered_native_binary_rejected": True, "bridge_bootstrap": "PASS",
@@ -207,8 +261,8 @@ def main(args):
     finally:
         for directory in states:
             try:
-                record = check.wait_for(lambda: check.record_at(directory), timeout=2)
-                check.request(record, "/api/desktop/refresh", {})
+                record = wait_for(lambda: record_at(directory), timeout=2)
+                request(record, "/api/desktop/refresh", {})
             except (OSError, ValueError, AssertionError, http.client.HTTPException):
                 pass
         for child in children:

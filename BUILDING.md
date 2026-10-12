@@ -17,10 +17,15 @@ cargo build --locked
 cargo test --locked --workspace
 cargo fmt --all -- --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
-python3 scripts/check-rust-http.py --binary target/debug/flightdeck-rust
+cargo run --locked -p flightdeck-tools -- http-contract --binary target/debug/flightdeck-rust
 ICED_TEST_BACKEND=tiny-skia cargo test --locked -p flightdeck-ui capture_ -- --ignored
 target/debug/flightdeck-rust
 ```
+
+Checks, packaging and release steps are commands of the maintainer tool in
+`tools/`, a workspace member that is not part of the launcher.
+`cargo run --locked -p flightdeck-tools -- --help` lists them; its own tests run
+with the workspace suite.
 
 Native UI event/rendering tests and the real local-service integration test use
 isolated synthetic data. Screenshot capture works without a desktop or GPU and
@@ -34,11 +39,9 @@ longer kept as a second implementation in the source tree. Native controller,
 interaction and rendering tests cover the migrated workflows; the historical
 synthetic response fixture in `native/ui/tests/fixtures/` supports comparisons.
 
-```sh
-python3 -m unittest discover -s tests/compat -p 'test_*.py'
-```
-
 There is no Python application or pip package in the current source tree.
+The tests of the release tooling, of the installer's shell entry point and of
+the ConnectedStorage protocol validators are part of `cargo test --workspace`.
 The Store sign-in and purchase windows are separate Xodus compatibility
 components; their own webview tests below remain relevant.
 
@@ -47,21 +50,21 @@ components; their own webview tests below remain relevant.
 Build the release with local checkout, Cargo-cache and toolchain paths remapped:
 
 ```sh
-python3 scripts/build-native.py
+cargo run --locked -p flightdeck-tools -- build-native
 mkdir -p build
 cargo metadata --locked --filter-platform x86_64-unknown-linux-gnu --format-version 1 > build/cargo-metadata.json
-python3 scripts/native-release.py \
+cargo run --locked -p flightdeck-tools -- package \
   --binary target/release/flightdeck-rust \
   --cargo-metadata build/cargo-metadata.json \
   --rust-notices "$(rustc --print sysroot)/share/doc/rust/COPYRIGHT-library.html" \
   --native build/flightdeck-compat-0.1.16-linux-x86_64.tar.gz \
   --graphics build/graphics \
   --output build/native-package
-python3 scripts/source-release.py --output build/native-package/flightdeck-source-0.2.11.tar.gz
+cargo run --locked -p flightdeck-tools -- source-release --output build/native-package/flightdeck-source-0.2.11.tar.gz
 ```
 
 Install the toolchain's `rust-docs` component if its standard-library notices
-are missing. `--offline` on `build-native.py` uses the existing Cargo cache.
+are missing. `--offline` on `build-native` uses the existing Cargo cache.
 The full package requires the exact component archive in
 `compat/bootstrap.lock.json` and the seven files from the pinned graphics
 bundle. Hashes, binary architecture/version, dependency licenses and payload
@@ -105,7 +108,8 @@ docker run --rm --network none --read-only --user "$(id -u):$(id -g)" \
   --mount "type=bind,src=$PWD/build/native-baseline,dst=/build" \
   --mount "type=bind,src=$flightdeck_rust_root,dst=/opt/rust,readonly" \
   --mount "type=bind,src=$flightdeck_registry,dst=/cargo/registry,readonly" \
-  flightdeck-native-build:ubuntu24.04 python3 scripts/build-native.py --offline
+  flightdeck-native-build:ubuntu24.04 \
+  cargo run --offline --locked -p flightdeck-tools -- build-native --offline
 ```
 
 Populate the Cargo registry on the host first with `cargo fetch --locked`.
@@ -120,10 +124,14 @@ Fedora 44, Arch Linux and openSUSE Tumbleweed. To reproduce one matrix entry
 with Docker and an extracted package:
 
 ```sh
-python3 scripts/check-linux-distro.py --distribution ubuntu \
+cargo run --locked -p flightdeck-tools -- distro-check --distribution ubuntu \
   --package build/native-package/flightdeck-linux \
   --output build/linux-check-ubuntu
 ```
+
+The tool itself runs inside the container, so the test images need no
+interpreter. A tool built on a host with a newer glibc than the image cannot
+start there; build it on the baseline image in that case.
 
 Choose a new output directory for each run. Base images are pinned in
 `compat/linux-test-images.json`; package installation uses the distribution's
@@ -177,7 +185,7 @@ curl --fail --location \
   --output build/downloads/winegdk.tar.gz
 git clone https://github.com/xodus-gaming/xodus.git build/downloads/xodus
 git -C build/downloads/xodus fetch origin 0670e25aeb0e0e9f800f8f2f4968ae3b681842a7
-python3 scripts/stage-compat.py \
+cargo run --locked -p flightdeck-tools -- compat-stage \
   --winegdk-archive build/downloads/winegdk.tar.gz \
   --xodus-repo build/downloads/xodus \
   --destination build/compat
@@ -192,7 +200,7 @@ generated from the pinned WineGDK IDLs during the build.
 
 ```sh
 BUILD_JOBS=8 bash scripts/build-compat.sh build/compat
-python3 -m unittest discover -s tests/compat -p 'test_*.py'
+cargo test --locked -p flightdeck-tools
 ```
 
 The build produces `build/compat/artifacts/manifest.json` and six files:

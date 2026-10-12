@@ -314,7 +314,7 @@ bundle license. The corresponding DXVK source archive contains all pinned
 submodules, original notices, the patch and graphics lock. The 0.1.11 DXVK build
 used MinGW GCC 16.2.0, Meson 1.10.0 and Ninja 1.13.2.
 
-Create the checked launcher source archive and use `scripts/native-release.py`
+Create the checked launcher source archive and use the `package` command of `tools/`
 with the component archive selected by the current `compat/bootstrap.lock.json`
 and this matching graphics bundle. See [native package commands](../BUILDING.md#native-packages). The full installer also contains
 the [Store session recovery correction](store-session-refresh.md).

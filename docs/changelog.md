@@ -1,5 +1,15 @@
 # Changes and release status
 
+## Unreleased
+
+- Move the checks, packaging and release steps from Python scripts to the Rust
+  maintainer tool in `tools/`. Launcher and full packages built by both
+  implementations from the same inputs are identical member for member, and
+  the distribution checks run the same tool inside their containers, so the
+  test images no longer install an interpreter. The installed launcher is not
+  affected. One check stays in Python because it drives the published Python
+  releases: `scripts/check-transition-update.py`.
+
 ## 0.2.11 — 12 October 2026
 
 Stable release with full installer and corresponding source archives.

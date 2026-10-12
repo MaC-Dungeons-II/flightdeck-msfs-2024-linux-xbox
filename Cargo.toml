@@ -47,7 +47,7 @@ codegen-units = 1
 strip = "debuginfo"
 
 [workspace]
-members = ["native/ui"]
+members = ["native/ui", "tools"]
 exclude = ["examples/native-ui"]
 resolver = "3"
 

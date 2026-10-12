@@ -158,7 +158,7 @@ The local container checks passed on **8 October 2026** with an internal package
 `0ff1be8b702fb97757d7794d99b189985dca2a1d05cf7ad801b64472b2823711`.
 These are historical candidate results, not validation of the final 0.2.8 package;
 that package must pass its release CI checks separately.
-The [test runner](../scripts/check-linux-distro.py) uses pinned base images from
+The [test runner](../tools/src/distro.rs) uses pinned base images from
 [the image manifest](../compat/linux-test-images.json). Each row covers the
 launcher only: CLI startup, installation into a fresh Unicode path, the installed
 command, 84 local API checks, and uninstall. Window checks use software rendering
@@ -507,11 +507,12 @@ with no real account, game or desktop changes:
 cargo test --locked --test native_installer --test native_launcher_updates
 ```
 
-For full packages, `scripts/check-native-package.py --package NEW_PACKAGE
---previous-native OLD_NATIVE_PACKAGE --python-package OLD_PYTHON_PACKAGE
---output build/package-check` exercises real installation without Python in
-PATH, service handoff on the same port and rollback to both native and Python
-releases. All package arguments refer to extracted package directories. It
+For full packages, `cargo run --locked -p flightdeck-tools -- package-check --package NEW_PACKAGE
+--previous-native OLD_NATIVE_PACKAGE --output build/package-check` exercises
+real installation with no program on PATH, service handoff on the same port
+and rollback to the previous native release. Both package arguments refer to
+extracted package directories. The update from the Python releases is covered
+by `scripts/check-transition-update.py`. The package check
 uses fake browser launchers and isolated settings; it never opens a game.
 
 The suite covers source/resource hashes, updates, rollback after write failures,
