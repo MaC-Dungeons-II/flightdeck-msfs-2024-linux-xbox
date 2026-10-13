@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 //! Hardware-free graphics contracts retained after retiring the Python suite.
 #![allow(clippy::unwrap_used)]
-use flightdeck::{files, graphics, vr};
+use flightdeck::{files, graphics, graphics_diagnostics, vr};
 use serde_json::json;
 use std::{collections::BTreeMap, fs};
 
@@ -149,4 +149,51 @@ fn disabled_vr_leaves_environment_alone_and_invalid_explicit_runtime_never_falls
     assert_eq!(selected["valid"], false);
     fs::remove_file(manifest).unwrap();
     assert_eq!(vr::choose("auto", &env).unwrap()["valid"], false);
+}
+
+/// Lines as the pinned runner's renderers wrote them for a small Direct3D 11
+/// and 12 test program at the launcher's log levels.
+const RENDERER_LOG: &str = "info:  Game: multiwindow.exe
+info:  DXVK: v3.0.2-10-g0123456789ab
+info:  Found device: Radeon RX 6800/6800 XT / 6900 XT (radv 26.2.2)
+info:  Creating device:
+info:  D3D11InternalCreateDevice: Maximum supported feature level: D3D_FEATURE_LEVEL_12_1
+info:  D3D11InternalCreateDevice: Using feature level D3D_FEATURE_LEVEL_11_0
+info:  Presenter: Actual swapchain properties:
+info:    Format:       VK_FORMAT_R8G8B8A8_UNORM
+info:    Buffer size:  420x280
+1204236.813:0154:0194:info:vkd3d-proton:dxgi_vk_swap_chain_recreate_swapchain_in_present_task: Got 3 swapchain images.
+";
+
+#[test]
+fn a_log_shows_whether_a_device_and_a_swapchain_were_ever_created() {
+    let drawn = graphics_diagnostics::log_summary(RENDERER_LOG);
+    assert_eq!(
+        drawn["observed_components"],
+        json!(["vkd3d-proton", "dxvk"])
+    );
+    assert_eq!(
+        drawn["observed_versions"]["dxvk"],
+        json!(["v3.0.2-10-g0123456789ab"])
+    );
+    assert_eq!(
+        drawn["observations"],
+        json!({"d3d11_device_created": 1, "swapchain_created": 2})
+    );
+    // A game that never reached its renderer leaves none of this: the absence
+    // is then a finding, not a gap in the log.
+    let stuck = graphics_diagnostics::log_summary(
+        "[xodus-store] XStoreCreateContext hr=00000000\nwarn:pulse:pulse_test_connect failed\n",
+    );
+    assert_eq!(stuck["observed_components"], json!([]));
+    assert_eq!(stuck["observations"], json!({}));
+    // The renderer's own failures are counted as such.
+    let failed = graphics_diagnostics::log_summary(
+        "info:  DXVK: v3.0.2\nerr:   D3D11InternalCreateDevice: Failed to create D3D11 device: no adapter\n\
+         err:   Presenter: Failed to create Vulkan swapchain: VK_ERROR_SURFACE_LOST_KHR\n",
+    );
+    assert_eq!(
+        failed["observations"],
+        json!({"d3d11_device_failed": 1, "swapchain_failed": 1})
+    );
 }

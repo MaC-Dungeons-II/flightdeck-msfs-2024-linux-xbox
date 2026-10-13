@@ -392,6 +392,23 @@ pub fn log_summary(text: &str) -> Value {
             "present_without_render",
             r"\bApplication is presenting user index [0-9]{1,10}, but it has never been rendered to\.",
         ),
+        // Positive evidence that rendering was set up, and its own failures.
+        (
+            "d3d11_device_created",
+            r"\bD3D11InternalCreateDevice: Using feature level\b",
+        ),
+        (
+            "d3d11_device_failed",
+            r"\bD3D11InternalCreateDevice: Failed to create D3D11 device\b",
+        ),
+        (
+            "swapchain_created",
+            r"\bPresenter: Actual swapchain properties:|\bdxgi_vk_swap_chain_recreate_swapchain_in_present_task: Got [0-9]{1,3} swapchain images",
+        ),
+        (
+            "swapchain_failed",
+            r"\bPresenter: Failed to create Vulkan (?:surface|swapchain)\b",
+        ),
         ("adapter_name_filter_skips", r"\bSkipping: Device filter\b"),
         ("adapter_uuid_filter_skips", r"\bSkipping: UUID filter\b"),
         ("no_dxvk_adapters", r"\bDXVK: No adapters found\b"),

@@ -237,8 +237,10 @@ device indices and ambiguous matches are preserved without guessing.
 Explicit name filters must match the names visible inside Wine. Remove custom
 name filters before comparing modes if diagnostics reports that the
 desired adapter was excluded.
-NVIDIA starts default to `DXVK_LOG_LEVEL=info` and `VKD3D_DEBUG=warn` so the local
-game log includes renderer versions, adapter decisions and swapchain warnings.
+Every start defaults to `DXVK_LOG_LEVEL=info` and `VKD3D_DEBUG=warn` so the local
+game log includes renderer versions, adapter decisions, the created Direct3D 11
+device and each swapchain. Until 0.2.11 only NVIDIA starts did, and the log of a
+Direct3D 11 game on other hardware could not show whether anything was drawn.
 VKD3D orders `info` below `warn`; earlier launcher defaults suppressed warnings. Explicit logging
 preferences remain effective. These settings do not enable per-call tracing.
 

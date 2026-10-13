@@ -70,7 +70,10 @@ pub fn game_environment(root: &Path, mut env: Environment) -> Result<Environment
     )?;
     let prefix = root.join("local/msfs-prefix");
     for (key,value) in [("WINEPREFIX",prefix.to_string_lossy().into_owned()),("WINEARCH","win64".into()),("WINEESYNC","0".into()),("WINEFSYNC","0".into()),("WINEDEBUG","-all,err+all,warn+gdkc,fixme+gdkc,warn+mmdevapi,warn+pulse,warn+alsa,warn+xaudio2,warn+dsound,warn+winegstreamer".into()),("XODUS_USER_RUNTIME","1".into())]{env.insert(key.into(),value);}
-    env.entry("DXVK_LOG_LEVEL".into()).or_insert("warn".into());
+    // At this level the renderer names its version, the device it created
+    // and each swapchain: a few lines per session. Without them the log of a
+    // Direct3D 11 game cannot show whether anything was ever drawn.
+    env.entry("DXVK_LOG_LEVEL".into()).or_insert("info".into());
     env.entry("VKD3D_DEBUG".into()).or_insert("warn".into());
     let old = env
         .get("WINEDLLOVERRIDES")

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Record whether a game ever set up its renderer. Until now only NVIDIA
+  starts logged the renderer at its informative level; on other hardware the
+  log of a Direct3D 11 game such as MSFS 2020 held warnings only, and a report
+  of a black screen looked exactly like a healthy session. Every start now
+  uses that level, and diagnostics count the created Direct3D 11 device, the
+  created swapchains and their failures. For a small test program the
+  renderer writes about 530 lines at this level.
 - Store runtime sources, not yet in the shipped components: log each distinct
   user interface and each distinct query result once instead of on every
   call. These two lines made up 98 % of a 162 MiB session log. The rebuilt
