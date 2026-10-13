@@ -1,23 +1,10 @@
 # Changes and release status
 
-## Unreleased
+## 0.2.12 — 13 October 2026
 
-- Record whether a game ever set up its renderer. Until now only NVIDIA
-  starts logged the renderer at its informative level; on other hardware the
-  log of a Direct3D 11 game such as MSFS 2020 held warnings only, and a report
-  of a black screen looked exactly like a healthy session. Every start now
-  uses that level, and diagnostics count the created Direct3D 11 device, the
-  created swapchains and their failures. For a small test program the
-  renderer writes about 530 lines at this level.
-- Store runtime sources, not yet in the shipped components: log each distinct
-  user interface and each distinct query result once instead of on every
-  call. These two lines made up 98 % of a 162 MiB session log. The rebuilt
-  Store module writes 2 lines where the published one writes 50 for 50 calls;
-  the thirteen synthetic component suites and the broker timeout checks pass
-  with the rebuilt modules under the pinned runner. The pinned 0.1.16
-  component archive is unchanged, so installations keep the old behaviour
-  until a component release. The idea of logging per call only on request is
-  from the macOS fork by ssyuk.
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.11 launchers can use the in-app updater.
+
 - Fix a profile staying locked after the first game session on desktops whose
   own services hide their environment, such as KDE Plasma's authentication
   agent. After a session ends, Flightdeck makes sure nothing of it still runs
@@ -40,6 +27,13 @@
   are now removed after a completed cloud run, unless a process still uses one
   or one was left in use since the last boot. Save backups, cloud snapshots
   and import backups are not limited by this change.
+- Record whether a game ever set up its renderer. Until now only NVIDIA
+  starts logged the renderer at its informative level; on other hardware the
+  log of a Direct3D 11 game such as MSFS 2020 held warnings only, and a report
+  of a black screen looked exactly like a healthy session. Every start now
+  uses that level, and diagnostics count the created Direct3D 11 device, the
+  created swapchains and their failures. For a small test program the
+  renderer writes about 530 lines at this level.
 - Move the checks, packaging and release steps, the developer probes and the
   compatibility test drivers from Python scripts to the Rust maintainer tool in
   `tools/`. Launcher and full packages built by both implementations from the
@@ -61,6 +55,15 @@
   interpreter is needed only where a Python release is the subject: the
   transition check, `probe benchmark-launchers` and a rollback to a retained
   0.1.x release.
+- Store runtime sources, not yet in the shipped components: log each distinct
+  user interface and each distinct query result once instead of on every
+  call. These two lines made up 98 % of a 162 MiB session log. The rebuilt
+  Store module writes 2 lines where the published one writes 50 for 50 calls;
+  the thirteen synthetic component suites and the broker timeout checks pass
+  with the rebuilt modules under the pinned runner. The pinned 0.1.16
+  component archive is unchanged, so installations keep the old behaviour
+  until a component release. The idea of logging per call only on request is
+  from the macOS fork by ssyuk.
 
 ## 0.2.11 — 12 October 2026
 

@@ -2,7 +2,7 @@
 
 [Deutsch](known-issues.de.md) · [Documentation](index.md)
 
-Status: 12 October 2026, covering the stable **0.2.11** release.
+Status: 13 October 2026, covering the stable **0.2.12** release.
 See the [release changes](changelog.md#0211--12-october-2026).
 
 - **NVIDIA:** Normal MSFS 2024 rendering is confirmed by user testing. Smaller
