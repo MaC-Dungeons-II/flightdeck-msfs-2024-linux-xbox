@@ -1,5 +1,18 @@
 # Changes and release status
 
+## Unreleased
+
+- Bound the history kept around saves. Local backups before and after each
+  session, downloaded cloud snapshots and the local states saved before each
+  import gained an entry with every session and were never removed; one
+  runtime held 436 of them, 2.7 GiB, after three weeks. Before a start, each
+  kind now keeps its newest 20 entries, everything younger than 30 days and
+  whatever the snapshot cache, a pending transfer, the comparison baseline or
+  the running launcher still refers to. With the clock set 60 days ahead, a
+  copy of that runtime's history went from 2.7 GiB to 366 MiB with every
+  referenced entry in place. If a stored record cannot be read, nothing is
+  removed.
+
 ## 0.2.12 — 13 October 2026
 
 Stable release with full installer and corresponding source archives.

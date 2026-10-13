@@ -144,6 +144,14 @@ All local copies remain in the selected runtime:
 | `private/cloud-offline.pending` | Protects unconfirmed progress, including account changes during play |
 | `private/connected-storage-device.seed` | Random local identifier for normal cloud-lock ownership |
 
+Three of these folders gain an entry with every session: `cloud-saves/`,
+`cloud-import-backups/` and `save-backups/`. Before a start, Flightdeck removes
+entries of each that are neither among the newest 20 nor younger than 30 days,
+unless the snapshot cache, a pending transfer, the comparison baseline of the
+local saves or the running launcher still refers to them. The receipt of a
+removed import backup goes with it. If a stored record cannot be read, nothing
+is removed.
+
 These files contain private data and must not be included in issues, source
 exports or release archives. Xbox tokens, signatures and temporary upload URLs
 stay inside the native helper and are not exposed to the launcher page.

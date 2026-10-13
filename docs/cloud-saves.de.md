@@ -169,6 +169,14 @@ heruntergeladene Cloud-Kopien ersetzen diese Nachweise nicht.
 | `private/cloud-offline.pending` | Schutz für unbestätigten Fortschritt, auch bei Kontowechseln im Spiel |
 | `private/connected-storage-device.seed` | Zufällige lokale Kennung für die Cloud-Sperre |
 
+Drei dieser Ordner wachsen mit jeder Sitzung: `cloud-saves/`,
+`cloud-import-backups/` und `save-backups/`. Vor einem Start entfernt Flightdeck
+daraus Einträge, die weder zu den 20 neuesten gehören noch jünger als 30 Tage
+sind, sofern weder der Cache der Cloud-Kopien, eine ausstehende Übertragung, der
+Vergleichsstand der lokalen Spielstände noch der laufende Launcher auf sie
+verweist. Der Nachweis einer entfernten Übernahme-Sicherung wird mit entfernt.
+Lässt sich ein gespeicherter Verweis nicht lesen, wird nichts entfernt.
+
 Diese Dateien enthalten private Daten und gehören nicht in Fehlerberichte,
 Quellcode-Exporte oder Releases. Kontotokens, Signaturen und temporäre
 Upload-Adressen bleiben in der nativen Komponente. Die heruntergeladenen

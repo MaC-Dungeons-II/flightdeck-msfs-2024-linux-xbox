@@ -299,6 +299,20 @@ fn attention(ctx: &Context, phase: &str, error: Attention) {
         ctx.launcher.lock().cloud_data.review = Some(Review::new(root.clone(), *plan));
     }
 }
+/// Backups and snapshots the running launcher itself still refers to: a plan
+/// under review and the import that can be undone.
+fn held_history(ctx: &Context) -> Vec<String> {
+    let state = ctx.launcher.lock();
+    let data = &state.cloud_data;
+    let snapshots = [&data.plan, &data.review]
+        .into_iter()
+        .flatten()
+        .filter_map(|review| review.plan.snapshot.path.file_name())
+        .map(|name| name.to_string_lossy().into_owned());
+    snapshots
+        .chain(data.restore.iter().map(|(_, id)| id.clone()))
+        .collect()
+}
 fn connect(ctx: &Context, lease: &std::fs::File, phase: &str) -> cloud::Result<Client> {
     let start = Instant::now();
     let client = Client::open(ctx.root()?, lease, Arc::clone(&ctx.cancel));
@@ -352,6 +366,14 @@ fn run(
             }
             ctx.interrupted()?;
             flow::offline(root, &lease, true)?;
+            // Nothing else uses the profile now: older save history goes.
+            // A failure here is no reason to hold up the start.
+            let _ = crate::save_history::prune(
+                root,
+                &lease,
+                std::time::SystemTime::now(),
+                &held_history(ctx),
+            );
             set(
                 ctx,
                 "syncing",
