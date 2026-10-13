@@ -13,6 +13,7 @@
 #include <new>
 #include <string>
 #include <vector>
+#include "GenuineAsync.h"
 
 namespace {
 #ifdef STORE_DURABLES_TESTING

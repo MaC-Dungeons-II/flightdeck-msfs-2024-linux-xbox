@@ -8,6 +8,7 @@
 #include <mutex>
 #include <vector>
 #include <limits>
+#include "GenuineAsync.h"
 
 namespace {
 struct Registration {

@@ -91,7 +91,10 @@ static bool TraceQueryApi() {
 HRESULT QueryOriginalApi(const GUID *clsid, REFIID iid, void **out) {
     if (TraceQueryApi()) std::fprintf(stderr, "xodus-taskqueue: forward QueryApi clsid=%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x\n", clsid->Data1, clsid->Data2, clsid->Data3, clsid->Data4[0], clsid->Data4[1], clsid->Data4[2], clsid->Data4[3], clsid->Data4[4], clsid->Data4[5], clsid->Data4[6], clsid->Data4[7]);
     using Fn = HRESULT(WINAPI *)(const GUID *, REFIID, void **);
-    auto fn = reinterpret_cast<Fn>(base_proc("QueryApiImpl"));
+    /* the game calls QueryApi constantly; look the genuine entry point up once */
+    static std::atomic<Fn> cached{nullptr};
+    Fn fn = cached.load(std::memory_order_acquire);
+    if (!fn && (fn = reinterpret_cast<Fn>(base_proc("QueryApiImpl")))) cached.store(fn, std::memory_order_release);
     HRESULT hr=fn ? fn(clsid, iid, out) : HRESULT_FROM_WIN32(GetLastError());
     if (TraceQueryApi()) std::fprintf(stderr,"xodus-taskqueue: forwarded QueryApi result=%08lx\n",static_cast<ULONG>(hr));
     return hr;

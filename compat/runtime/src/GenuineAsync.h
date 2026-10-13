@@ -1,31 +1,31 @@
 #pragma once
+/* mac chain: the game's task queues and async blocks belong to the genuine
+ * runtime (XThreading is forwarded to it). Async work and queue calls made by
+ * this proxy on the game's behalf (Store, GameSave, NetworkSecurity, license
+ * events) must go through the genuine IXThreadingImpl, not this proxy's own
+ * XAsync/XTaskQueue copy, whose objects have a different layout.
+ * Include this after all other headers. */
 #include <windows.h>
 #include <xasyncprovider.h>
 
-/* mac chain: XThreading stays with the genuine runtime, so the game's task
- * queues are genuine objects. Drive Store async blocks through the genuine
- * IXThreadingImpl instead of this proxy's own XAsync/XTaskQueue copy. */
-HRESULT QueryOriginalApi(const GUID *clsid, REFIID iid, void **out);
-namespace {
-IXThreadingImpl *genuine_threading() {
-    static IXThreadingImpl *impl = [] {
-        IXThreadingImpl *p = nullptr;
-        if (FAILED(QueryOriginalApi(&__uuidof(IXThreadingImpl), __uuidof(IXThreadingImpl), reinterpret_cast<void **>(&p)))) p = nullptr;
-        return p;
-    }();
-    return impl;
-}
-#define G_THREADING() genuine_threading()
-HRESULT g_begin(XAsyncBlock *a, void *c, const void *i, const char *n, XAsyncProvider *p) { auto t=G_THREADING(); return t ? t->XAsyncBegin(a,c,i,n,p) : E_UNEXPECTED; }
-HRESULT g_schedule(XAsyncBlock *a, UINT32 d) { auto t=G_THREADING(); return t ? t->XAsyncSchedule(a,d) : E_UNEXPECTED; }
-void g_complete(XAsyncBlock *a, HRESULT hr, SIZE_T n) { if (auto t=G_THREADING()) t->XAsyncComplete(a,hr,n); }
-HRESULT g_status(XAsyncBlock *a, BOOLEAN w) { auto t=G_THREADING(); return t ? t->XAsyncGetStatus(a,w) : E_UNEXPECTED; }
-HRESULT g_result_size(XAsyncBlock *a, SIZE_T *n) { auto t=G_THREADING(); return t ? t->XAsyncGetResultSize(a,n) : E_UNEXPECTED; }
-HRESULT g_result(XAsyncBlock *a, const void *i, SIZE_T n, void *b, SIZE_T *u) { auto t=G_THREADING(); return t ? t->XAsyncGetResult(a,i,n,b,u) : E_UNEXPECTED; }
-}
-#define XAsyncBegin g_begin
-#define XAsyncSchedule g_schedule
-#define XAsyncComplete g_complete
-#define XAsyncGetStatus g_status
-#define XAsyncGetResultSize g_result_size
-#define XAsyncGetResult g_result
+HRESULT genuine_XAsyncBegin(XAsyncBlock *a, void *c, const void *i, const char *n, XAsyncProvider *p);
+HRESULT genuine_XAsyncSchedule(XAsyncBlock *a, UINT32 d);
+void genuine_XAsyncComplete(XAsyncBlock *a, HRESULT hr, SIZE_T n);
+HRESULT genuine_XAsyncGetStatus(XAsyncBlock *a, BOOLEAN w);
+HRESULT genuine_XAsyncGetResultSize(XAsyncBlock *a, SIZE_T *n);
+HRESULT genuine_XAsyncGetResult(XAsyncBlock *a, const void *i, SIZE_T n, void *b, SIZE_T *u);
+HRESULT genuine_XTaskQueueDuplicateHandle(XTaskQueueHandle q, XTaskQueueHandle *out);
+void genuine_XTaskQueueCloseHandle(XTaskQueueHandle q);
+HRESULT genuine_XTaskQueueSubmitCallback(XTaskQueueHandle q, XTaskQueuePort port, void *ctx, XTaskQueueCallback *cb);
+bool genuine_XTaskQueueGetCurrentProcessTaskQueue(XTaskQueueHandle *out);
+
+#define XAsyncBegin genuine_XAsyncBegin
+#define XAsyncSchedule genuine_XAsyncSchedule
+#define XAsyncComplete genuine_XAsyncComplete
+#define XAsyncGetStatus genuine_XAsyncGetStatus
+#define XAsyncGetResultSize genuine_XAsyncGetResultSize
+#define XAsyncGetResult genuine_XAsyncGetResult
+#define XTaskQueueDuplicateHandle genuine_XTaskQueueDuplicateHandle
+#define XTaskQueueCloseHandle genuine_XTaskQueueCloseHandle
+#define XTaskQueueSubmitCallback genuine_XTaskQueueSubmitCallback
+#define XTaskQueueGetCurrentProcessTaskQueue genuine_XTaskQueueGetCurrentProcessTaskQueue

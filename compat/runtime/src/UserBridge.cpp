@@ -95,7 +95,9 @@ HRESULT QueryUserRuntime(const GUID *clsid, REFIID iid, void **out) {
     return hr;
 }
 
+static std::atomic<bool> runtime_closed{false}; /* mac chain: no lazy start after shutdown */
 HRESULT ShutdownUserRuntime() {
+    runtime_closed.store(true);
     if (!UserRuntimeEnabled()) return S_OK;
     auto &user = state();
     ShutdownFn shutdown = nullptr;
@@ -138,13 +140,24 @@ void RememberUserRuntimeArgs(ULONG gdk, ULONG services, char mode, const void *o
         if (o->file) { s.file = o->file; s.options.file = s.file.c_str(); }
     }
 }
+/* A failed start (e.g. the broker is not up) is cached for a few seconds so
+ * every Store/GameSave call on game threads doesn't wait out the IPC timeout
+ * again; after that it is retried. */
 HRESULT EnsureStoreModule() {
     static std::atomic<bool> ready{false};
+    static std::atomic<HRESULT> last_failure{S_OK};
+    static std::atomic<ULONGLONG> retry_at{0};
+    static std::mutex start_lock;
     if (ready.load()) return S_OK;
+    if (runtime_closed.load()) return E_ABORT;
+    std::lock_guard<std::mutex> start(start_lock);
+    if (ready.load()) return S_OK;
+    if (GetTickCount64() < retry_at.load()) return last_failure.load();
     { std::lock_guard<std::mutex> guard(saved_lock); if (!saved().set) return CO_E_NOTINITIALIZED; }
     auto &s = saved();
     HRESULT hr = InitializeUserRuntime(s.gdk, s.services, s.mode, s.has_options ? &s.options : nullptr);
     std::fprintf(stderr, "xodus-user-bridge: lazy store init result=%08lx\n", static_cast<ULONG>(hr));
     if (SUCCEEDED(hr)) ready.store(true);
+    else { last_failure.store(hr); retry_at.store(GetTickCount64() + 5000); }
     return hr;
 }
