@@ -202,6 +202,52 @@ fn interrupted_session_recovers_only_after_writers_exit_and_backup_is_durable() 
     assert_eq!(bytes(root, "cloud-interrupted-process.json"), fence);
     drop(writer);
 
+    // A desktop's own protected services hide their environment as well: an
+    // authentication agent, a key store. They are not held against the session,
+    // or no profile on such a desktop could be released again before a reboot.
+    let elsewhere = tempfile::tempdir().expect("elsewhere");
+    let protected = |name: &str| {
+        use std::os::unix::process::CommandExt;
+        let ready = elsewhere
+            .path()
+            .join(name.rsplit('/').next().expect("name"));
+        let process = Process(
+            programs::peer("undumpable")
+                .arg0(name)
+                .arg(&ready)
+                .spawn()
+                .expect("protected process"),
+        );
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !ready.exists() {
+            assert!(Instant::now() < deadline);
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(
+            fs::read(format!("/proc/{}/environ", process.0.id())).is_err(),
+            "the environment of {name} is hidden"
+        );
+        process
+    };
+    let mut agent = protected("/usr/lib/polkit-kde-authentication-agent-1");
+    guard::clear(root, &lease.0).expect("a desktop agent does not hold the session");
+    assert!(agent.0.try_wait().expect("reap").is_none());
+    guard::mark(root, &lease.0).expect("next session fence");
+    // What may be Wine's own stays unresolved, although nothing ties it here.
+    let mut server = protected("wineserver");
+    let error = guard::clear(root, &lease.0).expect_err("an unattributed Wine server");
+    let blocking = &error.detail.expect("blocker detail")["blocking_process"];
+    assert_eq!(blocking["pid"], server.0.id());
+    assert_eq!(blocking["identified"], false);
+    assert!(
+        server.0.try_wait().expect("reap").is_none(),
+        "never signalled"
+    );
+    assert!(agent.0.try_wait().expect("reap").is_none());
+    assert_eq!(bytes(root, "cloud-interrupted-process.json"), fence);
+    drop(server);
+    drop(agent);
+
     let unrelated = tempfile::tempdir().expect("other runtime");
     let other = Process(
         Command::new("sleep")

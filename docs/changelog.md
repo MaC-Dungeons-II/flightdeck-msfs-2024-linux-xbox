@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Fix a profile staying locked after the first game session on desktops whose
+  own services hide their environment, such as KDE Plasma's authentication
+  agent. After a session ends, Flightdeck makes sure nothing of it still runs
+  before it backs up and synchronizes saves. It counted every process of the
+  user that it could not inspect as a possible leftover, apart from six known
+  names, so `polkit-kde-authentication-agent-1` held the profile until the
+  next boot: cloud saves reported "unsafe session", the simulator could not be
+  started again and the recovery could not help, because such a process is
+  never ended. A process that cannot be inspected now counts only if its
+  command line refers to the runtime or if it is by its name a Wine, Xodus or
+  Flightdeck process. After updating, a profile that is still locked is
+  released by the recovery offered there, or by a reboot.
 - Bound what Flightdeck leaves on disk. Session logs are kept for the newest
   ten sessions besides the current one; until now every session's directory
   stayed, and a single `game.log` reached 162 MiB. A log that a running game
