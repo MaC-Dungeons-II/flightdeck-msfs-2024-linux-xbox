@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Store runtime sources, not yet in the shipped components: log each distinct
+  user interface and each distinct query result once instead of on every
+  call. These two lines made up 98 % of a 162 MiB session log. The rebuilt
+  Store module writes 2 lines where the published one writes 50 for 50 calls;
+  the thirteen synthetic component suites and the broker timeout checks pass
+  with the rebuilt modules under the pinned runner. The pinned 0.1.16
+  component archive is unchanged, so installations keep the old behaviour
+  until a component release. The idea of logging per call only on request is
+  from the macOS fork by ssyuk.
 - Fix a profile staying locked after the first game session on desktops whose
   own services hide their environment, such as KDE Plasma's authentication
   agent. After a session ends, Flightdeck makes sure nothing of it still runs

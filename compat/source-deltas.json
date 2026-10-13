@@ -31,7 +31,7 @@
     "dlls/xgameruntime/Makefile.in": "dbdbdf2ea84c0c605a1082dff545328d590451e6ed2e506ca388c25218da6ba6",
     "dlls/xgameruntime/WineCoreUAP/Foundation/IWineAsync.cpp": "271db2b1cb6584639c01ee30a578c5b681481fba440bf316b3831c7de13ba0bf",
     "dlls/xgameruntime/WineCoreUAP/Foundation/IWineAsync.hpp": "9b97a0fb0a5f07bb31fe8de0063cd1e2e8b1b3d7d6d1ead2548526897ea1ee39",
-    "dlls/xgameruntime/main.c": "0d5e620b7871834cf713a009e301e6baddb19b1c41cea682016142ab9e21470d",
+    "dlls/xgameruntime/main.c": "ea4f6ae1bfab97b75eacf5d4e28cea7a5de3c8b07a47893634554552f77a01a6",
     "dlls/xgameruntime/private.h": "73ccb833dd7881c990ce61e4ced58de0dd014e66bd82d25d79e531e76ea961e7",
     "dlls/xgameruntime/xodus_store_test.spec": "49a19c239d0bbc99ccbfdbbc7aa196d64e1eea93617670a6ebdfcff9c3a20856",
     "dlls/xgameruntime/xodusprovider.idl": "c4ff0b5547052f05a2652ad7886bc3c61cf43836b3ec5d0860794dc1d0baf45d"
@@ -139,7 +139,7 @@
     "src/StoreQueries.h": "9ba7d8572d53fbfe9dbbb4884f6eca9e7b959d0d9382b7760f9f99ccbe9dfe6a",
     "src/ThreadPool.cpp": "ef05ae18cc8514e8ca3cbac5f25f70dcfb2ed1ceb17ba1b51f889f629c278711",
     "src/ThreadPool.h": "08b0ca0debaa254b42bdf0667d2248c12e545b2a6dc7294435f96868cac1d0f7",
-    "src/UserBridge.cpp": "9f436352bae584b874437b81c50a50905e5bf6762c973cf189a875708fbdc939",
+    "src/UserBridge.cpp": "5e01d6753b1023a4c6a0ad627e76e4ccafaa18a224582a43e58d7c0deb3115dc",
     "src/UserBridge.h": "03bd11c9eff33273d5ab333207c83b5802c484635bf0e9ea9532fb1463b08105",
     "src/WaitTimer.cpp": "662ac40474527165b349ab57510ac13e8693ed0ebe947258e4b189d8e3921176",
     "src/WaitTimer.h": "7ba804e8e022fd863693815602aeb43eb42a9959239746c94a1535aa2091015e",
