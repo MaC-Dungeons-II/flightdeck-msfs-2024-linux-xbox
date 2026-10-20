@@ -97,6 +97,8 @@ VR-Headsets und geräteübergreifendes Spielen mit Cloud-Saves stehen noch aus.
 Marketplace-Sitzungsfehler und unvollständig geprüfte DLC-/Kauffunktionen sind
 separat dokumentiert. Vorhandene Dateien bestätigen weder Aktivierung noch
 funktionierende Flugzeugsysteme.
+Das nächste Flightdeck-Release ergänzt Fenix preview.8 mit GPU-Anzeigen für die
+festgelegten Xodus- und Proton-11-Versionen. CPU bleibt als Rückfall verfügbar.
 [Bekannte Probleme](known-issues.de.md) · [Add-on-Umfang](addons.de.md) ·
 [Marketplace-Umfang](marketplace-collections.md)
 

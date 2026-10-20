@@ -19,7 +19,9 @@ pub const LAUNCH_FILES: [&str; 2] = ["launch-msfs.sh", "xodus-wine-launch"];
 // Kept in upstream manifests for old launchers; Rust owns display refresh now.
 pub const LEGACY_DISPLAY_HELPER: &str = "fenix-display-refresh.py";
 pub fn manifest(variant: Option<&str>) -> Result<Value> {
-    let mut lock = resources::json("compat/fenix/bundle.json")?;
+    select_variant(resources::json("compat/fenix/bundle.json")?, variant)
+}
+pub fn select_variant(mut lock: Value, variant: Option<&str>) -> Result<Value> {
     if let Some(variant) = variant {
         let entry = lock["variants"][variant]
             .as_object()
@@ -27,9 +29,16 @@ pub fn manifest(variant: Option<&str>) -> Result<Value> {
                 "No Fenix compatibility build is available for this Proton version.",
             ))?
             .clone();
-        lock.as_object_mut()
-            .ok_or(Error::Invalid("Invalid Fenix bundle."))?
-            .extend(entry);
+        let merged = lock
+            .as_object_mut()
+            .ok_or(Error::Invalid("Invalid Fenix bundle."))?;
+        if !entry.contains_key("dxvk") {
+            merged.remove("dxvk");
+        }
+        if !entry.contains_key("display_renderer") {
+            merged.remove("display_renderer");
+        }
+        merged.extend(entry);
         lock["variant"] = variant.into();
     }
     Ok(lock)
@@ -284,9 +293,22 @@ pub fn overlay(
     } else {
         bundle.join("payload")
     };
+    overlay_payload(prefix, runner, bundle, &payload, &lock, &|| {
+        ctx.interrupted()
+    })
+}
+
+fn overlay_payload(
+    prefix: &Path,
+    runner: &Path,
+    bundle: &Path,
+    payload: &Path,
+    lock: &Value,
+    interrupted: &dyn Fn() -> Result<()>,
+) -> Result<()> {
     for (name, hash) in map(&lock["files"])? {
-        ctx.interrupted()?;
-        let bytes = files::read(&contained(&payload, &name)?, 32 * 1024 * 1024)?;
+        interrupted()?;
+        let bytes = files::read(&contained(payload, &name)?, 32 * 1024 * 1024)?;
         require(
             files::sha256(&bytes) == hash,
             "Fenix patch checksum mismatch.",
@@ -296,7 +318,9 @@ pub fn overlay(
             &bytes,
             if name.contains("/bin/") { 0o755 } else { 0o644 },
         )?;
-        if name.starts_with("files/lib/wine/x86_64-windows/") {
+        if name.starts_with("files/lib/wine/x86_64-windows/")
+            || name == crate::fenix_setup::DXGI_FILE
+        {
             write(
                 &contained(
                     prefix,
@@ -327,5 +351,51 @@ pub fn overlay(
             )?;
         }
     }
-    verify_runner(runner, &lock, true)
+    verify_runner(runner, lock, true)
+}
+
+#[cfg(test)]
+mod renderer_tests {
+    use super::*;
+    use serde_json::json;
+    use std::os::unix::fs::symlink;
+
+    fn put(path: &Path, bytes: &[u8]) {
+        files::private_dir(path.parent().expect("parent")).expect("directory");
+        files::atomic(path, bytes).expect("write");
+    }
+
+    #[test]
+    fn native_dxgi_is_published_to_the_prefix_without_following_a_file_symlink() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let root = temp.path();
+        let runner = root.join("runner");
+        let prefix = root.join("prefix");
+        let bundle = root.join("bundle");
+        let payload = bundle.join("payload");
+        let name = crate::fenix_setup::DXGI_FILE;
+        let bytes = b"patched native DXGI";
+        put(&runner.join("version"), b"fixture version");
+        put(&payload.join(name), bytes);
+        let outside = root.join("original-shared-dxgi.dll");
+        put(&outside, b"original shared DXGI");
+        let native = prefix.join("drive_c/windows/system32/dxgi.dll");
+        files::private_dir(native.parent().expect("system32")).expect("prefix");
+        symlink(&outside, &native).expect("native DXGI link");
+        let lock = json!({
+            "runner_version":"fixture version", "runner_files":{},
+            "files":{name:files::sha256(bytes)}, "integration":{},
+        });
+        overlay_payload(&prefix, &runner, &bundle, &payload, &lock, &|| Ok(())).expect("overlay");
+        assert!(!native.is_symlink());
+        assert_eq!(fs::read(&native).expect("prefix DXGI"), bytes);
+        assert_eq!(fs::read(runner.join(name)).expect("runner DXGI"), bytes);
+        assert_eq!(
+            fs::read(&outside).expect("original"),
+            b"original shared DXGI"
+        );
+        put(&payload.join(name), b"tampered DXGI");
+        assert!(overlay_payload(&prefix, &runner, &bundle, &payload, &lock, &|| Ok(())).is_err());
+        assert_eq!(fs::read(&native).expect("retained verified DXGI"), bytes);
+    }
 }

@@ -145,7 +145,8 @@ restore** is further below. The same patch is also available through the
 [standalone patch installer](https://github.com/marselnenaj/fenix-a320-linux-patch/releases).
 
 It supports MSFS 2024 with the pinned Xodus Wine runner. It creates an independent
-runner/profile, keeps a backup, verifies release hashes and configures CPU displays,
+runner/profile, keeps a backup, verifies release hashes and configures GPU displays
+on supported overlays (CPU on CachyOS Proton 10),
 Legacy readouts and Fenix autostart. Run MSFS 2024 once to create its user settings,
 then close MSFS and all Fenix applications before setup.
 
@@ -162,7 +163,7 @@ then close MSFS and all Fenix applications before setup.
    the selected simulator profile, then close the manager or installer.
 3. Choose **Open Fenix**, sign in/activate normally, then close the application
    or use **Stop Fenix** in Flightdeck.
-4. Choose **Finish setup** to configure CPU displays, Legacy readouts and autostart.
+4. Choose **Finish setup** to configure displays, Legacy readouts and autostart.
    Once local setup is complete, return to the overview and start MSFS normally.
    If Fenix has not created its readout settings yet, the panel says so: load the
    aircraft once in the simulator, quit MSFS and choose **Reapply settings**.
@@ -222,7 +223,8 @@ a game crash or **Stop**, with a bounded fallback for stuck processes. Since
 installation or livery download there before quitting MSFS. Other Wine profiles
 are excluded from that cleanup.
 
-Flightdeck uses patch **0.1.0-preview.6**. Newer patch versions are adopted
+The next Flightdeck release pins patch **0.1.0-preview.8**. Installing the
+standalone patch does not update an existing Flightdeck launcher. Newer patch versions are adopted
 through a Flightdeck update; the launcher does not independently check for the
 latest Fenix patch on GitHub. Supported earlier patches update to Flightdeck's
 included version when opening Fenix, its installer or manager, or finishing setup.
@@ -261,10 +263,16 @@ engine/wing variant, simulator version and extra archive directory level.
 
 Tested cockpit: Fenix 2.4.0.4720, MSFS 2024 1.8.16.0 and Hyprland. PFD/ND/ECAM,
 MCDU, clock, FCU and radio rendering were verified. Full-flight testing remains
-outstanding. Weather radar is unavailable in the CPU renderer. The binary preview
+outstanding. The Xodus GPU path was checked with PFD, ND, ECAM and a moving
+airspeed tape on AMD. NVIDIA and GPU weather radar remain unvalidated; weather
+radar is unavailable in the CPU renderer. Earlier automatic CPU settings migrate
+to GPU on capable overlays, while a saved CPU preference survives updates.
+See the patch's [GPU scope and fallback instructions](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.8/docs/gpu-displays.md).
+The binary preview
 requires x86_64 Linux and glibc 2.38+; Flightdeck's full native package still requires
 glibc 2.39+. Starting with 0.1.20, matched Fenix overlays are available for Proton
-Experimental 11.0 (20260924) and CachyOS Proton 10.0 sunset. Their native probes
+Experimental 11.0 (20260924), CachyOS Proton 11.0 (20261005) and CachyOS Proton
+10.0 sunset. Their native probes
 pass; a full flight on these runners remains unverified. Other builds need a
 matching overlay. Steam prefixes and MSFS 2020 remain unsupported. The optional window guard runs with the simulator and hides
 matching service/display windows. The X11 driver now keeps them off the desktop

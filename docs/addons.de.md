@@ -167,7 +167,8 @@ MSFS und alle Fenix-Anwendungen.
    Simulatorprofil installieren, danach Manager oder Installer schließen.
 3. **Fenix öffnen**, anmelden und aktivieren. Danach Fenix wieder schließen
    oder in Flightdeck **Fenix beenden** wählen.
-4. **Einrichtung abschließen** setzt CPU-Anzeigen, Legacy-Readouts und Autostart.
+4. **Einrichtung abschließen** setzt GPU-Anzeigen auf unterstützten Versionen
+   (CPU bei CachyOS Proton 10), Legacy-Readouts und Autostart.
    Sobald die lokale Einrichtung abgeschlossen ist, zur Übersicht wechseln und
    MSFS ganz normal starten.
    Hat Fenix seine Readout-Einstellungen noch nicht angelegt, weist das Panel
@@ -236,7 +237,9 @@ Fenix-App, falls sie noch geöffnet ist; schließe Installationen oder
 Livery-Downloads dort ab, bevor du MSFS beendest. Andere Wine-Profile bleiben
 davon unberührt.
 
-Flightdeck verwendet Patch **0.1.0-preview.6**. Neuere Patch-Versionen werden
+Das nächste Flightdeck-Release verwendet Patch **0.1.0-preview.8**. Der
+eigenständige Patch aktualisiert keinen bereits installierten Flightdeck-Launcher.
+Neuere Patch-Versionen werden
 mit einem Flightdeck-Update übernommen; der Launcher sucht nicht eigenständig
 nach dem neuesten Fenix-Patch auf GitHub. Unterstützte ältere Patches werden
 beim Öffnen von Fenix, seinem Installer oder Manager sowie beim Abschließen der
@@ -278,10 +281,16 @@ angezeigt, zuerst Modell, Triebwerk/Flügel, Simulatorversion und eine zusätzli
 
 Getestet wurden Fenix 2.4.0.4720 und MSFS 2024 1.8.16.0 auf Hyprland. Die
 Cockpitanzeigen inklusive MCDU, FCU, Funk und Uhr sind geprüft; ein vollständiger
-Testflug steht noch aus. Wetterradar ist im verwendeten CPU-Modus nicht verfügbar.
+Testflug steht noch aus. Der GPU-Modus wurde auf AMD im Xodus-Cockpit mit PFD,
+ND, ECAM und bewegter Geschwindigkeitsanzeige geprüft. NVIDIA und GPU-Wetterradar
+sind noch nicht geprüft; im CPU-Modus ist Wetterradar nicht verfügbar.
+Eine bisher automatisch gesetzte CPU-Konfiguration wechselt auf unterstützten
+Versionen zu GPU. Eine gespeicherte CPU-Präferenz bleibt bei Updates erhalten.
+[GPU-Prüfstand und CPU-Rückfall](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.8/docs/gpu-displays.md).
 Das Fenix-Binärpaket benötigt x86_64 Linux und glibc 2.38+; für Flightdecks
 vollständiges natives Paket gilt weiterhin glibc 2.39+. Ab 0.1.20 gibt es passende
-Fenix-Patches für Proton Experimental 11.0 (20260924) und CachyOS Proton 10.0
+Fenix-Patches für Proton Experimental 11.0 (20260924), CachyOS Proton 11.0
+(20261005) und CachyOS Proton 10.0
 sunset. Die nativen Prüfungen bestehen; ein vollständiger Flug mit diesen
 Versionen ist noch nicht bestätigt. Weitere Builds brauchen einen passenden
 Patch. Steam-Prefixe und MSFS 2020 bleiben außerhalb des unterstützten Umfangs.

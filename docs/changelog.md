@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Adopt Fenix patch 0.1.0-preview.8 with GPU display sharing on the pinned Xodus
+  and Proton 11 runners. Deploy the matched DXGI into the profile, migrate
+  earlier automatic CPU settings and preserve explicit CPU fallbacks. CachyOS
+  Proton 10 remains CPU-only. Xodus PFD, ND, ECAM and a moving airspeed tape
+  were checked in the live cockpit; NVIDIA, GPU weather radar and full flights
+  remain unvalidated. Readout setup can still complete after the first load.
+
 ## 0.2.13 — 20 October 2026
 
 Stable release with full installer and corresponding source archives.

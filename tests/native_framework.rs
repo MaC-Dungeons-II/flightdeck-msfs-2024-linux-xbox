@@ -211,8 +211,14 @@ fn fenix_settings_preserve_other_addons_and_remove_only_duplicate_fenix_entries(
     let exe =
         root.join("drive_c/users/pilot/AppData/Roaming/Microsoft Flight Simulator 2024/exe.xml");
     write(&exe,b"<SimBase.Document><Launch.Addon><Name>Keep Me</Name><Path>Other.exe</Path></Launch.Addon><Launch.Addon><Name>Fenix Old</Name></Launch.Addon><Launch.Addon><Name>Fenix Duplicate</Name></Launch.Addon></SimBase.Document>");
-    assert_eq!(fenix_setup::configure_prefix(root).unwrap(), (true, true));
-    assert_eq!(fenix_setup::configure_prefix(root).unwrap(), (true, true));
+    assert_eq!(
+        fenix_setup::configure_prefix(root, fenix_setup::DisplayRenderer::Cpu).unwrap(),
+        (true, true)
+    );
+    assert_eq!(
+        fenix_setup::configure_prefix(root, fenix_setup::DisplayRenderer::Cpu).unwrap(),
+        (true, true)
+    );
     let parsed = xml::parse(&fs::read(&exe).unwrap()).unwrap();
     assert_eq!(
         parsed
@@ -239,15 +245,24 @@ fn fenix_displays_and_autostart_do_not_wait_for_the_readout_settings() {
     let exe =
         root.join("drive_c/users/pilot/AppData/Roaming/Microsoft Flight Simulator 2024/exe.xml");
     fs::create_dir_all(exe.parent().unwrap()).unwrap();
-    assert_eq!(fenix_setup::configure_prefix(root).unwrap(), (false, false));
+    assert_eq!(
+        fenix_setup::configure_prefix(root, fenix_setup::DisplayRenderer::Cpu).unwrap(),
+        (false, false)
+    );
     write(&root.join(fenix_setup::PROGRAM).join("Fenix.exe"), b"MZ");
     // Without the sign-in settings nothing counts as configured.
     write(&config.join("persistancy.xml"), b"<Settings/>");
-    assert_eq!(fenix_setup::configure_prefix(root).unwrap(), (false, false));
+    assert_eq!(
+        fenix_setup::configure_prefix(root, fenix_setup::DisplayRenderer::Cpu).unwrap(),
+        (false, false)
+    );
     fs::remove_file(config.join("persistancy.xml")).unwrap();
     // Fenix can create persistancy.xml later; it is not invented here.
     write(&config.join("fenixConfig.xml"), b"<Settings/>");
-    assert_eq!(fenix_setup::configure_prefix(root).unwrap(), (true, false));
+    assert_eq!(
+        fenix_setup::configure_prefix(root, fenix_setup::DisplayRenderer::Cpu).unwrap(),
+        (true, false)
+    );
     assert!(!config.join("persistancy.xml").exists());
     assert!(
         fs::read_to_string(config.join("fenixConfig.xml"))
@@ -260,7 +275,10 @@ fn fenix_displays_and_autostart_do_not_wait_for_the_readout_settings() {
             .contains("FenixBootstrapper.exe")
     );
     write(&config.join("persistancy.xml"), b"<Settings/>");
-    assert_eq!(fenix_setup::configure_prefix(root).unwrap(), (true, true));
+    assert_eq!(
+        fenix_setup::configure_prefix(root, fenix_setup::DisplayRenderer::Cpu).unwrap(),
+        (true, true)
+    );
     assert!(
         fs::read_to_string(config.join("persistancy.xml"))
             .unwrap()

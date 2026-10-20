@@ -432,6 +432,15 @@ pub fn prepare(
                 variant.as_deref(),
                 ctx,
             )?;
+            let lock = bundle::manifest(variant.as_deref())?;
+            let renderer = fenix_setup::DisplayRenderer::for_state(&lock, &fenix_state)?;
+            fenix_setup::migrate_renderer(
+                &mut fenix_state,
+                &fresh,
+                &work.join("fenix-settings-before-switch"),
+                renderer,
+                &ctx.cancel,
+            )?;
             fenix_state["variant"] = json!(variant);
             fenix_state["version"] = bundle::manifest(None)?["version"].clone();
             fenix_state["work"] = json!(

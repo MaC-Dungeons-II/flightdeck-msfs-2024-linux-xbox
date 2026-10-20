@@ -261,6 +261,10 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
         bundle::runner_variant(&original_runner, false)?
     };
     let lock = bundle::manifest(variant.as_deref())?;
+    let renderer = match &upgrade {
+        Some(previous) => setup::DisplayRenderer::for_state(&lock, previous)?,
+        None => setup::DisplayRenderer::from_manifest(&lock)?,
+    };
     for name in bundle::LAUNCH_FILES {
         require(
             bundle::accepted_script(
@@ -301,6 +305,8 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
             "original_prefix_id",
             "configured",
             "proton_before",
+            "display_renderer",
+            "display_renderer_override",
         ] {
             state[key] = previous[key].clone();
         }
@@ -372,13 +378,23 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
         if upgrade.is_none() {
             ctx.progress("Preparing fonts, graphics dependencies and Fenix settings …");
             setup::graphics_fonts(&wine)?;
-            apply_settings(&mut state, &staged)?;
         }
         setup::geometry(&wine, &root.join("private/fenix-downloads"), payload, ctx)
     })();
     let stopped = wine.stop();
     setup_result.and(stopped)?;
     bundle::overlay(&staged, &runner, payload, variant.as_deref(), ctx)?;
+    if upgrade.is_none() {
+        setup::apply_settings(&mut state, &staged, renderer)?;
+    } else if setup::migrate_renderer(
+        &mut state,
+        &staged,
+        &backup.join("settings-before-update"),
+        renderer,
+        &ctx.cancel,
+    )? {
+        ctx.progress("Updating the display renderer for this Proton build …");
+    }
     wine_processes::idle(&prefix)?;
     ctx.begin_commit(
         "publish_runtime",
@@ -520,29 +536,19 @@ pub fn configure(ctx: &Context) -> Result<()> {
         "Finish patch installation first.",
     )?;
     verify_installed(root, &state)?;
+    let lock = bundle::manifest(state["variant"].as_str())?;
+    let renderer = setup::DisplayRenderer::for_state(&lock, &state)?;
     let backup = tx::new_directory(
         &bundle::contained(root, string(&state, "backup")?)?,
         "settings-",
     )?;
-    for name in ["fenixConfig.xml", "persistancy.xml"] {
-        let path = bundle::contained(&prefix, &format!("{}/{name}", setup::CONFIG))?;
-        if files::exists(&path) {
-            tx::copy_path(&path, &backup.join(name), None, &ctx.cancel)?;
-        }
-    }
-    apply_settings(&mut state, &prefix)?;
+    setup::backup_settings(&prefix, &backup, &ctx.cancel)?;
+    setup::apply_settings(&mut state, &prefix, renderer)?;
     files::atomic_json(&root.join(MARKER), &state)?;
     require(
         state["configured"] == true,
-        "Start Fenix once and sign in, then close it and apply settings again. CPU rendering needs its initial settings file.",
+        "Start Fenix once and sign in, then close it and apply settings again. Display rendering needs its initial settings file.",
     )
-}
-/// Records what could be written; the Legacy readouts wait for Fenix's own file.
-fn apply_settings(state: &mut Value, prefix: &Path) -> Result<()> {
-    let (displays, readouts) = setup::configure_prefix(prefix)?;
-    state["configured"] = json!(displays);
-    state["readouts"] = json!(readouts);
-    Ok(())
 }
 // Before this key existed, "configured" already required the readout setting.
 fn readouts(state: &Value) -> bool {
@@ -880,6 +886,12 @@ pub fn snapshot(app: &Launcher) -> Value {
                 value["installed"] = json!(state["state"] == "installed");
                 value["configured"] = json!(state["configured"] == true);
                 value["readouts"] = json!(readouts(&state));
+                value["display_renderer"] = if state["configured"] == true {
+                    json!(setup::DisplayRenderer::from_state(&state).as_str())
+                } else {
+                    Value::Null
+                };
+                value["display_renderer_override"] = state["display_renderer_override"].clone();
                 value["can_restore"] = json!(state["migrated"] != true);
                 value["can_retry"] = json!(retryable(&root, &state));
                 value["installed_version"] = state["version"].clone();

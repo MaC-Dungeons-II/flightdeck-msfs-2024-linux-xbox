@@ -271,7 +271,21 @@ impl App {
                     ),
                 ]));
             }
-            content = content.push(self.paragraph(self.tr("MSFS 2024 · CPU-Anzeigen ohne Wetterradar. Eine eigene Fenix-Lizenz ist erforderlich.", "MSFS 2024 · CPU displays without weather radar. Requires your own Fenix license.")));
+            let display_note = match data["display_renderer"].as_str() {
+                Some("CPU") => self.tr(
+                    "MSFS 2024 · CPU-Renderer · Legacy-FCU, ohne Wetterradar. Eigene Fenix-Lizenz nötig.",
+                    "MSFS 2024 · CPU renderer · Legacy FCU, no weather radar. Own Fenix license required.",
+                ),
+                Some("GPU") => self.tr(
+                    "MSFS 2024 · GPU-Renderer · Legacy-FCU. Eigene Fenix-Lizenz nötig.",
+                    "MSFS 2024 · GPU renderer · Legacy FCU readouts. Own Fenix license required.",
+                ),
+                _ => self.tr(
+                    "MSFS 2024 · Anzeigen & Legacy-FCU. Eigene Fenix-Lizenz nötig.",
+                    "MSFS 2024 · Displays & Legacy FCU readouts. Own Fenix license required.",
+                ),
+            };
+            content = content.push(self.paragraph(display_note));
             let mut manage = column![].spacing(14);
             let mut actions = vec![];
             if manager && !(progress.next == 2 && !offer_repair && !failed_repair && !active) {

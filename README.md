@@ -91,6 +91,8 @@ operation, physical VR headsets and cross-device cloud-save gameplay still need
 validation. Marketplace session errors and incomplete DLC/purchase coverage
 remain documented separately. Installed files alone do not prove activation or
 working aircraft systems.
+The next Flightdeck release includes Fenix preview.8 GPU display sharing for
+the pinned Xodus and Proton 11 runners, with a retained CPU fallback.
 [Known issues](docs/known-issues.md) · [Add-on scope](docs/addons.md) ·
 [Marketplace scope](docs/marketplace-collections.md)
 

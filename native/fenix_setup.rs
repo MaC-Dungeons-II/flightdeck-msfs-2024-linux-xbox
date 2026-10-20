@@ -9,15 +9,124 @@ use crate::{
     wine::{StagedWine, Wine},
     xml::{self, Element, Item},
 };
+use serde_json::{Value, json};
 use std::{
     fs,
     path::{Path, PathBuf},
+    sync::atomic::AtomicBool,
     time::Duration,
 };
 pub const PROGRAM: &str = "drive_c/Program Files/FenixSim A320";
 pub const CONFIG: &str = "drive_c/ProgramData/Fenix/FenixSim A320";
 pub const GEOMETRY_HASH: &str = "663f1d59ec1c014b9ea47a6cef71b3d43579e9759a82f3ee2cbd80b8c6d9e85f";
 pub const GEOMETRY_PATH: &str = "drive_c/windows/system32/d2d1_geometry.dll";
+pub const DXGI_FILE: &str = "files/lib/wine/dxvk/x86_64-windows/dxgi.dll";
+const GPU_FILES: [&str; 8] = [
+    "files/lib/wine/x86_64-windows/ntdll.dll",
+    "files/lib/wine/x86_64-unix/ntdll.so",
+    "files/bin/wineserver",
+    "files/lib/wine/x86_64-windows/gdi32.dll",
+    "files/lib/wine/x86_64-windows/win32u.dll",
+    "files/lib/wine/x86_64-unix/win32u.so",
+    "files/lib/wine/x86_64-windows/wow64win.dll",
+    DXGI_FILE,
+];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DisplayRenderer {
+    Cpu,
+    Gpu,
+}
+impl DisplayRenderer {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Cpu => "CPU",
+            Self::Gpu => "GPU",
+        }
+    }
+    pub fn from_manifest(lock: &Value) -> Result<Self> {
+        match lock.get("display_renderer") {
+            None => Ok(Self::Cpu),
+            Some(value) if value == "CPU" => Ok(Self::Cpu),
+            Some(value) if value == "GPU" => {
+                require(
+                    lock["dxvk"]
+                        .as_object()
+                        .is_some_and(|dxvk| !dxvk.is_empty())
+                        && GPU_FILES
+                            .iter()
+                            .all(|name| lock["files"].get(name).is_some()),
+                    "GPU displays require the complete matched Wine and DXGI overlay for this Proton build.",
+                )?;
+                Ok(Self::Gpu)
+            }
+            _ => Err(Error::Invalid(
+                "Unknown display renderer in the Fenix bundle.",
+            )),
+        }
+    }
+    pub fn from_state(state: &Value) -> Self {
+        if state["display_renderer"] == "GPU" {
+            Self::Gpu
+        } else {
+            Self::Cpu
+        }
+    }
+    pub fn for_state(lock: &Value, state: &Value) -> Result<Self> {
+        let supported = Self::from_manifest(lock)?;
+        let saved = match state.get("display_renderer_override") {
+            None | Some(Value::Null) => None,
+            Some(value) if value == "CPU" => Some(Self::Cpu),
+            Some(value) if value == "GPU" => Some(Self::Gpu),
+            _ => return Err(Error::Invalid("Unknown saved display renderer preference.")),
+        };
+        require(
+            saved != Some(Self::Gpu) || supported == Self::Gpu,
+            "This Proton overlay supports CPU displays only. Install a GPU-capable Fenix patch first.",
+        )?;
+        Ok(saved.unwrap_or(supported))
+    }
+}
+
+pub fn backup_settings(prefix: &Path, backup: &Path, cancel: &AtomicBool) -> Result<()> {
+    for name in ["fenixConfig.xml", "persistancy.xml"] {
+        let path = bundle::contained(prefix, &format!("{CONFIG}/{name}"))?;
+        if files::exists(&path) {
+            tx::copy_path(&path, &backup.join(name), None, cancel)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn apply_settings(state: &mut Value, prefix: &Path, renderer: DisplayRenderer) -> Result<()> {
+    let (configured, readouts) = configure_prefix(prefix, renderer)?;
+    state["configured"] = json!(configured);
+    state["readouts"] = json!(readouts);
+    state["display_renderer"] = if configured {
+        json!(renderer.as_str())
+    } else {
+        Value::Null
+    };
+    Ok(())
+}
+
+/// Keep an explicit CPU fallback, while automatically migrating older CPU-only
+/// states when their exact Proton overlay gains GPU support.
+pub fn migrate_renderer(
+    state: &mut Value,
+    prefix: &Path,
+    backup: &Path,
+    renderer: DisplayRenderer,
+    cancel: &AtomicBool,
+) -> Result<bool> {
+    if DisplayRenderer::from_state(state) == renderer {
+        return Ok(false);
+    }
+    files::private_dir(backup)?;
+    backup_settings(prefix, backup, cancel)?;
+    apply_settings(state, prefix, renderer)?;
+    Ok(true)
+}
 pub fn geometry(wine: &StagedWine<'_>, cache: &Path, payload: &Path, ctx: &Context) -> Result<()> {
     wine.check()?;
     let target = bundle::contained(&wine.wine.prefix, GEOMETRY_PATH)?;
@@ -283,7 +392,7 @@ pub fn user_folders(prefix: &Path) -> Result<Vec<PathBuf>> {
 }
 /// Whether the display settings with auto-start, and the Legacy readouts, could
 /// be written. Fenix can create persistancy.xml later than fenixConfig.xml.
-pub fn configure_prefix(prefix: &Path) -> Result<(bool, bool)> {
+pub fn configure_prefix(prefix: &Path, renderer: DisplayRenderer) -> Result<(bool, bool)> {
     if !prefix.join(PROGRAM).join("Fenix.exe").is_file() {
         return Ok((false, false));
     }
@@ -292,9 +401,23 @@ pub fn configure_prefix(prefix: &Path) -> Result<(bool, bool)> {
     let ready = settings_file(
         &settings,
         &[
-            ("displayMode", "CPU"),
-            ("newRender", "false"),
-            ("preferCPU", "true"),
+            ("displayMode", renderer.as_str()),
+            (
+                "newRender",
+                if renderer == DisplayRenderer::Gpu {
+                    "true"
+                } else {
+                    "false"
+                },
+            ),
+            (
+                "preferCPU",
+                if renderer == DisplayRenderer::Gpu {
+                    "false"
+                } else {
+                    "true"
+                },
+            ),
             ("multithread", "true"),
         ],
     )?;
