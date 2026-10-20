@@ -95,7 +95,7 @@ cargo run --locked -p flightdeck-tools -- package \
   --native build/flightdeck-compat-0.1.16-linux-x86_64.tar.gz \
   --graphics build/graphics \
   --output build/native-package
-cargo run --locked -p flightdeck-tools -- source-release --output build/native-package/flightdeck-source-0.2.12.tar.gz
+cargo run --locked -p flightdeck-tools -- source-release --output build/native-package/flightdeck-source-0.2.13.tar.gz
 ```
 
 Install the toolchain's `rust-docs` component if its standard-library notices

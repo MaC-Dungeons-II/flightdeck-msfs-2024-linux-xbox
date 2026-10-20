@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.2.13 — 20 October 2026
+
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.12 launchers can use the in-app updater.
+
 - Fix Proton selection for native installations without Fenix. Its compatibility
   check still expected an environment setting in the old shell launcher; the
   shipped wrapper delegates to Rust and no longer contains it. The actual native
@@ -13,12 +18,13 @@
   starts prefer the available software H.264 decoder, preserving explicit
   decoder choices and hardware fallback. Bundled runners have separate media
   registries. Safe diagnostics distinguish a placeholder video from H.264
-  decode failures. See issue #3; the reported
+  decode failures. See [issue #3](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/3); the reported
   RTX 5080 game crash still requires confirmation on that machine.
 - Add `probe media`: decode and rewind a local video through Media Foundation
   in an isolated Wine prefix. The expected dimensions, frame count and decoded
   byte count must match on both passes; a small fallback video cannot pass.
-
+  The pinned Xodus runner with system codecs passed with the actual 4K MSFS
+  loading video, including seeking, end of stream and clean shutdown.
 - Bound the history kept around saves. Local backups before and after each
   session, downloaded cloud snapshots and the local states saved before each
   import gained an entry with every session and were never removed; one

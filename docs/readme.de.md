@@ -21,21 +21,21 @@ Microsoft-Konto an, lade das lizenzierte Spiel herunter und starte es über die
 native Rust-Oberfläche. Windows, die Xbox-App und eine bestehende MSFS-Installation
 sind dafür nicht erforderlich.
 
-**Aktuelle stabile Version: [Flightdeck 0.2.12](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.12).**
+**Aktuelle stabile Version: [Flightdeck 0.2.13](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.13).**
 Launcher, Installer und Updater benötigen kein Python.
 
-**Neu in 0.2.12:** Auf Desktops wie KDE Plasma bleibt das Profil nach der
-ersten Spielsitzung eines Systemstarts nicht mehr gesperrt; bisher verhinderte
-das jeden weiteren Start. Sitzungsprotokolle sind auf die letzten zehn Sitzungen
-begrenzt und wachsen nicht mehr unbegrenzt, Wine-Profile früherer Versionen des
-Cloud-Hilfsprozesses werden entfernt. Die Diagnose hält nun fest, ob der
-Renderer sein Gerät und seine Swapchain erzeugt hat.
+**Neu in 0.2.13:** NVIDIA-Starts bevorzugen Software-H.264-Dekodierung für
+Ladevideos. Ausgewählte Proton-Versionen verwenden mitgelieferte Codecs, sofern
+vorhanden; die Proton-Auswahl funktioniert auch bei nativen Installationen ohne
+Fenix. Der Spielstandverlauf ist nun begrenzt, benötigte Sicherungen bleiben
+erhalten. Der gemeldete RTX-5080-Absturz muss auf dem betroffenen Rechner noch
+überprüft werden.
 [Änderungsübersicht](changelog.md)
 
 ## Loslegen
 
 1. Lade **Flightdeck-Linux-x86_64.tar.gz** aus der
-   [0.2.12-Veröffentlichung](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.12),
+   [0.2.13-Veröffentlichung](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.13),
    entpacke es und öffne **Install Flightdeck.desktop**. Eventuell musst du den
    lokalen Starter im Dateimanager freigeben. Alternativ dort `./install.sh` ausführen.
 2. Wähle **MSFS installieren**, die Edition 2024 oder 2020 und einen Zielordner.

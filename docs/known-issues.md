@@ -2,12 +2,16 @@
 
 [Deutsch](known-issues.de.md) · [Documentation](index.md)
 
-Status: 13 October 2026, covering the stable **0.2.12** release.
-See the [release changes](changelog.md#0211--12-october-2026).
+Status: 20 October 2026, covering the stable **0.2.13** release.
+See the [release changes](changelog.md#0213--20-october-2026).
 
 - **NVIDIA:** Normal MSFS 2024 rendering is confirmed by user testing. Smaller
   issues remain possible, including a missing or black startup video. This does
   not qualify every GPU/driver combination, VR or NVIDIA's optional features.
+  Version 0.2.13 prefers software H.264 decoding and fixes codec selection for
+  supported Proton builds. The RTX 5080 crash reported in
+  [issue #3](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/3)
+  still needs confirmation on the affected machine.
   If the main map or cockpit is also black, report it separately.
   [Graphics setup and reporting](graphics.md).
 - **Fenix installation:** The message “application install hook failed” can
