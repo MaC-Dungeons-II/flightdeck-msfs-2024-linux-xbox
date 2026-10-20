@@ -10,6 +10,37 @@ use flightdeck::{
 use serde_json::{Value, json};
 use std::{fs, io::Write, os::unix::fs::symlink, process::Command, time::Duration};
 #[test]
+fn media_failures_and_placeholder_video_are_exported_without_private_log_text() {
+    let t = tempfile::tempdir().unwrap();
+    let path = t.path().join("game.log");
+    files::atomic(
+        &path,
+        b"flightdeck-media: source=host h264=software_preferred\n\
+        ERROR WINE Cannot decode caps video/x-h264, codec_data=SECRET-CODEC-DATA\n\
+        ERROR protonmediaconverter Creating tag file placeholder-video-used.\n\
+        ERROR Env MEDIACONV_VIDEO_TRANSCODED_FILE is not set. /private/account/token\n\
+        WARN module_open failed: libvpx.so.6: cannot open shared object file: No such file or directory\n",
+    )
+    .unwrap();
+    let result = run_diagnostics::read(&path).unwrap().0;
+    assert_eq!(
+        result["media"]["configuration"]["h264"],
+        "software_preferred"
+    );
+    assert_eq!(result["media"]["observations"]["placeholder_video"], 1);
+    assert_eq!(result["media"]["observations"]["h264_decode_failed"], 1);
+    assert_eq!(
+        result["media"]["observations"]["transcoded_video_unavailable"],
+        1
+    );
+    assert!(!result.to_string().contains("SECRET"));
+    assert_eq!(
+        result["media"]["observations"]["plugin_library_unavailable"],
+        1
+    );
+    assert!(!result.to_string().contains("/private/account"));
+}
+#[test]
 fn bounded_scan_keeps_complete_lines_and_never_joins_omitted_fragments() {
     let t = tempfile::tempdir().unwrap();
     let path = t.path().join("game.log");

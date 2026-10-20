@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Fix Proton selection for native installations without Fenix. Its compatibility
+  check still expected an environment setting in the old shell launcher; the
+  shipped wrapper delegates to Rust and no longer contains it. The actual native
+  wrapper is now accepted, and the public selection path is tested with those
+  shipped bytes instead of a synthetic marker.
+- Configure media inside the game's Wine child. Selected Proton builds that
+  bundle FFmpeg receive their libraries and GStreamer plugins; the default
+  Xodus runner and stock Steam runners retain the system-codec path. NVIDIA
+  starts prefer the available software H.264 decoder, preserving explicit
+  decoder choices and hardware fallback. Bundled runners have separate media
+  registries. Safe diagnostics distinguish a placeholder video from H.264
+  decode failures. See issue #3; the reported
+  RTX 5080 game crash still requires confirmation on that machine.
+- Add `probe media`: decode and rewind a local video through Media Foundation
+  in an isolated Wine prefix. The expected dimensions, frame count and decoded
+  byte count must match on both passes; a small fallback video cannot pass.
+
 - Bound the history kept around saves. Local backups before and after each
   session, downloaded cloud snapshots and the local states saved before each
   import gained an entry with every session and were never removed; one

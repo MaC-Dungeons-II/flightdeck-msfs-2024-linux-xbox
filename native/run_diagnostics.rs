@@ -67,6 +67,8 @@ pub struct GameLog {
     audio_errors: BTreeMap<String, u64>,
     audio_warnings: BTreeMap<String, u64>,
     audio_observations: BTreeMap<String, u64>,
+    media_observations: BTreeMap<&'static str, u64>,
+    media_configuration: Option<Value>,
 }
 impl Default for GameLog {
     fn default() -> Self {
@@ -81,6 +83,8 @@ impl Default for GameLog {
             audio_errors: BTreeMap::new(),
             audio_warnings: BTreeMap::new(),
             audio_observations: BTreeMap::new(),
+            media_observations: BTreeMap::new(),
+            media_configuration: None,
         }
     }
 }
@@ -96,6 +100,33 @@ impl GameLog {
         }
     }
     pub fn consume(&mut self, text: &str) {
+        for captures in regex(r"\bflightdeck-media: source=(host|runner) h264=(default|explicit|software_preferred)\b").captures_iter(text) {
+            self.media_configuration = Some(json!({"source":&captures[1],"h264":&captures[2]}));
+        }
+        for (name, pattern) in [
+            (
+                "placeholder_video",
+                r"\bCreating tag file placeholder-video-used\b",
+            ),
+            ("h264_decode_failed", r"\bCannot decode caps video/x-h264\b"),
+            (
+                "missing_plugin",
+                r"\bYour GStreamer installation is missing a (?:required )?plug-in\b|\bwinegstreamer: failed to create [A-Za-z0-9_-]{1,64}, are (?:32|64)-bit GStreamer\b",
+            ),
+            (
+                "transcoded_video_unavailable",
+                r"\bEnv MEDIACONV_VIDEO_TRANSCODED_FILE is not set\b",
+            ),
+            (
+                "plugin_library_unavailable",
+                r"\bmodule_open failed: [A-Za-z0-9_.+-]{1,128}: cannot open shared object file\b",
+            ),
+        ] {
+            let count = regex(pattern).find_iter(text).count() as u64;
+            if count != 0 {
+                *self.media_observations.entry(name).or_default() += count;
+            }
+        }
         for c in regex(r"xodus-title-auth: host=(?:user|device|title|xsts)\.auth\.xboxlive\.com status=([1-5]\d{2})\b").captures_iter(text){if let Ok(n)=c[1].parse(){self.auth.insert(n);}}
         for c in regex(r"\[xodus-gamesave\] local_init enabled=([01]) sync_on_demand=([01]) hr=([0-9a-fA-F]{8})\b").captures_iter(text){self.add("local_save_init",json!({"enabled":u8::from(&c[1]=="1"),"sync_on_demand":u8::from(&c[2]=="1"),"hresult":c[3].to_ascii_lowercase()}));}
         for c in regex(r"\[xodus-store\] (XStore[A-Za-z0-9_]{1,80})(?: [^\r\n]{0,100})? hr=([0-9a-fA-F]{8})(?:\s|$)").captures_iter(text){if store_diagnostics::METHODS.contains(&&c[1])||["XStoreCreateContext","XStoreAcquireLicenseForPackageAsync","XStoreQueryAddOnLicensesAsync"].contains(&&c[1]){self.add("store_calls",json!({"method":&c[1],"hresult":c[2].to_ascii_lowercase()}));}}
@@ -248,6 +279,10 @@ impl GameLog {
         self.graphics["error_counts"] = json!(self.graphics_errors);
         self.graphics["warning_counts"] = json!(self.graphics_warnings);
         result["graphics_log"] = self.graphics;
+        if self.media_configuration.is_some() || !self.media_observations.is_empty() {
+            result["media"] = json!({"scope":"game_log","coverage":coverage.clone(),
+                "configuration":self.media_configuration,"observations":self.media_observations});
+        }
         result["audio"] = json!({"scope":"game_log","coverage":coverage,"error_counts":self.audio_errors,"warning_counts":self.audio_warnings,"observations":self.audio_observations});
         result
     }

@@ -311,6 +311,14 @@ pub fn run(root: &Path, arguments: &[OsString]) -> Result<u8> {
     // Keep the optional compute preload out of the supervisor, broker and
     // companion helpers. Only the game's Wine command receives this overlay.
     let mut game_env = env.clone();
+    let (media_source, media_decoder) = crate::media::configure(
+        &root,
+        &root.join("runner"),
+        portable,
+        crate::graphics::nvidia_present(),
+        &mut game_env,
+    )?;
+    eprintln!("flightdeck-media: source={media_source} h264={media_decoder}");
     let _neural_preload = crate::neural_rendering::prepare(&root, &view.path, &mut game_env)?;
     // Install signal handlers before the game starts. Helpers never inherit any
     // licensed image descriptors; only the game process gets that explicit set.

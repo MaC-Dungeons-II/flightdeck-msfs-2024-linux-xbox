@@ -39,7 +39,7 @@ fn fixture(base: &Path) -> (PathBuf, std::sync::Arc<Launcher>) {
     write(&root.join("tools/play-msfs.sh"), b"#!/bin/sh\n");
     write(
         &root.join("tools/launch-msfs.sh"),
-        b"FLIGHTDECK_PROTON_LOADER\n",
+        flightdeck::resources::asset("scripts/runtime/launch-msfs.sh").unwrap(),
     );
     for name in ["system.reg", "user.reg"] {
         write(
@@ -61,6 +61,40 @@ fn fixture(base: &Path) -> (PathBuf, std::sync::Arc<Launcher>) {
     symlink(&original, root.join("runner")).unwrap();
     let app = Launcher::new(base.join("state"), Some(root.to_str().unwrap())).unwrap();
     (root, app)
+}
+#[test]
+fn current_native_wrapper_allows_the_public_proton_switch_without_fenix() {
+    let temp = tempfile::tempdir().unwrap();
+    let (root, app) = fixture(temp.path());
+    let candidate = temp.path().join("alternative");
+    runner(&candidate, "synthetic-selected");
+    assert!(proton::supports_switch(&root).unwrap());
+    proton::start(
+        &app,
+        &json!({"runtime_path":root,"mode":"proton","path":candidate}),
+    )
+    .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let job = app.job("proton");
+        if job["state"] == "complete" {
+            break;
+        }
+        assert_ne!(job["state"], "failed", "{job}");
+        assert!(std::time::Instant::now() < deadline, "{job}");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert_eq!(proton::snapshot(&app)["selected"], "synthetic-selected");
+    write(
+        &root.join("tools/launch-msfs.sh"),
+        b"#!/bin/sh\necho unknown legacy launcher\n",
+    );
+    assert!(!proton::supports_switch(&root).unwrap());
+    write(
+        &root.join("tools/launch-msfs.sh"),
+        b"#!/bin/sh\nexport FLIGHTDECK_PROTON_LOADER=portable\n",
+    );
+    assert!(proton::supports_switch(&root).unwrap());
 }
 #[test]
 fn discovery_returns_displayable_labels_for_steam_and_custom_runners() {
@@ -204,6 +238,12 @@ fn changed_prefix_or_launch_script_stops_recovery_before_publication() {
     data["before"] = before.clone();
     let source = backup.parent().unwrap().join("launch-msfs.sh");
     write(&source, fenix_bundle::script("launch-msfs.sh").unwrap());
+    // The native wrapper is now the normal fixture; replace it to simulate
+    // an external edit that matches neither side of the recovery journal.
+    write(
+        &root.join("tools/launch-msfs.sh"),
+        b"#!/bin/sh\necho externally modified\n",
+    );
     data["scripts"] = json!({"launch-msfs.sh":{"before":"0".repeat(64),"after":tx::digest(&source).unwrap(),"source":source.strip_prefix(&root).unwrap()}});
     files::atomic_json(&root.join("private/proton-switch.json"), &data).unwrap();
     assert!(proton::recover(&root).is_err());

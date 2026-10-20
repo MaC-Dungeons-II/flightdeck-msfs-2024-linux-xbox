@@ -387,6 +387,13 @@ pub fn prepare(
         tx::relocate_prefix_links(&prefix, &fresh, &ctx.cancel)?;
         ctx.progress("Die neue Proton-Umgebung wird eingerichtet …");
         let mut command = bootstrap::wine_command(&runner, &fresh);
+        let mut media_env = std::env::vars_os().collect();
+        crate::media::runner_libraries(&runner, &mut media_env)?;
+        for key in ["LD_LIBRARY_PATH", "ORIG_LD_LIBRARY_PATH"] {
+            if let Some(path) = media_env.get(std::ffi::OsStr::new(key)) {
+                command.env(key, path);
+            }
+        }
         command.env("WINEDLLOVERRIDES", "winemenubuilder.exe,mscoree,mshtml=d");
         for category in ["CONFIG", "DATA", "CACHE", "STATE"] {
             let path = work.join("xdg").join(category.to_lowercase());
@@ -601,6 +608,16 @@ pub fn switch(ctx: &Context, backup: &Path, prepared: &Value, restore: bool) -> 
     )?;
     recover(root)
 }
+/// The native wrapper delegates to the current helper. The older shell
+/// launcher configured the portable loader itself. Neither needs an update
+/// merely because the native implementation moved that setting into Rust.
+pub fn supports_switch(root: &Path) -> Result<bool> {
+    let script = files::read(&root.join("tools/launch-msfs.sh"), 65536)?;
+    Ok(
+        crate::resources::asset("scripts/runtime/launch-msfs.sh") == Some(script.as_slice())
+            || String::from_utf8_lossy(&script).contains("FLIGHTDECK_PROTON_LOADER"),
+    )
+}
 pub fn snapshot(app: &Launcher) -> Value {
     let (root, job) = {
         let s = app.lock();
@@ -661,7 +678,7 @@ pub fn start(app: &Arc<Launcher>, data: &Value) -> Result<Value> {
             for name in BRIDGE{let actual=tx::digest(&system.join(name))?;require(selected["base_hashes"][name]==actual||hashes[name]==actual,"Die gesicherte Flightdeck-Umgebung wurde verändert. Sie wurde nicht überschrieben.")?;}
             for name in BRIDGE{if tx::digest(&system.join(name))?!=hashes[name]{let(source,_)=bridge(root)?;tx::copy_path(&source.join(name),&system.join(name),Some(string(&hashes,name)?),&ctx.cancel)?;}}
             candidate=Some(inspect(string(&selected,"base_runner")?)?);
-        }}else{require(root.join("runner").symlink_metadata()?.is_symlink(),"Diese Installation unterstützt keinen Proton-Wechsel.")?;require(has_fenix||String::from_utf8_lossy(&files::read(&root.join("tools/launch-msfs.sh"),65536)?).contains("FLIGHTDECK_PROTON_LOADER"),"Aktualisiere zuerst die Flightdeck-Runtime-Komponenten und öffne Flightdeck erneut.")?;}
+        }}else{require(root.join("runner").symlink_metadata()?.is_symlink(),"Diese Installation unterstützt keinen Proton-Wechsel.")?;require(has_fenix||supports_switch(root)?,"Aktualisiere zuerst die Flightdeck-Runtime-Komponenten und öffne Flightdeck erneut.")?;}
         if let Some(candidate)=candidate{let(fresh,prepared)=prepare(ctx,&candidate,payload.as_deref(),mode=="default")?;switch(ctx,&fresh,&prepared,mode=="default")?;}
         ctx.launcher.lock().graphics_report=Value::Null;Ok(json!({"state":"complete","message":"Proton-Auswahl bereit. Du kannst den Simulator starten."}))
     })?;

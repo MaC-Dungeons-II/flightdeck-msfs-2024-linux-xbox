@@ -142,40 +142,6 @@ pub fn game_environment(root: &Path, mut env: Environment) -> Result<Environment
                 .into_owned(),
         );
     }
-    for (key, name) in [
-        ("MEDIACONV_BLANK_VIDEO_FILE", "blank.mkv"),
-        ("MEDIACONV_BLANK_AUDIO_FILE", "blank.ptna"),
-    ] {
-        env.insert(
-            key.into(),
-            runner
-                .join("files/share/media")
-                .join(name)
-                .to_string_lossy()
-                .into_owned(),
-        );
-    }
-    if root.join("local/media-plugins").is_dir() {
-        let old = env
-            .get("GST_PLUGIN_PATH_1_0")
-            .filter(|v| !v.is_empty())
-            .map(|v| format!(":{v}"))
-            .unwrap_or_default();
-        env.insert(
-            "GST_PLUGIN_PATH_1_0".into(),
-            format!("{}{old}", root.join("local/media-plugins").display()),
-        );
-    }
-    let gst = root.join("private/gstreamer");
-    files::private_dir(&gst)?;
-    env.insert(
-        "WINE_GST_REGISTRY_DIR".into(),
-        gst.to_string_lossy().into_owned(),
-    );
-    env.insert(
-        "GST_REGISTRY_1_0".into(),
-        gst.join("registry.bin").to_string_lossy().into_owned(),
-    );
     if root.join("private/local-saves.enabled").is_file()
         && root.join("private/local-saves").is_dir()
     {

@@ -74,6 +74,7 @@ fn launch(case: &Launch) {
         fs::create_dir_all(runtime.join(folder)).unwrap();
     }
     fs::create_dir_all(game.join("nested")).unwrap();
+    fs::create_dir_all(runtime.join("runner/files")).unwrap();
     symlink(&game, runtime.join("games").join(directory)).unwrap();
     fs::write(
         runtime.join("private/runtime.json"),

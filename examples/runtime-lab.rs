@@ -136,6 +136,30 @@ fn run(input: Value) -> Result<Value> {
                 &root.join("runner")
             )))
         }
+        "media-env" => {
+            let root = synthetic(&input)?;
+            let mut env = wine::environment(&root.join("local/msfs-prefix"), &root.join("runner"))
+                .into_iter()
+                .map(|(key, value)| (key.into(), value.into()))
+                .collect();
+            let (source, decoder) = flightdeck::media::configure(
+                &root,
+                &root.join("runner"),
+                input["runner_media"] == true,
+                input["prefer_software"] == true,
+                &mut env,
+            )?;
+            let env: std::collections::BTreeMap<String, String> = env
+                .into_iter()
+                .map(|(key, value)| {
+                    (
+                        key.to_string_lossy().into_owned(),
+                        value.to_string_lossy().into_owned(),
+                    )
+                })
+                .collect();
+            Ok(json!({"environment":env,"source":source,"h264":decoder}))
+        }
         "fenix" => fenix_fixture(&synthetic(&input)?, &path(&input, "bundle")?),
         "fenix-check" => {
             let root = synthetic(&input)?;

@@ -47,6 +47,41 @@ components; their own webview tests below remain relevant.
 
 ### Native packages
 
+Before changing a Wine runner's media setup, test the actual video through the
+launcher's media configuration. Build the driver and tool, then use a new output
+directory (the video and runner are read only):
+
+```sh
+cargo build --locked --bin flightdeck-rust --example runtime-lab -p flightdeck-linux
+cargo build --locked -p flightdeck-tools
+target/debug/flightdeck-tools probe media \
+  --runner /path/to/installed/proton \
+  --video /path/to/PressStartVideo-4K.mp4 \
+  --width 3840 --height 2160 --frames 120 \
+  --prefer-software --output build/media-default
+```
+
+Add `--runner-media` for selected Proton builds such as GE-Proton; omit it for
+the default Xodus runner's host codecs. `--prefer-software` exercises the NVIDIA
+H.264 preference on any GPU. The check creates a private prefix, decodes NV12
+frames, seeks the same reader back to the beginning and repeats. Both passes
+must have the requested dimensions, number of frames and decoded bytes, and a
+placeholder-video message rejects the run even when Wine returns zero. The
+reader then drains the rest of the video to EOS before closing. Results
+and local logs are kept in the output directory. No account or game is started;
+passing proves decoding and seeking, not NVIDIA presentation or a full MSFS run.
+An exit or cleanup timeout remains a failure even if both decoding passes worked.
+The JSON report keeps decoding, EOS and completed shutdown as separate facts.
+
+Local MSFS 2024 media checks on 20 October 2026: the pinned Xodus runner with
+system GStreamer 1.28.8 decodes the 3840×2160 H.264 loading video and rewinds it.
+GE-Proton 11-10 with its bundled FFmpeg also decodes and rewinds it and reaches
+EOS, but then hangs in its process-wide `MFShutdown`; this is not a passing
+runner qualification. GE-Proton 10-32 fails this direct-Wine probe and also has
+unresolved older Steam-runtime dependencies on this host. Neither experiment
+proves the RTX 5080 game launch from issue #3. Keep the tested default runner
+and its host-codec path as the default; selected runners remain experimental.
+
 Build the release with local checkout, Cargo-cache and toolchain paths remapped:
 
 ```sh

@@ -144,6 +144,36 @@ adds an already prepared plugin directory without modifying the system. Codec
 ABI and driver availability are host-specific. The source builder does not
 download or install graphics, multimedia or system packages.
 
+Flightdeck configures media only in the actual game's Wine child. The default
+Xodus runner uses system GStreamer codecs: MP4 needs the ISO/QuickTime demuxer
+and a working H.264 decoder, normally `qtdemux` and `avdec_h264`. Its bundled
+Steam media converter depends on a transcoded-video cache that Flightdeck does
+not have; adding its plugin paths can replace real video with a small test
+pattern. The optional local plugin directory is used only with this host-codec
+path and must match the system GStreamer ABI.
+
+A selected Proton that supplies its own FFmpeg codec library receives its
+library directories in `LD_LIBRARY_PATH` and its GStreamer plugin directories
+when present. This
+also makes GE-Proton's FFmpeg-backed Media Foundation implementation available.
+Stock Steam builds without this library retain the host-codec path. The
+original library path is retained for Wine's native-program handoff. These
+settings do not reach the Store service, broker or companion applications.
+
+On NVIDIA, H.264 decoding prefers `avdec_h264` with rank 512 when no explicit
+H.264 feature rank was supplied. It leaves hardware decoders available if the
+software decoder is missing. This changes video decoding, independently of the
+simulator's NVIDIA graphics mode. Explicit media paths, debug levels and decoder
+choices are retained. GStreamer registries are separate for host codecs and
+each bundled runner, so switching cannot reuse another build's registry.
+
+The local game log records the intended media source and decoder preference.
+Safe diagnostics export only these categories and counts of known decode,
+missing-plugin and placeholder-video messages; they contain no raw media paths
+or codec data. Configuration is not proof of decoded or displayed frames. The
+maintainer `probe media` check described in `BUILDING.md` reads a real local
+video, validates its decoded dimensions and rewinds it without starting MSFS.
+
 ## Authentication and launch
 
 Flightdeck 0.1.6 provides a reversible environment reset and a

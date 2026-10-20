@@ -15,6 +15,7 @@ mod graphics_adapter;
 mod graphics_rendering;
 mod host;
 pub(crate) mod lab;
+mod media;
 mod proton;
 mod sync_fenix;
 mod transition_update;
@@ -33,6 +34,8 @@ pub enum Probe {
     VolumeLayout(volume_layout::Arguments),
     /// Test the Flightdeck runner or Proton switching with own PEs and fresh prefixes.
     Proton(proton::Arguments),
+    /// Decode and rewind a local video through Wine Media Foundation.
+    Media(media::Arguments),
     /// Verify automatic inactive-edition migration using an isolated synthetic game.
     EditionUpdate(edition_update::Arguments),
     /// Compare isolated launchers and identical save workloads; never start Wine/MSFS.
@@ -74,6 +77,7 @@ fn dispatch(site: &Site, command: Probe) -> Result<u8> {
         Probe::Vr(arguments) => vr::run(site, &arguments),
         Probe::VolumeLayout(arguments) => volume_layout::run(site, &arguments),
         Probe::Proton(arguments) => proton::run(site, &arguments),
+        Probe::Media(arguments) => media::run(site, &arguments),
         Probe::EditionUpdate(arguments) => edition_update::run(&arguments),
         Probe::BenchmarkLaunchers(arguments) => benchmark::run(&arguments),
         Probe::SyncFenix(arguments) => sync_fenix::run(site.root, &arguments),
