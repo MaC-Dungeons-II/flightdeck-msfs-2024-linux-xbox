@@ -16,7 +16,7 @@ use std::{
     fs,
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, atomic::AtomicBool},
 };
 const SETTINGS: &str = "private/proton-selection.json";
 const JOURNAL: &str = "private/proton-switch.json";
@@ -28,6 +28,217 @@ pub const BRIDGE: [&str; 3] = [
     "xgameruntime_original.dll",
     "xodus_store_test.dll",
 ];
+pub const JSON_LIBRARIES: [&str; 2] = ["windows.web.dll", "wintypes.dll"];
+const JSON_BINDINGS: [(&str, &str); 4] = [
+    ("Windows.Data.Json.JsonValue", "fd-json.dll"),
+    ("Windows.Data.Json.JsonObject", "fd-json.dll"),
+    ("Windows.Data.Json.JsonArray", "fd-json.dll"),
+    ("Windows.Foundation.Collections.PropertySet", "fd-types.dll"),
+];
+
+/// Wine 11 searches builtins by the PE export-directory name, even when the
+/// file has a different basename. Rename that name too, or Wine substitutes
+/// its stock JSON stubs for our private copy. Both names fit in the original
+/// null-terminated slot; code, imports and section layout stay untouched.
+fn private_json_library(data: &[u8], source: &str, target: &str) -> Option<Vec<u8>> {
+    fn word(data: &[u8], at: usize) -> Option<u16> {
+        Some(u16::from_le_bytes(
+            data.get(at..at.checked_add(2)?)?.try_into().ok()?,
+        ))
+    }
+    fn dword(data: &[u8], at: usize) -> Option<usize> {
+        Some(u32::from_le_bytes(data.get(at..at.checked_add(4)?)?.try_into().ok()?) as usize)
+    }
+    if target.len() > source.len()
+        || !target.is_ascii()
+        || target.as_bytes().contains(&0)
+        || !crate::neural_assets::exports(data, b"DllGetActivationFactory")
+    {
+        return None;
+    }
+    // exports() already validated the AMD64 PE header and section count.
+    let pe = dword(data, 60)?;
+    let sections = pe + 24 + word(data, pe + 20)? as usize;
+    let offset = |rva: usize| -> Option<usize> {
+        for i in 0..word(data, pe + 6)? as usize {
+            let section = sections + i * 40;
+            let start = dword(data, section + 12)?;
+            let size = dword(data, section + 16)?;
+            if rva >= start && rva - start < size {
+                let at = dword(data, section + 20)?.checked_add(rva - start)?;
+                return (at < data.len()).then_some(at);
+            }
+        }
+        None
+    };
+    let exports = offset(dword(data, pe + 24 + 112)?)?;
+    let name = offset(dword(data, exports + 12)?)?;
+    let end = name.checked_add(source.len())?;
+    if data.get(name..end)? != source.as_bytes() || data.get(end) != Some(&0) {
+        return None;
+    }
+    let mut renamed = data.to_vec();
+    renamed.get_mut(name..=end)?.fill(0);
+    renamed
+        .get_mut(name..name + target.len())?
+        .copy_from_slice(target.as_bytes());
+    Some(renamed)
+}
+
+fn json_library(runner: &Path, name: &str) -> Result<PathBuf> {
+    for directory in ["lib/wine", "lib64/wine", "lib/x86_64-linux-gnu/wine"] {
+        let path = runner
+            .join("files")
+            .join(directory)
+            .join("x86_64-windows")
+            .join(name);
+        if path.is_file() {
+            return Ok(path);
+        }
+    }
+    Err(Error::Invalid(
+        "Die Store-Komponenten passen nicht zur Installation. Aktualisiere Flightdeck zuerst.",
+    ))
+}
+
+fn json_bindings_ready(prefix: &Path) -> Result<bool> {
+    let bytes = files::read(&prefix.join("system.reg"), 64 * 1024 * 1024)?;
+    let text = String::from_utf8_lossy(&bytes);
+    let mut section = None;
+    let mut ready = BTreeSet::new();
+    for line in text.lines() {
+        if let Some(key) = line.strip_prefix('[').and_then(|s| s.split(']').next()) {
+            section = JSON_BINDINGS.iter().position(|(class, _)| {
+                key.eq_ignore_ascii_case(&format!(
+                    r"Software\\Microsoft\\WindowsRuntime\\ActivatableClassId\\{class}"
+                ))
+            });
+            if let Some(index) = section {
+                ready.remove(&index);
+            }
+        } else if let Some(index) = section
+            && line
+                .split('=')
+                .next()
+                .is_some_and(|key| key.eq_ignore_ascii_case("\"DllPath\""))
+        {
+            if line.eq_ignore_ascii_case(&format!(
+                "\"DllPath\"=\"C:\\\\windows\\\\system32\\\\{}\"",
+                JSON_BINDINGS[index].1
+            )) {
+                ready.insert(index);
+            } else {
+                ready.remove(&index);
+            }
+        }
+    }
+    Ok(ready.len() == JSON_BINDINGS.len())
+}
+
+/// Stock Proton exposes JSON factories while Parse or GetObject is E_NOTIMPL.
+/// Bind only JSON and its PropertySet to private, uniquely named copies of the
+/// matching Flightdeck libraries. Keep the selected runner's system DLLs and
+/// all other WinRT classes intact.
+fn install_json_runtime(
+    root: &Path,
+    prefix: &Path,
+    runner: &Path,
+    base: &Path,
+    cancel: &AtomicBool,
+) -> Result<Value> {
+    managed(root, prefix)?;
+    let base = base.canonicalize()?;
+    let system = tx::prefix_system32(prefix)?;
+    managed(root, &system)?;
+    let mut copies = Vec::new();
+    let mut hashes = serde_json::Map::new();
+    for (name, target) in JSON_LIBRARIES
+        .into_iter()
+        .zip(["fd-json.dll", "fd-types.dll"])
+    {
+        let source = json_library(&base, name)?.canonicalize()?;
+        require(
+            source.starts_with(&base),
+            "Invalid managed Proton directory.",
+        )?;
+        let source = files::read_public(&source, 16 * 1024 * 1024)?;
+        let bytes = private_json_library(&source, name, target).ok_or(Error::Invalid(
+            "Die Store-Komponenten passen nicht zur Installation. Aktualisiere Flightdeck zuerst.",
+        ))?;
+        let hash = files::sha256(&bytes);
+        let destination = system.join(target);
+        if !files::exists(&destination) || tx::digest(&destination)? != hash {
+            copies.push((bytes, destination));
+        }
+        hashes.insert(
+            name.into(),
+            json!({"source_sha256":files::sha256(&source),"private_sha256":hash}),
+        );
+    }
+    let marker = prefix.join(".flightdeck-json.json");
+    let expected = json!({"schema":2,"runner":runner.strip_prefix(root).map_err(|_|Error::Invalid("Invalid managed Proton directory."))?,"files":hashes});
+    if copies.is_empty()
+        && files::exists(&marker)
+        && runtime::value(&marker)? == expected
+        && json_bindings_ready(prefix)?
+    {
+        return Ok(hashes.into());
+    }
+    wine_processes::idle(prefix)?;
+    for (bytes, destination) in copies {
+        tx::interrupted(cancel)?;
+        files::atomic(&destination, &bytes)?;
+    }
+    let work = tx::new_directory(prefix, ".flightdeck-json-")?;
+    let result = (|| {
+        let mut reg = String::from("Windows Registry Editor Version 5.00\r\n\r\n");
+        for (class, module) in JSON_BINDINGS {
+            reg.push_str(&format!("[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\WindowsRuntime\\ActivatableClassId\\{class}]\r\n\"DllPath\"=\"C:\\\\windows\\\\system32\\\\{module}\"\r\n\r\n"));
+        }
+        let path = work.join("bindings.reg");
+        let bytes: Vec<u8> = std::iter::once(0xfeff_u16)
+            .chain(reg.encode_utf16())
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        files::atomic(&path, &bytes)?;
+        let mut command = bootstrap::wine_command(runner, prefix);
+        command.env("WINEDLLOVERRIDES", "winemenubuilder.exe,mscoree,mshtml=d");
+        for category in ["CONFIG", "DATA", "CACHE", "STATE"] {
+            let path = work.join(category.to_lowercase());
+            files::private_dir(&path)?;
+            command.env(format!("XDG_{category}_HOME"), path);
+        }
+        let path = format!(
+            "Z:{}",
+            path.to_str()
+                .ok_or(Error::Invalid("Invalid managed Proton directory."))?
+                .replace('/', "\\")
+        );
+        bootstrap::command(command.args(["reg", "import", &path, "/reg:64"]), cancel)
+    })();
+    let stopped = bootstrap::stop_wine(runner, prefix);
+    let _ = fs::remove_dir_all(work);
+    result.and(stopped)?;
+    files::atomic_json(&marker, &expected)?;
+    Ok(hashes.into())
+}
+
+/// Upgrade an already-selected private profile before its next game process.
+/// Interrupted copies and registrations are completed by the next launch.
+pub fn prepare_game_runtime(root: &Path) -> Result<()> {
+    let Some(selected) = selection(root)? else {
+        return Ok(());
+    };
+    check(root)?;
+    install_json_runtime(
+        root,
+        &root.join("local/msfs-prefix"),
+        &root.join(string(&selected, "runner")?),
+        Path::new(string(&selected, "base_runner")?),
+        &AtomicBool::new(false),
+    )?;
+    Ok(())
+}
 fn matches(pattern: &str, value: &Value) -> bool {
     value
         .as_str()
@@ -414,6 +625,8 @@ pub fn prepare(
         }
         bootstrap::wait_wine(&runner, &fresh, &ctx.cancel)?;
         bootstrap::stop_wine(&runner, &fresh)?;
+        let json_runtime =
+            install_json_runtime(root, &fresh, &runner, &original_runner, &ctx.cancel)?;
         if !fenix_state.is_null() {
             ctx.progress("Fenix wird an die gewählte Proton-Version angepasst …");
             let wine = StagedWine::new(root, &fresh, &runner, &work.join("fenix-setup.log"), ctx)?;
@@ -454,7 +667,7 @@ pub fn prepare(
         let selected = json!({"schema":if fenix_state.is_null(){1}else{2},"version":candidate["version"],"source":candidate["path"],"runner":runner.strip_prefix(root).map_err(|_|Error::Invalid("Invalid Proton runner path."))?,"base_runner":original_runner,"base_prefix":previous.as_ref().map(|v|v["base_prefix"].clone()).unwrap_or(json!(fresh.strip_prefix(root).map_err(|_|Error::Invalid("Invalid Proton backup path."))?)),"base_hashes":previous.as_ref().map(|v|v["base_hashes"].clone()).unwrap_or(hashes),"fenix_state":fenix_state,"scripts":scripts});
         files::atomic_json(
             &work.join("provenance.json"),
-            &json!({"source":candidate["path"],"version":candidate["version"],"files":candidate["hashes"],"previous_runner":root.join("runner").canonicalize()?}),
+            &json!({"source":candidate["path"],"version":candidate["version"],"files":candidate["hashes"],"compatibility_libraries":json_runtime,"previous_runner":root.join("runner").canonicalize()?}),
         )?;
         ctx.interrupted()?;
         Ok((fresh.clone(), selected))
@@ -692,4 +905,41 @@ pub fn start(app: &Arc<Launcher>, data: &Value) -> Result<Value> {
         ctx.launcher.lock().graphics_report=Value::Null;Ok(json!({"state":"complete","message":"Proton-Auswahl bereit. Du kannst den Simulator starten."}))
     })?;
     Ok(json!({"ok":true,"job":response["job"],"runtime_path":root}))
+}
+
+#[cfg(test)]
+mod json_tests {
+    use super::*;
+
+    #[test]
+    fn registrations_must_match_all_four_64_bit_classes_after_wine_updates() {
+        let temp = tempfile::tempdir().expect("prefix");
+        let registry = temp.path().join("system.reg");
+        let current: String = JSON_BINDINGS
+            .iter()
+            .map(|(class, module)| format!(
+                "[Software\\\\Microsoft\\\\WindowsRuntime\\\\ActivatableClassId\\\\{class}] 1\n\"DllPath\"=\"C:\\\\windows\\\\system32\\\\{module}\"\n\n"
+            ))
+            .collect();
+        for text in [&current, &current.to_uppercase()] {
+            fs::write(&registry, text).expect("registry");
+            assert!(json_bindings_ready(temp.path()).expect("bindings"));
+        }
+        let wrong_view = current.replace("Software\\\\", "Software\\\\Wow6432Node\\\\");
+        let reset = current.replace("fd-json.dll", "windows.web.dll");
+        let missing = current
+            .split("\n\n")
+            .take(3)
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let stale = format!("{current}{reset}");
+        let extra_value = current.replace(
+            "\"DllPath\"=\"C:\\\\windows\\\\system32\\\\fd-types.dll\"",
+            "\"DllPath\"=\"C:\\\\windows\\\\system32\\\\fd-types.dll\"\n\"DllPath\"=\"wrong.dll\"",
+        );
+        for text in [wrong_view, reset, missing, stale, extra_value] {
+            fs::write(&registry, text).expect("registry");
+            assert!(!json_bindings_ready(temp.path()).expect("reset bindings"));
+        }
+    }
 }

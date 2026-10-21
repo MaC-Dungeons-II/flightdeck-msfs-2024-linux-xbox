@@ -18,7 +18,9 @@ use serde_json::{Value, json};
 use std::{
     ffi::OsStr,
     fs,
+    io::{Read, Write},
     os::unix::fs::{MetadataExt, symlink},
+    os::unix::net::UnixStream,
     path::{Path, PathBuf},
 };
 
@@ -606,6 +608,11 @@ wine-launch)
   descriptor=${{WINE_DLL_FILE_MAP%%:*}}
   IFS= read -r image < "/proc/self/fd/$descriptor"
   printf '%s\n' "$image" "$WINE_DLL_FILE_MAP" "$FLIGHTDECK_PROTON_LOADER" "$XDG_DATA_HOME" "$WINEPREFIX" > "$0.loaded"
+  if [ {status} -eq 0 ]; then
+    test "$XODUS_USER_RUNTIME" = 1 || exit 9
+    printf '%s' "$XDG_RUNTIME_DIR/$XODUS_USER_SOCKET_SUFFIX" > "$0.broker"
+    while [ ! -f "$0.pinged" ]; do sleep 0.01; done
+  fi
   echo loader output
   exit {status} ;;
 esac
@@ -622,7 +629,36 @@ exec sleep 60"#
 fn the_proton_probe_hands_memory_images_to_the_default_loader() {
     let (_temp, work) = work();
     let (site, original, runner) = proton_site(&work);
+    fs::write(runner.join("version"), "1234567890 Flightdeck-Runner-1\n").expect("version");
     let launcher = launcher(&work.join("flightdeck-rust"), 0);
+    let peer = {
+        let launcher = launcher.clone();
+        std::thread::spawn(move || {
+            let address = PathBuf::from(format!("{}.broker", launcher.display()));
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            let socket = loop {
+                if let Ok(socket) = fs::read_to_string(&address)
+                    && !socket.is_empty()
+                {
+                    break socket;
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "loader broker environment"
+                );
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            };
+            let mut stream = UnixStream::connect(socket).expect("broker");
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+                .expect("timeout");
+            stream.write_all(b"XSDX\x01\0\x04\0ping").expect("ping");
+            let mut response = [0; 12];
+            stream.read_exact(&mut response).expect("response");
+            assert_eq!(&response, b"XSDX\x02\0\x04\0ping");
+            fs::write(format!("{}.pinged", launcher.display()), b"").expect("acknowledge");
+        })
+    };
     let output = work.join("proton");
     let code = probe(
         &site,
@@ -638,6 +674,7 @@ fn the_proton_probe_hands_memory_images_to_the_default_loader() {
         ],
     )
     .expect("probe");
+    peer.join().expect("synthetic Xbox initialization");
     assert_eq!(code, 0);
     let result = host::read_json(&output.join("result.json")).expect("result");
     assert_eq!(result["implementation"], "rust");
@@ -650,6 +687,8 @@ fn the_proton_probe_hands_memory_images_to_the_default_loader() {
         "loader_passed",
         "fastlaunch_argument_passed",
         "working_directory_dll_passed",
+        "xbox_initialization_passed",
+        "xbox_json_passed",
         "rendering_passed",
         "original_files_unchanged",
         "profile_identity_preserved",

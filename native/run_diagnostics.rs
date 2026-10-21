@@ -11,7 +11,35 @@ use std::{
     fs::Metadata,
     path::Path,
 };
-const USERS: [&str; 9] = [
+pub const SCHEMA: u32 = 7;
+const USERS: &[&str] = &[
+    "XUserAddAsync.service",
+    "XUserAddAsync.complete",
+    "x_user_XUserAddAsync",
+    "x_user_XUserAddResult",
+    "x_user_XUserGetLocalId",
+    "x_user_XUserGetId",
+    "x_user_XUserGetState",
+    "x_user_XUserFindUserById",
+    "x_user_XUserFindUserByLocalId",
+    "x_user_XUserDuplicateHandle",
+    "x_user_XUserIsStoreUser",
+    "x_user_XUserGetIsGuest",
+    "x_user_XUserGetAgeGroup",
+    "x_user_XUserCheckPrivilege",
+    "x_user_XUserResolvePrivilegeWithUiAsync",
+    "x_user_XUserResolvePrivilegeWithUiResult",
+    "x_user_XUserResolveIssueWithUiAsync",
+    "x_user_XUserResolveIssueWithUiResult",
+    "x_user_XUserResolveIssueWithUiUtf16Async",
+    "x_user_XUserResolveIssueWithUiUtf16Result",
+    "x_user_XUserGetMsaTokenSilentlyAsync",
+    "x_user_XUserGetMsaTokenSilentlyResultSize",
+    "x_user_XUserGetMsaTokenSilentlyResult",
+    "x_user_XUserGetGamerPictureAsync",
+    "x_user_XUserGetGamerPictureResultSize",
+    "x_user_XUserGetGamerPictureResult",
+    "x_user_XUserGetTokenAndSignatureAsync",
     "XUserGetTokenAndSignatureAsync.complete",
     "signature.policy",
     "signature.pack",
@@ -41,6 +69,27 @@ const NETWORK: [&str; 10] = [
     "matched-title-unpinned",
     "matched-https-fallback",
     "matched-title-https-fallback",
+];
+const USER_LOAD_STAGES: [&str; 8] = [
+    "default_cache",
+    "msa_begin",
+    "msa_await",
+    "msa_result",
+    "msa_token_property",
+    "msa_device_property",
+    "xbox_user_load",
+    "default_cache_store",
+];
+const USER_AUTH_STAGES: [&str; 9] = [
+    "proof_key",
+    "user_token",
+    "device_title_tokens",
+    "xsts",
+    "identity_validation",
+    "endpoint_cache",
+    "profile_http",
+    "profile_json",
+    "profile_fields",
 ];
 fn host_category(host: &str) -> &'static str {
     let host = host.to_ascii_lowercase();
@@ -100,6 +149,35 @@ impl GameLog {
         }
     }
     pub fn consume(&mut self, text: &str) {
+        for c in regex(r"xodus-runtime-lifetime: initialize argc=([234]) clients=\d{1,20} result=([0-9a-fA-F]{8})(?:\s|$)").captures_iter(text) {
+            self.add("runtime_calls", json!({"method":"InitializeApiImpl","arguments":c[1].parse::<u8>().unwrap_or_default(),"hresult":c[2].to_ascii_lowercase()}));
+        }
+        for c in
+            regex(r"xodus-user-bridge: (initialize|query|shutdown) result=([0-9a-fA-F]{8})(?:\s|$)")
+                .captures_iter(text)
+        {
+            self.add(
+                "runtime_calls",
+                json!({"method":"UserRuntime","stage":&c[1],"hresult":c[2].to_ascii_lowercase()}),
+            );
+        }
+        for c in regex(r"xodus-user-load: stage=([a-z_]{1,32}) hr=([0-9a-fA-F]{8})(?:\s|$)")
+            .captures_iter(text)
+        {
+            if USER_LOAD_STAGES.contains(&&c[1]) {
+                self.add("runtime_calls", json!({"method":"XUserAddAsync","stage":&c[1],"hresult":c[2].to_ascii_lowercase()}));
+            }
+        }
+        for c in regex(r"xodus-user-auth: stage=([a-z_]{1,32}) hr=([0-9a-fA-F]{8})(?:\s|$)")
+            .captures_iter(text)
+        {
+            if USER_AUTH_STAGES.contains(&&c[1]) {
+                self.add("runtime_calls", json!({"method":"XUserAuthenticate","stage":&c[1],"hresult":c[2].to_ascii_lowercase()}));
+            }
+        }
+        for c in regex(r"xodus-runtime: System\.(GetConsoleId|GetXboxLiveSandboxId|GetAppSpecificDeviceId|HandleTrack) result=([0-9a-fA-F]{8})(?:\s|$)").captures_iter(text) {
+            self.add("runtime_calls", json!({"method":format!("XSystem{}",&c[1]),"hresult":c[2].to_ascii_lowercase()}));
+        }
         for captures in regex(r"\bflightdeck-media: source=(host|runner) h264=(default|explicit|software_preferred)\b").captures_iter(text) {
             self.media_configuration = Some(json!({"source":&captures[1],"h264":&captures[2]}));
         }
@@ -248,6 +326,9 @@ impl GameLog {
     }
     pub fn result(mut self, coverage: Value) -> Value {
         let mut result = json!({"auth_http":self.auth,"exit":self.exit,"log_coverage":coverage,"summary_limited":self.limited});
+        if let Some(rows) = self.rows.remove("runtime_calls") {
+            result["runtime_calls"] = json!(rows);
+        }
         for name in [
             "local_save_init",
             "store_calls",

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Fix Xbox sign-in error `000-2000-0x80004001` after selecting another Proton
+  build ([issue #4](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4)).
+  Retain Flightdeck's working JSON and PropertySet implementations with private
+  names and scoped WinRT registrations; repair already-selected profiles before
+  launch. Wine 11 also needs unique internal DLL names to prevent substitution
+  by its JSON stubs. Real MSFS 2024 sign-in, profile loading and token/signature
+  requests passed with Proton Experimental 11. Safe diagnostics now preserve
+  startup and authentication-stage results. The account-free Proton probe
+  checks runtime initialization, JSON response parsing and shutdown with a
+  ping-only local broker. An isolated CachyOS 10 start still exited with code 84
+  before authentication completed; that crash and the VSync report remain open.
 - Adopt Fenix patch 0.1.0-preview.8 with GPU display sharing on the pinned Xodus
   and Proton 11 runners. Deploy the matched DXGI into the profile, migrate
   earlier automatic CPU settings and preserve explicit CPU fallbacks. CachyOS

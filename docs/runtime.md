@@ -49,6 +49,22 @@ cancellation during preparation leaves the active profile untouched. A journal
 blocks launch after an interrupted commit; **Return to Flightdeck environment**
 recovers it. Close MSFS and all profile applications before switching.
 
+The Xbox user bridge also needs working WinRT JSON parsing. Some stock Proton
+builds expose its factories but return `E_NOTIMPL` from `Parse` or `GetObject`,
+causing sign-in error `000-2000-0x80004001` even after a successful HTTP response.
+Flightdeck copies the matching default runner's `windows.web.dll` and
+`wintypes.dll` into the private profile as `fd-json.dll` and `fd-types.dll`,
+including unique internal PE export names. Only the three JSON classes and
+`Windows.Foundation.Collections.PropertySet` are registered to those copies.
+The chosen runner's system libraries remain intact. Existing selected profiles
+receive this repair before the next launch; source hashes, private-copy hashes
+and registrations are checked so interrupted preparation or a Wine registry
+update can be repaired. Real MSFS 2024 sign-in and token/signature requests were
+verified with Experimental `experimental-11.0-20261001-x86_64`; this does not
+establish a complete flight. The isolated CachyOS 10 game test still exited
+with code 84 before authentication completed, despite passing the synthetic
+JSON, graphics and profile-return checks.
+
 Fenix uses a separate overlay compiled for each exact supported Wine build.
 The additional builds are Experimental `experimental-11.0-20260924-x86_64`,
 CachyOS `cachyos-10.0-sunset-slr` and CachyOS `cachyos-11.0-20261005-slr`. The
@@ -88,6 +104,18 @@ environment. Diagnostics record the chosen version and loader. Maintainers can
 add `--fenix-bundle /path/to/patch` to that `probe proton` command to verify the
 matching overlay, synthetic Store loading, rendering and add-on-preserving
 return without starting a game or signing in.
+
+The Proton probe also initializes the real Xbox runtime with synthetic title
+metadata, obtains its user interface, parses synthetic Xbox response JSON
+(including nested identity arrays) and shuts it down. A local broker accepts
+only ping requests; the probe does not sign in or contact Xbox services. Its
+`xbox_initialization_passed` and `xbox_json_passed` results do not establish
+in-game authentication.
+Safe diagnostics schema 7 preserves runtime initialization, user-load stages
+and authentication-stage/user API result codes in exported JSON and problem reports. Existing game
+logs can be re-exported with `flightdeck diagnose-run --runtime /path/to/runtime`.
+These are distinct observed results, not a chronological event trace; missing
+entries do not establish that an API was never called.
 
 ## Advanced: prepare a runtime from existing files
 

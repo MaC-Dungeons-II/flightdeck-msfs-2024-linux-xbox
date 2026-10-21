@@ -10,6 +10,39 @@ use flightdeck::{
 use serde_json::{Value, json};
 use std::{fs, io::Write, os::unix::fs::symlink, process::Command, time::Duration};
 #[test]
+fn xbox_startup_failures_keep_stage_and_result_without_private_log_text() {
+    let mut log = run_diagnostics::GameLog::default();
+    log.consume(
+        "xodus-runtime-lifetime: initialize argc=4 clients=1 result=00000000\n\
+        xodus-user-bridge: initialize result=00000000\n\
+        xodus-user-load: stage=xbox_user_load hr=80004001 private-token\n\
+        xodus-user-auth: stage=user_token hr=80004001 private-token\n\
+        xodus-user-api: XUserAddAsync.service call=0 hr=80004001\n\
+        xodus-user-api: XUserAddAsync.complete call=0 hr=80004001\n\
+        xodus-runtime: System.GetXboxLiveSandboxId result=00000000\n\
+        xodus-user-load: stage=private_secret hr=80004001\n\
+        xodus-user-api: private_secret call=0 hr=80004001\n",
+    );
+    let out = log.result(json!({"complete":true}));
+    assert_eq!(out["runtime_calls"].as_array().unwrap().len(), 5);
+    assert_eq!(
+        out["runtime_calls"][2],
+        json!({"method":"XUserAddAsync","stage":"xbox_user_load","hresult":"80004001"})
+    );
+    assert_eq!(out["user_calls"].as_array().unwrap().len(), 2);
+    assert!(!out.to_string().contains("private"));
+}
+#[test]
+fn xbox_startup_results_are_bounded_across_log_chunks() {
+    let mut log = run_diagnostics::GameLog::default();
+    for n in 0..300 {
+        log.consume(&format!("xodus-user-bridge: initialize result={n:08x}\n"));
+    }
+    let out = log.result(json!({"complete":true}));
+    assert_eq!(out["runtime_calls"].as_array().unwrap().len(), 256);
+    assert_eq!(out["summary_limited"], true);
+}
+#[test]
 fn media_failures_and_placeholder_video_are_exported_without_private_log_text() {
     let t = tempfile::tempdir().unwrap();
     let path = t.path().join("game.log");
@@ -349,4 +382,31 @@ fn support_draft_review_checks_scope_and_preserves_user_description() {
     assert!(flightdeck::problem_reports::discard(&app, "old").is_err());
     flightdeck::problem_reports::discard(&app, id).unwrap();
     assert!(flightdeck::problem_reports::snapshot(&app)["draft"].is_null());
+}
+#[test]
+fn support_drafts_retain_safe_xbox_startup_results() {
+    let t = tempfile::tempdir().unwrap();
+    let root = t.path().join("runtime");
+    let run = root.join("private/run-20261021-120000-test");
+    files::private_dir(&run).unwrap();
+    files::atomic(
+        &run.join("game.log"),
+        b"xodus-user-load: stage=xbox_user_load hr=80004001 private-token\n",
+    )
+    .unwrap();
+    let app = Launcher::new(t.path().join("state"), None).unwrap();
+    app.lock().runtime = Some(root.clone());
+    let out = flightdeck::problem_reports::prepare(&app, &json!({
+        "runtime_path":root,"category":"other","description":"Alternative Proton startup fails.","observations":[]
+    })).unwrap();
+    let evidence = &out["draft"]["report"]["diagnostics"]["summary"];
+    assert_eq!(
+        evidence["context"]["diagnostics_schema"],
+        run_diagnostics::SCHEMA
+    );
+    assert_eq!(
+        evidence["runtime_calls"][0],
+        json!({"method":"XUserAddAsync","stage":"xbox_user_load","hresult":"80004001"})
+    );
+    assert!(!out.to_string().contains("private-token"));
 }

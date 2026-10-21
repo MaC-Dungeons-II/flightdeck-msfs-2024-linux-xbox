@@ -11,7 +11,48 @@ fn write(path: &Path, data: &[u8]) {
     files::private_dir(path.parent().unwrap()).unwrap();
     files::atomic(path, data).unwrap();
 }
+/// Small AMD64 PE with a real export directory. Its private copy must keep
+/// every byte except the module's internal export name.
+fn json_dll(version: &str, name: &str) -> Vec<u8> {
+    let mut data = vec![0; 0x800];
+    data[..2].copy_from_slice(b"MZ");
+    for (offset, value) in [
+        (60, 0x80_u32),
+        (0x80, 0x4550),
+        (0x98 + 108, 16),
+        (0x98 + 112, 0x1000),
+        (0x98 + 116, 0x100),
+        (0x188 + 12, 0x1000),
+        (0x188 + 16, 0x600),
+        (0x188 + 20, 0x200),
+        (0x200 + 12, 0x1040),
+        (0x200 + 20, 1),
+        (0x200 + 24, 1),
+        (0x200 + 28, 0x1028),
+        (0x200 + 32, 0x102c),
+        (0x200 + 36, 0x1030),
+        (0x228, 0x1100),
+        (0x22c, 0x1060),
+    ] {
+        data[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    for (offset, value) in [(0x84, 0x8664_u16), (0x86, 1), (0x94, 240), (0x98, 0x20b)] {
+        data[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
+    }
+    data[0x240..0x240 + name.len()].copy_from_slice(name.as_bytes());
+    let factory = b"DllGetActivationFactory\0";
+    data[0x260..0x260 + factory.len()].copy_from_slice(factory);
+    data[0x300] = 0xc3;
+    data[0x400..0x400 + version.len()].copy_from_slice(version.as_bytes());
+    data
+}
 fn runner(path: &Path, version: &str) {
+    for name in proton::JSON_LIBRARIES {
+        write(
+            &path.join("files/lib/wine/x86_64-windows").join(name),
+            &json_dll(version, name),
+        );
+    }
     for name in ["wine", "wineserver"] {
         let target = path.join("files/bin").join(name);
         write(&target, b"#!/bin/sh\nexit 0\n");
@@ -85,6 +126,31 @@ fn current_native_wrapper_allows_the_public_proton_switch_without_fenix() {
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
     assert_eq!(proton::snapshot(&app)["selected"], "synthetic-selected");
+    for (source, target) in proton::JSON_LIBRARIES
+        .into_iter()
+        .zip(["fd-json.dll", "fd-types.dll"])
+    {
+        assert_eq!(
+            fs::read(
+                root.join("local/msfs-prefix/drive_c/windows/system32")
+                    .join(target)
+            )
+            .unwrap(),
+            json_dll("synthetic-original", target)
+        );
+        assert_eq!(
+            fs::read(
+                root.join("runner/files/lib/wine/x86_64-windows")
+                    .join(source)
+            )
+            .unwrap(),
+            json_dll("synthetic-selected", source)
+        );
+        assert_eq!(
+            fs::read(candidate.join("files/lib/wine/x86_64-windows").join(source)).unwrap(),
+            json_dll("synthetic-selected", source)
+        );
+    }
     write(
         &root.join("tools/launch-msfs.sh"),
         b"#!/bin/sh\necho unknown legacy launcher\n",
@@ -95,6 +161,74 @@ fn current_native_wrapper_allows_the_public_proton_switch_without_fenix() {
         b"#!/bin/sh\nexport FLIGHTDECK_PROTON_LOADER=portable\n",
     );
     assert!(proton::supports_switch(&root).unwrap());
+}
+#[test]
+fn existing_selected_profiles_gain_json_support_without_replacing_runner_dlls() {
+    let temp = tempfile::tempdir().unwrap();
+    let (root, app) = fixture(temp.path());
+    let candidate = temp.path().join("alternative");
+    runner(&candidate, "synthetic-selected");
+    let ctx = app.reserve("proton", "select", true).unwrap();
+    let (fresh, selected) = proton::prepare(
+        &ctx,
+        &proton::inspect(candidate.to_str().unwrap()).unwrap(),
+        None,
+        false,
+    )
+    .unwrap();
+    proton::switch(&ctx, &fresh, &selected, false).unwrap();
+    app.finish(&ctx, Ok(json!({"state":"complete"})), false);
+    let prefix = root.join("local/msfs-prefix");
+    let json = prefix.join("drive_c/windows/system32/fd-json.dll");
+    fs::remove_file(prefix.join(".flightdeck-json.json")).unwrap();
+    fs::write(&json, b"old private copy").unwrap();
+    proton::prepare_game_runtime(&root).unwrap();
+    assert_eq!(
+        fs::read(&json).unwrap(),
+        json_dll("synthetic-original", "fd-json.dll")
+    );
+    assert_eq!(
+        fs::read(root.join("runner/files/lib/wine/x86_64-windows/windows.web.dll")).unwrap(),
+        json_dll("synthetic-selected", "windows.web.dll")
+    );
+    // A subsequent Wine update may restore stock WinRT registrations. The
+    // marker alone must not make those stub factories appear repaired.
+    fs::write(prefix.join("system.reg"), b"stock registrations").unwrap();
+    proton::prepare_game_runtime(&root).unwrap();
+    assert!(prefix.join(".flightdeck-json.json").is_file());
+    let original_json = temp
+        .path()
+        .join("original-runner/files/lib/wine/x86_64-windows/windows.web.dll");
+    for offset in [60, 0x84, 0x188 + 20, 0x200 + 12, 0x228, 0x240, 0x260] {
+        let mut invalid = json_dll("synthetic-original", "windows.web.dll");
+        invalid[offset..offset + 4].fill(0xff);
+        fs::write(&original_json, invalid).unwrap();
+        fs::write(&json, b"must remain on validation failure").unwrap();
+        assert!(
+            proton::prepare_game_runtime(&root).is_err(),
+            "offset {offset}"
+        );
+        assert_eq!(
+            fs::read(&json).unwrap(),
+            b"must remain on validation failure"
+        );
+    }
+    fs::write(
+        &original_json,
+        json_dll("synthetic-original", "windows.web.dll"),
+    )
+    .unwrap();
+    fs::remove_file(
+        temp.path()
+            .join("original-runner/files/lib/wine/x86_64-windows/wintypes.dll"),
+    )
+    .unwrap();
+    fs::write(&json, b"must remain on validation failure").unwrap();
+    assert!(proton::prepare_game_runtime(&root).is_err());
+    assert_eq!(
+        fs::read(&json).unwrap(),
+        b"must remain on validation failure"
+    );
 }
 #[test]
 fn discovery_returns_displayable_labels_for_steam_and_custom_runners() {

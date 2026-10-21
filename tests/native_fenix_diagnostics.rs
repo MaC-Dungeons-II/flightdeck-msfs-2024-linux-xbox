@@ -146,7 +146,7 @@ fn support_draft_includes_only_selected_runtime_structured_fenix_evidence() {
     let data = json!({"category":"installation","description":"The Fenix installer hook failed.","runtime_path":root.path()});
     let result = problem_reports::prepare(&app, &data).expect("support draft");
     let summary = &result["draft"]["report"]["diagnostics"]["summary"];
-    assert_eq!(summary["context"]["diagnostics_schema"], 6);
+    assert_eq!(summary["context"]["diagnostics_schema"], 7);
     assert_eq!(summary["fenix"]["package_version"], "1.0.286");
     assert_eq!(summary["fenix"]["failure"], "hook_nonzero");
     assert_eq!(summary["fenix"]["runner"], "flightdeck");

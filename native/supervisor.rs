@@ -64,6 +64,7 @@ pub fn environment(root: &Path) -> Result<(Environment, PathBuf)> {
 }
 pub fn game_environment(root: &Path, mut env: Environment) -> Result<Environment> {
     proton::check(root)?;
+    proton::prepare_game_runtime(root)?;
     require(
         gsx::complete(root),
         "GSX setup is incomplete. Recover it under Mods in Flightdeck before starting MSFS.",

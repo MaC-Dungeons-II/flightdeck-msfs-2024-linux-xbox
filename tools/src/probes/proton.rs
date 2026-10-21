@@ -21,13 +21,21 @@ use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
     fs,
-    io::Write,
+    io::{ErrorKind, Read, Write},
     os::{
         fd::{AsFd, AsRawFd},
-        unix::fs::{MetadataExt, PermissionsExt, symlink},
+        unix::{
+            fs::{MetadataExt, PermissionsExt, symlink},
+            net::{UnixListener, UnixStream},
+        },
     },
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread::JoinHandle,
     time::{Duration, Instant},
 };
 
@@ -56,7 +64,10 @@ pub struct Arguments {
 /// The synthetic game files: the main program and a DLL in a subdirectory.
 const NAMES: [&str; 2] = ["FlightSimulator2024.exe", "nested/probe.dll"];
 const PLACEHOLDER: &[u8] = b"Synthetic encrypted placeholder; must remain unchanged.\n";
-const SCOPE: &str = "Synthetic memfd EXE/DLL, working-directory and module-directory loading, Store library loading and D3D11/D3D12 rendering; profile round trip only with --runner; no game/account";
+const GAME_CONFIG: &str = "<Game><Identity Name=\"Test.Game\" Publisher=\"CN=Test\" Version=\"1.0.0.0\"/>\
+    <StoreId>GAME1234EFGH</StoreId><TitleId>1</TitleId>\
+    <MSAAppId>00000000-1111-2222-3333-444444444444</MSAAppId></Game>";
+const SCOPE: &str = "Synthetic memfd EXE/DLL, working-directory and module-directory loading, Xbox runtime initialization and user interface with a ping-only broker, Xbox response JSON parsing, Store library loading and D3D11/D3D12 rendering; profile round trip only with --runner; no game/account";
 
 #[derive(serde::Serialize)]
 struct Report {
@@ -67,6 +78,8 @@ struct Report {
     loader_passed: bool,
     fastlaunch_argument_passed: bool,
     working_directory_dll_passed: bool,
+    xbox_initialization_passed: bool,
+    xbox_json_passed: bool,
     rendering_passed: bool,
     original_files_unchanged: bool,
     return_to_default_passed: Option<bool>,
@@ -87,6 +100,8 @@ fn report(selected: bool, version: Value, fenix_overlay: bool) -> Report {
         loader_passed: true,
         fastlaunch_argument_passed: true,
         working_directory_dll_passed: true,
+        xbox_initialization_passed: true,
+        xbox_json_passed: true,
         rendering_passed: true,
         original_files_unchanged: true,
         return_to_default_passed: selected.then_some(true),
@@ -286,6 +301,116 @@ fn field<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
         .ok_or_else(|| Failure(format!("The Rust probe answered without {key}")))
 }
 
+/// Initialization needs the real Wine Unix bridge, but no credentials. Reject
+/// every request except a bounded ping so a probe cannot reach account data.
+struct Broker {
+    directory: tempfile::TempDir,
+    stop: Arc<AtomicBool>,
+    worker: Option<JoinHandle<Result<usize>>>,
+}
+fn broker_read(stream: &mut UnixStream, bytes: &mut [u8], stop: &AtomicBool) -> Result<bool> {
+    let mut offset = 0;
+    while offset < bytes.len() && !stop.load(Ordering::Acquire) {
+        match stream.read(&mut bytes[offset..]) {
+            Ok(0) => return Ok(false),
+            Ok(n) => offset += n,
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    ErrorKind::WouldBlock | ErrorKind::TimedOut | ErrorKind::Interrupted
+                ) => {}
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(offset == bytes.len())
+}
+fn serve_broker(listener: UnixListener, stop: &AtomicBool) -> Result<usize> {
+    listener.set_nonblocking(true)?;
+    let mut pings = 0;
+    while !stop.load(Ordering::Acquire) {
+        let mut stream = match listener.accept() {
+            Ok((stream, _)) => stream,
+            Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                std::thread::sleep(Duration::from_millis(10));
+                continue;
+            }
+            Err(e) => return Err(e.into()),
+        };
+        stream.set_read_timeout(Some(Duration::from_millis(100)))?;
+        stream.set_write_timeout(Some(Duration::from_secs(1)))?;
+        loop {
+            let mut header = [0; 8];
+            if !broker_read(&mut stream, &mut header, stop)? {
+                break;
+            }
+            let size = u16::from_le_bytes([header[6], header[7]]) as usize;
+            require(
+                header[..6] == [0x58, 0x53, 0x44, 0x58, 1, 0] && size <= 512,
+                "The Proton probe broker accepts only a bounded ping",
+            )?;
+            let mut payload = vec![0; size];
+            if !broker_read(&mut stream, &mut payload, stop)? {
+                break;
+            }
+            header[4] = 2;
+            stream.write_all(&header)?;
+            stream.write_all(&payload)?;
+            pings += 1;
+        }
+    }
+    Ok(pings)
+}
+impl Broker {
+    fn start() -> Result<Self> {
+        let directory = tempfile::Builder::new()
+            .prefix("flightdeck-proton-")
+            .tempdir()?;
+        let listener = UnixListener::bind(directory.path().join("xodus.sock"))?;
+        let stop = Arc::new(AtomicBool::new(false));
+        let flag = stop.clone();
+        let worker = Some(std::thread::spawn(move || serve_broker(listener, &flag)));
+        Ok(Self {
+            directory,
+            stop,
+            worker,
+        })
+    }
+    fn environment(&self, env: &mut Environment) {
+        host::set(
+            env,
+            [
+                ("XDG_RUNTIME_DIR", &host::text(self.directory.path())),
+                ("XODUS_USER_SOCKET_SUFFIX", "xodus.sock"),
+                ("XODUS_USER_RUNTIME", "1"),
+                ("DISPLAY", ""),
+                ("WAYLAND_DISPLAY", ""),
+            ],
+        );
+    }
+    fn finish(&mut self) -> Result<()> {
+        self.stop.store(true, Ordering::Release);
+        let worker = self
+            .worker
+            .take()
+            .ok_or_else(|| Failure("Probe broker already stopped".into()))?;
+        let pings = worker
+            .join()
+            .map_err(|_| Failure("Probe broker failed".into()))??;
+        require(
+            pings > 0,
+            "Xbox initialization did not reach the synthetic broker",
+        )
+    }
+}
+impl Drop for Broker {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Release);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
 pub fn run(site: &Site, arguments: &Arguments) -> Result<u8> {
     let (root, lab) = (site.root, &site.lab);
     let native_launcher = arguments
@@ -356,7 +481,8 @@ pub fn run(site: &Site, arguments: &Arguments) -> Result<u8> {
             .args(["-O2", "-Wall", "-Wextra"])
             .arg(root.join("tests/graphics/proton-loader.c"))
             .arg("-o")
-            .arg(&exe),
+            .arg(&exe)
+            .args(["-lruntimeobject", "-luuid"]),
     )?;
     host::checked(
         Command::new(&site.compiler)
@@ -379,6 +505,7 @@ pub fn run(site: &Site, arguments: &Arguments) -> Result<u8> {
     for name in NAMES {
         host::write(&game.join(name), PLACEHOLDER)?;
     }
+    host::write(&game.join("MicrosoftGame.config"), GAME_CONFIG)?;
     let unchanged = digest(PLACEHOLDER);
     let mut launcher = Launcher::start(&native_launcher, &output, &runtime)?;
     if let Some(bundle) = &arguments.fenix_bundle {
@@ -412,6 +539,9 @@ pub fn run(site: &Site, arguments: &Arguments) -> Result<u8> {
             .map(|(image, name)| (image.as_raw_fd(), game.join(name)))
             .collect();
         env.insert("WINE_DLL_FILE_MAP".into(), file_map(&mapped));
+        let mut broker = Broker::start()?;
+        let mut loader_env = env.clone();
+        broker.environment(&mut loader_env);
         let mut launch = Command::new(host::resolve(&native_launcher)?);
         launch
             .arg("wine-launch")
@@ -420,10 +550,18 @@ pub fn run(site: &Site, arguments: &Arguments) -> Result<u8> {
             .arg("--")
             .arg(game.join(NAMES[0]))
             .env_clear()
-            .envs(&env);
+            .envs(&loader_env);
         let loader = inherited(&images, || {
             host::logged(&mut launch, &output.join("loader.log"), 60)
         })??;
+        let broker_result = broker.finish();
+        if loader != 0 {
+            return fail(format!(
+                "loader.log ended with exit status {loader}:\n{}",
+                String::from_utf8_lossy(&fs::read(output.join("loader.log"))?)
+            ));
+        }
+        broker_result?;
         env.remove("WINE_DLL_FILE_MAP");
         let rendering = host::logged(
             Command::new(wine)
@@ -478,9 +616,7 @@ pub fn run(site: &Site, arguments: &Arguments) -> Result<u8> {
     );
     let last = lab.call("proton-info", probe_runtime.clone())?;
     ensure!(last["selection"].is_null());
-    let runner_version = fs::read_to_string(runner.join("version"))?
-        .trim()
-        .to_string();
+    let runner_version = bridge["version"].clone();
     ensure!(last["version"] == runner_version);
     if arguments.fenix_bundle.is_some() {
         lab.call("fenix-check", probe_runtime)?;
@@ -488,7 +624,7 @@ pub fn run(site: &Site, arguments: &Arguments) -> Result<u8> {
     let version = if selected {
         selection["version"].clone()
     } else {
-        runner_version.into()
+        runner_version
     };
     let report = host::pretty(&report(selected, version, arguments.fenix_bundle.is_some()))?;
     host::write(&output.join("result.json"), &report)?;
@@ -504,6 +640,55 @@ mod tests {
         Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
     };
+
+    #[test]
+    fn startup_broker_handles_fragmented_ping_without_account_requests() {
+        let mut broker = Broker::start().expect("broker");
+        let mut stream =
+            UnixStream::connect(broker.directory.path().join("xodus.sock")).expect("connect");
+        stream
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .expect("timeout");
+        let header = [0x58, 0x53, 0x44, 0x58, 1, 0, 4, 0];
+        stream.write_all(&header[..3]).expect("header");
+        std::thread::sleep(Duration::from_millis(120));
+        stream.write_all(&header[3..]).expect("header");
+        stream.write_all(b"ping").expect("payload");
+        let mut response = [0; 12];
+        stream.read_exact(&mut response).expect("response");
+        assert_eq!(&response, b"XSDX\x02\0\x04\0ping");
+        drop(stream);
+        broker.finish().expect("ping observed");
+    }
+
+    #[test]
+    fn startup_broker_rejects_account_access_and_missing_initialization() {
+        let mut broker = Broker::start().expect("broker");
+        let mut stream =
+            UnixStream::connect(broker.directory.path().join("xodus.sock")).expect("connect");
+        stream
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .expect("timeout");
+        stream
+            .write_all(&[0x58, 0x53, 0x44, 0x58, 3, 0, 0, 0])
+            .expect("request");
+        assert_eq!(stream.read(&mut [0]).expect("closed"), 0);
+        assert!(
+            broker
+                .finish()
+                .expect_err("no account access")
+                .0
+                .contains("only a bounded ping")
+        );
+        let mut absent = Broker::start().expect("broker");
+        assert!(
+            absent
+                .finish()
+                .expect_err("no initialization")
+                .0
+                .contains("did not reach")
+        );
+    }
 
     #[test]
     fn the_import_manifest_binds_the_copied_store_libraries() {
@@ -647,7 +832,7 @@ mod tests {
             default,
             json!({"implementation": "rust", "mode": "flightdeck", "version": "GE-Proton10-1",
                 "loader": "native", "loader_passed": true, "fastlaunch_argument_passed": true,
-                "working_directory_dll_passed": true, "rendering_passed": true,
+                "working_directory_dll_passed": true, "xbox_initialization_passed": true, "xbox_json_passed": true, "rendering_passed": true,
                 "original_files_unchanged": true, "return_to_default_passed": null,
                 "profile_identity_preserved": true, "addons_retained": true,
                 "fenix_overlay": false, "scope": SCOPE})

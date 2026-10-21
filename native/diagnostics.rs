@@ -14,7 +14,7 @@ pub fn snapshot(app: &Arc<Launcher>) -> Value {
 }
 pub fn from_state(s: &State) -> Value {
     let root = s.runtime.as_deref();
-    let mut summary = json!({"run_found":false,"auth_http":[],"local_save_init":[],"store_calls":[],"store_catalog":[],"exit":null,"context":{"diagnostics_schema":6,"launcher_version":crate::VERSION,"game_id":root.and_then(|r|Game::for_runtime(r).ok()).map(|g|g.id()),"cloud_sync_scope":"current_service","run_log_modified_at":null}});
+    let mut summary = json!({"run_found":false,"auth_http":[],"local_save_init":[],"store_calls":[],"store_catalog":[],"exit":null,"context":{"diagnostics_schema":crate::run_diagnostics::SCHEMA,"launcher_version":crate::VERSION,"game_id":root.and_then(|r|Game::for_runtime(r).ok()).map(|g|g.id()),"cloud_sync_scope":"current_service","run_log_modified_at":null}});
     let mut graphics_log = Value::Null;
     if let Some(root) = root
         && let Ok(entries) = std::fs::read_dir(root.join("private"))
