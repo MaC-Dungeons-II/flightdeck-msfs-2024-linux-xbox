@@ -2,8 +2,8 @@
 
 [Deutsch](known-issues.de.md) · [Documentation](index.md)
 
-Status: 20 October 2026, covering the stable **0.2.13** release.
-See the [release changes](changelog.md#0213--20-october-2026).
+Status: 21 October 2026, covering the stable **0.2.14** release.
+See the [release changes](changelog.md#0214--21-october-2026).
 
 - **NVIDIA:** Normal MSFS 2024 rendering is confirmed by user testing. Smaller
   issues remain possible, including a missing or black startup video. This does
@@ -14,6 +14,13 @@ See the [release changes](changelog.md#0213--20-october-2026).
   still needs confirmation on the affected machine.
   If the main map or cockpit is also black, report it separately.
   [Graphics setup and reporting](graphics.md).
+- **Alternate Proton:** Version 0.2.14 repairs Xbox sign-in error
+  `000-2000-0x80004001`, confirmed with Proton Experimental 11 in MSFS 2024.
+  CachyOS 10 sunset still exits with code 84 before authentication completes;
+  use the default Flightdeck environment or another tested runner.
+  [Issue #4](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4).
+- **VSync:** The one-third-refresh-rate limit exceeding 48 FPS on a 144 Hz
+  screen, also reported in issue #4, remains unverified.
 - **Fenix installation:** The message “application install hook failed” can
   leave FenixApp files present without completing setup. A reproduced ICU/.NET
   case is repairable; the generic warning alone does not identify the cause.

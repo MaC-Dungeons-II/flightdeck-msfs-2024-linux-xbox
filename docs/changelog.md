@@ -1,6 +1,9 @@
 # Changes and release status
 
-## Unreleased
+## 0.2.14 — 21 October 2026
+
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.13 launchers can use the in-app updater.
 
 - Fix Xbox sign-in error `000-2000-0x80004001` after selecting another Proton
   build ([issue #4](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4)).

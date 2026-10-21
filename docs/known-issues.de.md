@@ -2,8 +2,8 @@
 
 [English](known-issues.md) · [Dokumentation](index.md)
 
-Stand: 20. Oktober 2026, für die stabile Version **0.2.13**.
-Siehe [Änderungsübersicht](changelog.md#0213--20-october-2026).
+Stand: 21. Oktober 2026, für die stabile Version **0.2.14**.
+Siehe [Änderungsübersicht](changelog.md#0214--21-october-2026).
 
 - **NVIDIA:** Die normale MSFS-2024-Darstellung ist durch Nutzertests bestätigt.
   Kleinere Probleme bleiben möglich, etwa ein fehlendes oder schwarzes Startvideo.
@@ -14,6 +14,13 @@ Siehe [Änderungsübersicht](changelog.md#0213--20-october-2026).
   gemeldete RTX-5080-Absturz muss auf dem betroffenen Rechner noch überprüft werden.
   Bleiben auch Hauptkarte oder Cockpit schwarz, bitte getrennt melden.
   [Grafikeinrichtung und Fehlermeldungen](graphics.de.md).
+- **Andere Proton-Versionen:** Version 0.2.14 behebt den Xbox-Anmeldefehler
+  `000-2000-0x80004001`, bestätigt mit Proton Experimental 11 im echten MSFS 2024.
+  CachyOS 10 sunset endet weiterhin vor Abschluss der Anmeldung mit Code 84.
+  Verwende die Flightdeck-Standardumgebung oder einen anderen geprüften Runner.
+  [Issue #4](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4).
+- **VSync:** Die in Issue #4 gemeldete Überschreitung der 48-FPS-Grenze bei
+  einem Drittel der Bildwiederholrate eines 144-Hz-Monitors bleibt ungeprüft.
 - **Fenix-Installation:** Bei „application install hook failed“ können bereits
   FenixApp-Dateien vorhanden sein, obwohl die Einrichtung nicht abgeschlossen ist.
   Ein reproduzierter ICU-/.NET-Fall ist reparierbar; die allgemeine Meldung allein
