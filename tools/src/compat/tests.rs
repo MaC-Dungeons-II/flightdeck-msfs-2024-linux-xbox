@@ -392,6 +392,10 @@ fn notices_keep_every_text_in_order_and_skip_the_rust_licence_folder() {
     fixture.write("crate/src/lib.rs", b"// no licence here\n");
     fixture.write("crate/Cargo.toml", b"[package]\n");
     fixture.write(
+        "stage/xodus-src/crates/imported/LICENSE",
+        b"Synthetic imported MIT license\n",
+    );
+    fixture.write(
         "toolchain/libgcc-notice.txt",
         b"Synthetic toolchain notice\n",
     );
@@ -407,7 +411,10 @@ fn notices_keep_every_text_in_order_and_skip_the_rust_licence_folder() {
         {"name": "example", "version": "2.0.0", "source": "registry+https://example.invalid",
             "manifest_path": fixture.path("crate/Cargo.toml"), "license": "MIT", "repository": "https://example.invalid/example"},
         {"name": "local", "version": "1.0.0", "source": null, "manifest_path": fixture.path("stage/xodus-src/Cargo.toml"),
-            "license": null, "repository": null}
+            "license": null, "repository": null},
+        {"name": "imported", "version": "1.0.0", "source": null,
+            "manifest_path": fixture.path("stage/xodus-src/crates/imported/Cargo.toml"),
+            "license": "MIT", "repository": "https://example.invalid/imported"}
     ]);
     fixture.write("graph.json", graph.to_string().as_bytes());
     let (stage, vendor, config, supplements, graph, output) = (
@@ -441,6 +448,8 @@ fn notices_keep_every_text_in_order_and_skip_the_rust_licence_folder() {
         "example 2.0.0 / LICENSE-MIT",
         "local 1.0.0 / LICENSE\n",
         "Synthetic supplementary licence",
+        "imported 1.0.0 / LICENSE\n",
+        "Synthetic imported MIT license",
     ];
     let positions: Vec<usize> = order
         .iter()
@@ -458,6 +467,11 @@ fn notices_keep_every_text_in_order_and_skip_the_rust_licence_folder() {
     assert_eq!(inventory[0]["notices"][0]["name"], "LICENSE-MIT");
     assert_eq!(inventory[1]["license"], "GPL-3.0-only");
     assert_eq!(inventory[1]["notices"].as_array().map(Vec::len), Some(2));
+    assert_eq!(inventory[2]["license"], "MIT");
+    assert_eq!(
+        inventory[2]["notices"][0]["sha256"],
+        digest(b"Synthetic imported MIT license\n")
+    );
     // A package without any licence text stops the packaging.
     fs::remove_file(fixture.path("crate/LICENSE-MIT")).expect("remove");
     assert!(

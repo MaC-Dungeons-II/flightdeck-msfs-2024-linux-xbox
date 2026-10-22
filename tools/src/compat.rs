@@ -194,7 +194,15 @@ pub fn notices(root: &Path, job: &Release<'_>) -> Result<(Vec<u8>, Value)> {
             .ok_or_else(|| Failure(format!("No manifest path: {label}")))?;
         // Other-target sources are vendored too, for the complete locked rebuild.
         let mut files = if package["source"].is_null() {
-            vec![job.stage.join("xodus-src/LICENSE")]
+            // Imported libraries retain their own licenses even when Cargo
+            // resolves them as local workspace packages.
+            let license = folder.join("LICENSE");
+            vec![if license.exists() {
+                regular(&license)?;
+                license
+            } else {
+                job.stage.join("xodus-src/LICENSE")
+            }]
         } else {
             license_files(folder)?
         };

@@ -662,7 +662,7 @@ dependencies = [
 
 [[package]]
 name = "flightdeck-ui"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "iced",
  "image",

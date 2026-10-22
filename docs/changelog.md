@@ -1,5 +1,23 @@
 # Changes and release status
 
+## 0.2.16 — 22 October 2026
+
+Security update with rebuilt native compatibility components and corresponding
+sources. Existing native launchers can use the in-app updater.
+
+- Migrate XAL authentication, OAuth and the Store policy client off Reqwest 0.11
+  and h2 0.3, removing the HTTP/2 memory-exhaustion path in
+  [RUSTSEC-2026-0258](https://rustsec.org/advisories/RUSTSEC-2026-0258.html).
+  Preserve OAuth request-body authentication, PKCE and redirect rejection.
+- Update EAPPX's XML stack to xmlserde 0.14 and quick-xml 0.41, addressing the
+  quadratic attribute processing in
+  [RUSTSEC-2026-0194](https://rustsec.org/advisories/RUSTSEC-2026-0194.html).
+  Test all three package XML readers, escaped filenames, encrypted extraction
+  and rejection of XML-encoded unsafe paths.
+- Retain the exact upstream library revisions and MIT notices in the exported
+  source patch and native source archive. These dependency fixes do not claim
+  that every transitive advisory is resolved.
+
 ## 0.2.15 — 22 October 2026
 
 Stable security update with rebuilt native compatibility components and full

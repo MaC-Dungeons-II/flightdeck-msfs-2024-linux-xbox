@@ -3,7 +3,7 @@
 The top-level MIT license does not replace the licenses below. Original notices
 are retained in source and upstream patch context. New native compatibility
 files are provided under LGPL-2.1-or-later; new launcher/build tooling uses MIT.
-The exported changes include modifications through 2026-09-28. `source-deltas.json` identifies
+The exported changes include modifications through 2026-10-22. `source-deltas.json` identifies
 every changed upstream file and the resulting content hash.
 
 | Component | Pinned source | License and treatment |
@@ -15,6 +15,8 @@ every changed upstream file and the resulting content hash.
 | GameSave ABI | [same revision xgamesave.idl](https://github.com/xodus-gaming/xgameruntime/blob/64aebcabb8c66121eae25d3bf0ace4b582ebb0da/xgamesave.idl) | LGPL-2.1-or-later. Independent header was checked against all 30 methods, three interface IDs and structure fields in this free source. Native layout was separately tested; no proprietary SDK header is copied. |
 | JSON for Modern C++ 3.6.1 | [nlohmann/json v3.6.1](https://github.com/nlohmann/json/tree/v3.6.1) | MIT. Complete original notice remains in `runtime/include/vendor/nlohmann_json.hpp`. |
 | Xodus CLI/service modifications | [xodus-gaming/xodus 0670e25](https://github.com/xodus-gaming/xodus/tree/0670e25aeb0e0e9f800f8f2f4968ae3b681842a7) | Upstream GPLv3 text. Recorded as GPL-3.0-only without inferring an unspecified later-version grant. |
+| XAL authentication library | [xodus-gaming/xal-rs 6aa2420](https://github.com/xodus-gaming/xal-rs/tree/6aa2420f8f0d5e6f7460ff13f399037583a942f4) | MIT. Library and required text fixture imported into the Xodus patch; original LICENSE retained. Local changes migrate Reqwest/HTTP/OAuth while preserving request signing and disabling OAuth redirects. Examples omitted. |
+| EAPPX format library | [tuxuser/eappx-rs e392228](https://github.com/tuxuser/eappx-rs/tree/e39222821f8004c663f61a917304e8f5f679b224) | MIT. Library and required text fixtures imported into the Xodus patch; original LICENSE retained. Local changes update XML dependencies and add package-reader regressions. Example applications and binary sample packages omitted. |
 | New native proxy, Store and local GameSave implementation | This repository | LGPL-2.1-or-later, except separately identified third-party code. |
 
 License texts are in `compat/LICENSES`. The free GameSave IDL's original Wine
