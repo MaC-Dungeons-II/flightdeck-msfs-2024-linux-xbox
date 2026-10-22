@@ -68,6 +68,18 @@ fn fenix_repair_stop_cancels_the_owned_hook_and_preserves_the_profile() {
     let temp = tempfile::tempdir().unwrap();
     let (root, app) = fixture(temp.path());
     let prefix = root.join("local/msfs-prefix");
+    // This test cancels the official repair hook after prerequisite setup.
+    let dotnet = prefix.join("drive_c/Program Files/dotnet");
+    for name in [
+        "dotnet.exe",
+        "host/fxr/10.0.13/hostfxr.dll",
+        "shared/Microsoft.NETCore.App/10.0.13/coreclr.dll",
+        "shared/Microsoft.NETCore.App/10.0.13/System.Private.CoreLib.dll",
+        "shared/Microsoft.WindowsDesktop.App/10.0.13/PresentationFramework.dll",
+        "shared/Microsoft.WindowsDesktop.App/10.0.13/WindowsBase.dll",
+    ] {
+        write(&dotnet.join(name), b"MZfixture");
+    }
     let current = prefix.join("drive_c/users/steamuser/AppData/Local/FenixApp/current");
     write(&current.join("FenixApp.exe"), b"MZfixture");
     write(&current.join("sq.version"), b"<package><metadata><id>FenixApp</id><version>1.0.286</version><mainExe>FenixApp.exe</mainExe></metadata></package>");

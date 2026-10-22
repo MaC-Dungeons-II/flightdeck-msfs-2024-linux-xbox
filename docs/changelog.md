@@ -1,5 +1,25 @@
 # Changes and release status
 
+## 0.2.17 — 22 October 2026
+
+Stable launcher release with Fenix patch preview.9. Existing native launchers
+can use the in-app updater; update the Fenix patch separately under Mods.
+
+- Adopt the Direct2D per-figure memory-leak fix contributed by M3rocto in
+  [Fenix PR #10](https://github.com/marselnenaj/fenix-a320-linux-patch/pull/10).
+  The rebuilt Xodus, Proton Experimental 11 and CachyOS 10/11 overlays passed
+  geometry, rendering and heap-lifetime probes. Additional guards terminate
+  synthetic degenerate paths; these do not establish a fix for displays
+  freezing in the simulator. Long-flight memory behaviour remains unvalidated.
+- Prepare the pinned Microsoft .NET 10.0.13 x64 Desktop Runtime when installing
+  or updating Fenix, and check it before opening an official Fenix application.
+  This addresses the missing Windows Desktop Runtime error from the v3
+  installer. The runtime host and an isolated WPF window were tested; a full
+  Fenix v3 flight has not been independently verified.
+- Make the aircraft-installation step explicit: sign in to the official Fenix
+  installer, install the A320 for the selected simulator, wait for completion
+  and then close the installer.
+
 ## 0.2.16 — 22 October 2026
 
 Security update with rebuilt native compatibility components and corresponding

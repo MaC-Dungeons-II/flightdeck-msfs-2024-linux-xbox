@@ -73,9 +73,11 @@ pub(crate) fn fenix(data: &Value, status: &Value) -> AddonProgress {
                 "Richte zuerst den Linux-Patch ein. Flightdeck lädt das geprüfte Paket automatisch herunter."
             }
             2 if yes(data, "manager_installed") => {
-                "Öffne die vorhandene Fenix-App und vervollständige dort die Installation. Schließe die App danach."
+                "Installiere in der Fenix-App den A320 für deinen Simulator. Warte auf den Abschluss der Flugzeuginstallation und schließe die App danach."
             }
-            2 => "Lade den offiziellen Fenix-Installer herunter und wähle die EXE aus.",
+            2 => {
+                "Wähle den offiziellen Fenix-Installer aus und installiere darin den A320 für deinen Simulator. Schließe ihn erst nach Abschluss der Flugzeuginstallation."
+            }
             3 => "Öffne Fenix, melde dich dort an und schließe das Programm danach.",
             _ => {
                 "Schließe Fenix und übernimm die Einstellungen für Anzeigen und automatischen Start."

@@ -379,7 +379,8 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
             ctx.progress("Preparing fonts, graphics dependencies and Fenix settings …");
             setup::graphics_fonts(&wine)?;
         }
-        setup::geometry(&wine, &root.join("private/fenix-downloads"), payload, ctx)
+        setup::geometry(&wine, &root.join("private/fenix-downloads"), payload, ctx)?;
+        crate::fenix_desktop::ensure(&wine.wine, &root.join("private/fenix-downloads"), ctx)
     })();
     let stopped = wine.stop();
     setup_result.and(stopped)?;
@@ -714,6 +715,7 @@ fn windows_app_run(
         &root.join("private/fenix-app.log"),
         &ctx.cancel,
     )?;
+    crate::fenix_desktop::ensure(&wine, &root.join("private/fenix-downloads"), ctx)?;
     if operation == "repair" {
         let version = crate::fenix_installer::installed_version(&prefix).inspect_err(|_| {
             if let Some(attempt) = attempt {
@@ -765,9 +767,11 @@ fn windows_app_run(
         "0",
         "REG_DWORD",
     )?;
-    ctx.progress(
-        "Fenix is open. Complete its setup or sign-in, then close the application to continue.",
-    );
+    ctx.progress(if ["installer", "manager"].contains(&operation) {
+        "The official Fenix Installer is open. Sign in and install the A320 for your simulator. Wait until the aircraft installation has finished, then close the official installer to continue."
+    } else {
+        "Fenix is open. Sign in and activate your aircraft, then close the application to continue."
+    });
     let mut c = wine.command()?;
     c.arg(&app).current_dir(
         app.parent()

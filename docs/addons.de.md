@@ -156,6 +156,12 @@ Der Patch unterstützt MSFS 2024 mit dem festgelegten Xodus-Wine-Runner. Starte
 MSFS 2024 einmal, damit die Benutzereinstellungen angelegt sind. Schließe danach
 MSFS und alle Fenix-Anwendungen.
 
+Für den Fenix-v3-Installer wird zusätzlich die anhand ihrer Prüfsumme verifizierte
+Microsoft .NET 10 Desktop Runtime eingerichtet. Fehlt sie später, ergänzt
+Flightdeck sie vor dem Öffnen einer Fenix-App. Im offiziellen Installer den A320
+für den ausgewählten Simulator installieren, den Abschluss der
+Flugzeuginstallation abwarten und erst danach den Installer schließen.
+
 1. **Patch einrichten** lädt das Linux-ZIP aus dem öffentlichen Fenix-GitHub-Release
    und prüft dessen SHA-256. Es erstellt eine eigene Runner-/Profilkopie, bewahrt
    die bisherige Umgebung auf und installiert bei Bedarf Microsoft .NET Framework 4.8
@@ -237,7 +243,7 @@ Fenix-App, falls sie noch geöffnet ist; schließe Installationen oder
 Livery-Downloads dort ab, bevor du MSFS beendest. Andere Wine-Profile bleiben
 davon unberührt.
 
-Das nächste Flightdeck-Release verwendet Patch **0.1.0-preview.8**. Der
+Flightdeck 0.2.17 verwendet Patch **0.1.0-preview.9**. Der
 eigenständige Patch aktualisiert keinen bereits installierten Flightdeck-Launcher.
 Neuere Patch-Versionen werden
 mit einem Flightdeck-Update übernommen; der Launcher sucht nicht eigenständig
@@ -286,7 +292,7 @@ ND, ECAM und bewegter Geschwindigkeitsanzeige geprüft. NVIDIA und GPU-Wetterrad
 sind noch nicht geprüft; im CPU-Modus ist Wetterradar nicht verfügbar.
 Eine bisher automatisch gesetzte CPU-Konfiguration wechselt auf unterstützten
 Versionen zu GPU. Eine gespeicherte CPU-Präferenz bleibt bei Updates erhalten.
-[GPU-Prüfstand und CPU-Rückfall](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.8/docs/gpu-displays.md).
+[GPU-Prüfstand und CPU-Rückfall](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.9/docs/gpu-displays.md).
 Das Fenix-Binärpaket benötigt x86_64 Linux und glibc 2.38+; für Flightdecks
 vollständiges natives Paket gilt weiterhin glibc 2.39+. Ab 0.1.20 gibt es passende
 Fenix-Patches für Proton Experimental 11.0 (20260924), CachyOS Proton 11.0

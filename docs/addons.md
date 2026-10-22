@@ -156,11 +156,14 @@ then close MSFS and all Fenix applications before setup.
    64-bit CLR startup, completes pending Wine restart work and automatically
    repairs an incomplete installation. If MSI repair leaves missing files,
    Flightdeck makes one final reinstall attempt inside the copied profile.
+   The pinned Microsoft .NET 10 Desktop Runtime is also installed for the
+   Fenix v3 installer. A missing runtime is repaired before opening a Fenix app.
 2. If **Open Fenix app** is offered, continue installation in the detected manager.
    Otherwise download the official installer from your
    [Fenix account](https://fenixsim.com/dashboard/), select its EXE and choose
-   **Start installer**. Complete the prerequisites and aircraft installation in
-   the selected simulator profile, then close the manager or installer.
+   **Start installer**. Sign in and install the A320 for the selected simulator,
+   including its prerequisites. Wait for aircraft installation to finish, then
+   close the manager or installer.
 3. Choose **Open Fenix**, sign in/activate normally, then close the application
    or use **Stop Fenix** in Flightdeck.
 4. Choose **Finish setup** to configure displays, Legacy readouts and autostart.
@@ -223,7 +226,7 @@ a game crash or **Stop**, with a bounded fallback for stuck processes. Since
 installation or livery download there before quitting MSFS. Other Wine profiles
 are excluded from that cleanup.
 
-The next Flightdeck release pins patch **0.1.0-preview.8**. Installing the
+Flightdeck 0.2.17 pins patch **0.1.0-preview.9**. Installing the
 standalone patch does not update an existing Flightdeck launcher. Newer patch versions are adopted
 through a Flightdeck update; the launcher does not independently check for the
 latest Fenix patch on GitHub. Supported earlier patches update to Flightdeck's
@@ -267,7 +270,7 @@ outstanding. The Xodus GPU path was checked with PFD, ND, ECAM and a moving
 airspeed tape on AMD. NVIDIA and GPU weather radar remain unvalidated; weather
 radar is unavailable in the CPU renderer. Earlier automatic CPU settings migrate
 to GPU on capable overlays, while a saved CPU preference survives updates.
-See the patch's [GPU scope and fallback instructions](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.8/docs/gpu-displays.md).
+See the patch's [GPU scope and fallback instructions](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.9/docs/gpu-displays.md).
 The binary preview
 requires x86_64 Linux and glibc 2.38+; Flightdeck's full native package still requires
 glibc 2.39+. Starting with 0.1.20, matched Fenix overlays are available for Proton

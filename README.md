@@ -20,19 +20,20 @@ of MSFS 2024 or 2020** through Wine/Proton. Sign in with your Microsoft account,
 download the licensed game and start it from the native Rust desktop application.
 Windows, the Xbox app and a previous MSFS installation are not required.
 
-**Current stable release: [Flightdeck 0.2.14](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.14).**
+**Current stable release: [Flightdeck 0.2.17](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.17).**
 The launcher, installer and updater need no Python.
 
-**New in 0.2.14:** Fix Xbox sign-in error `000-2000-0x80004001` after
-selecting another Proton build; existing selected profiles are repaired before
-launch. Fenix patch preview.8 adds GPU display sharing on supported runners.
-The separate CachyOS 10 startup crash with code 84 remains open.
+**New in 0.2.17:** Fenix patch preview.9 fixes a Direct2D geometry memory leak.
+Fenix setup prepares the .NET 10 Desktop Runtime required by the v3 installer
+and explicitly guides you through installing the aircraft. Full-flight
+compatibility remains unvalidated; the separate simulator display freeze is
+still unexplained.
 See the [changelog](docs/changelog.md).
 
 ## Get started
 
 1. Download **Flightdeck-Linux-x86_64.tar.gz** from the
-   [0.2.14 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.14),
+   [0.2.17 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.17),
    extract it and open **Install Flightdeck.desktop**. Your file manager may ask
    you to trust this local launcher. Alternatively, run `./install.sh` there.
 2. Choose **Install MSFS**, select 2024 or 2020 and a destination, then
@@ -90,8 +91,8 @@ operation, physical VR headsets and cross-device cloud-save gameplay still need
 validation. Marketplace session errors and incomplete DLC/purchase coverage
 remain documented separately. Installed files alone do not prove activation or
 working aircraft systems.
-The next Flightdeck release includes Fenix preview.8 GPU display sharing for
-the pinned Xodus and Proton 11 runners, with a retained CPU fallback.
+Fenix preview.9 retains GPU display sharing for the pinned Xodus and Proton 11
+runners, with a CPU fallback, and fixes a Direct2D geometry memory leak.
 [Known issues](docs/known-issues.md) · [Add-on scope](docs/addons.md) ·
 [Marketplace scope](docs/marketplace-collections.md)
 
