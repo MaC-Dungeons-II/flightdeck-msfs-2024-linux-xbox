@@ -1,5 +1,21 @@
 # Changes and release status
 
+## 0.2.15 — 22 October 2026
+
+Stable security update with rebuilt native compatibility components and full
+corresponding source archives. Existing native launchers can use the in-app updater.
+
+- Update Rustls and WebPKI in the launcher and native broker, including the
+  certificate-distrust fix for [CVE-2026-111943](https://rustsec.org/advisories/RUSTSEC-2026-0382.html).
+  Also update the broker's PKCS#11 dependency to its corrected patch release.
+- Protect manual MSIXVC and EAPPX extraction against unsafe package paths,
+  normalized aliases, symlinks, hardlinks and special-file targets. Validate
+  the full output plan and anchor payload and metadata writes to the chosen
+  destination. Preserve ordinary extraction permissions and resume behavior.
+- Dependency review still identifies advisories in the legacy XAL/Reqwest stack
+  and local EAPPX XML parser. This release does not claim that all dependencies
+  are advisory-free; those components need further modernization.
+
 ## 0.2.14 — 21 October 2026
 
 Stable release with full installer and corresponding source archives.

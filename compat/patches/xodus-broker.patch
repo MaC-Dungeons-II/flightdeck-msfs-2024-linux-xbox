@@ -1,18 +1,62 @@
 diff --git c/Cargo.lock w/Cargo.lock
+index b14a82f..6dcd48d 100644
 --- c/Cargo.lock
 +++ w/Cargo.lock
-@@ -3360,0 +3361 @@
+@@ -1109 +1109 @@ name = "cryptoki"
+-version = "0.12.0"
++version = "0.12.1"
+@@ -1111 +1111 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ff765b99fc49f3116c9a908484486a2b92fd73c48da45c3a69716471c6cc56c6"
++checksum = "625cf4599c43d69a16996ce2573fc80745a0b0300c962f0bfa11d55b6cab2b2d"
+@@ -2626 +2626 @@ dependencies = [
+- "rustls 0.23.43",
++ "rustls 0.23.46",
+@@ -3360,0 +3361 @@ dependencies = [
 + "sha2 0.11.0",
-@@ -4636,0 +4638 @@
+@@ -4396 +4397 @@ dependencies = [
+- "rustls 0.23.43",
++ "rustls 0.23.46",
+@@ -4418 +4419 @@ dependencies = [
+- "rustls 0.23.43",
++ "rustls 0.23.46",
+@@ -4636,0 +4638 @@ dependencies = [
 + "tokio-util",
-@@ -4640,0 +4643 @@
+@@ -4640,0 +4643 @@ dependencies = [
 + "wasm-streams 0.4.2",
-@@ -4685 +4688 @@
+@@ -4670 +4673 @@ dependencies = [
+- "rustls 0.23.43",
++ "rustls 0.23.46",
+@@ -4685 +4688 @@ dependencies = [
 - "wasm-streams",
 + "wasm-streams 0.5.0",
-@@ -6345,0 +6349,13 @@
-+]
-+
+@@ -4800 +4803 @@ name = "rustls"
+-version = "0.23.43"
++version = "0.23.46"
+@@ -4802 +4805 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0283386ce02abc0151e1761d08802dfe86c173b0b494af5cbc086574e453da06"
++checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
+@@ -4807 +4810 @@ dependencies = [
+- "rustls-webpki 0.103.15",
++ "rustls-webpki 0.103.16",
+@@ -4854 +4857 @@ dependencies = [
+- "rustls 0.23.43",
++ "rustls 0.23.46",
+@@ -4857 +4860 @@ dependencies = [
+- "rustls-webpki 0.103.15",
++ "rustls-webpki 0.103.16",
+@@ -4882 +4885 @@ name = "rustls-webpki"
+-version = "0.103.15"
++version = "0.103.16"
+@@ -4884 +4887 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "f3c3cf1d8b1e7d4927e2d154c3fcb02979afb9939629c62cd9048d4f07b60ac2"
++checksum = "4443b1b6d39d7c663139942cc4558262562d2c84123bb6282ef177009ca8b281"
+@@ -5659 +5662 @@ dependencies = [
+- "getrandom 0.4.3",
++ "getrandom 0.3.4",
+@@ -5854 +5857 @@ dependencies = [
+- "rustls 0.23.43",
++ "rustls 0.23.46",
+@@ -6347,0 +6351,13 @@ dependencies = [
 +[[package]]
 +name = "wasm-streams"
 +version = "0.4.2"
@@ -24,53 +68,53 @@ diff --git c/Cargo.lock w/Cargo.lock
 + "wasm-bindgen",
 + "wasm-bindgen-futures",
 + "web-sys",
-@@ -7156,0 +7173 @@
++]
++
+@@ -7156,0 +7173 @@ dependencies = [
 + "ron",
-@@ -7161,0 +7179 @@
+@@ -7161,0 +7179 @@ dependencies = [
 + "tempfile",
-@@ -7190,0 +7209 @@
+@@ -7190,0 +7209 @@ dependencies = [
 + "sha2 0.11.0",
-@@ -7204,0 +7224 @@
+@@ -7204,0 +7224 @@ dependencies = [
 + "base64 0.23.1",
-@@ -7206,0 +7227 @@
+@@ -7206,0 +7227 @@ dependencies = [
 + "openssl",
-@@ -7207,0 +7229,2 @@
+@@ -7207,0 +7229,2 @@ dependencies = [
 + "rand 0.10.2",
 + "reqwest 0.11.27",
-@@ -7208,0 +7232 @@
+@@ -7208,0 +7232 @@ dependencies = [
 + "serde",
-@@ -7209,0 +7234 @@
+@@ -7209,0 +7234 @@ dependencies = [
 + "sha2 0.11.0",
-@@ -7213,0 +7239 @@
+@@ -7213,0 +7239 @@ dependencies = [
 + "xal",
 diff --git c/crates/msixvc/Cargo.toml w/crates/msixvc/Cargo.toml
+index d68d8e1..6768fa2 100644
 --- c/crates/msixvc/Cargo.toml
 +++ w/crates/msixvc/Cargo.toml
-@@ -7,0 +8 @@
+@@ -7,0 +8 @@ rust-version = { workspace = true }
 +sha2 = "0.11.0"
 diff --git c/crates/msixvc/src/streaming.rs w/crates/msixvc/src/streaming.rs
+index 824f9c2..7d15570 100644
 --- c/crates/msixvc/src/streaming.rs
 +++ w/crates/msixvc/src/streaming.rs
-@@ -205 +205 @@
+@@ -205 +205 @@ enum CacheReadState {
 -    Reading { started_len: usize },
 +    Reading,
-@@ -213,3 +213,5 @@
--}
--
--pub struct PrefixCacheFile<R> {
+@@ -212,0 +213,2 @@ enum CacheWriteState {
 +    Flushing,
 +    Failed,
-+}
-+
+@@ -215 +217 @@ enum CacheWriteState {
+-pub struct PrefixCacheFile<R> {
 +pub struct PrefixCacheFile<R, W = File> {
-@@ -220 +222 @@
+@@ -220 +222 @@ pub struct PrefixCacheFile<R> {
 -    cache_writer: File,
 +    cache_writer: W,
-@@ -250 +252,11 @@
--
+@@ -249,0 +252,2 @@ where
 +        Self::with_cache(upstream, len, cache_reader, cache_writer)
 +    }
-+
+@@ -250,0 +255,8 @@ where
 +    /// Accept separate, already safely opened cache handles. The caller owns
 +    /// their path policy; both must refer to the same empty regular file.
 +    pub fn with_cache(
@@ -79,7 +123,7 @@ diff --git c/crates/msixvc/src/streaming.rs w/crates/msixvc/src/streaming.rs
 +        cache_reader: File,
 +        cache_writer: File,
 +    ) -> std::io::Result<Self> {
-@@ -267,0 +280,12 @@
+@@ -267,0 +280,12 @@ where
 +    pub async fn sync_cache(&mut self) -> std::io::Result<()> {
 +        use tokio::io::AsyncWriteExt;
 +        self.cache_writer.flush().await?;
@@ -92,12 +136,12 @@ diff --git c/crates/msixvc/src/streaming.rs w/crates/msixvc/src/streaming.rs
 +    R: AsyncRead + Unpin,
 +    W: AsyncWrite + AsyncSeek + Unpin,
 +{
-@@ -307,3 +331 @@
+@@ -307,3 +331 @@ where
 -                            self.cache_read_state = CacheReadState::Reading {
 -                                started_len: buf.filled().len(),
 -                            };
 +                            self.cache_read_state = CacheReadState::Reading;
-@@ -317,2 +339,8 @@
+@@ -317,2 +339,8 @@ where
 -                CacheReadState::Reading { started_len } => {
 -                    match AsyncRead::poll_read(Pin::new(&mut self.cache_reader), cx, buf) {
 +                CacheReadState::Reading => {
@@ -108,7 +152,7 @@ diff --git c/crates/msixvc/src/streaming.rs w/crates/msixvc/src/streaming.rs
 +                    let limit = available.min(buf.remaining() as u64) as usize;
 +                    let mut limited = buf.take(limit);
 +                    match AsyncRead::poll_read(Pin::new(&mut self.cache_reader), cx, &mut limited) {
-@@ -321 +349,6 @@
+@@ -321 +349,6 @@ where
 -                            let read = buf.filled().len() - started_len;
 +                            let read = limited.filled().len();
 +                            // AsyncRead guarantees that the filled range is initialized.
@@ -116,9 +160,9 @@ diff --git c/crates/msixvc/src/streaming.rs w/crates/msixvc/src/streaming.rs
 +                                buf.assume_init(read);
 +                            }
 +                            buf.advance(read);
-@@ -402 +434,0 @@
+@@ -402 +434,0 @@ where
 -                            self.cached_len += written as u64;
-@@ -404,6 +436,4 @@
+@@ -404,6 +436,4 @@ where
 -                            if self.pending_chunk_offset >= chunk.len() {
 -                                self.pending_chunk = None;
 -                                self.pending_chunk_offset = 0;
@@ -129,8 +173,7 @@ diff --git c/crates/msixvc/src/streaming.rs w/crates/msixvc/src/streaming.rs
 +                            // completes. Publish no new reader-visible prefix
 +                            // until poll_flush confirms the same write finished.
 +                            self.cache_write_state = CacheWriteState::Flushing;
-@@ -415,0 +446,23 @@
-+                }
+@@ -416,0 +447,23 @@ where
 +                CacheWriteState::Flushing => {
 +                    match AsyncWrite::poll_flush(Pin::new(&mut self.cache_writer), cx) {
 +                        Poll::Pending => return Poll::Pending,
@@ -153,20 +196,21 @@ diff --git c/crates/msixvc/src/streaming.rs w/crates/msixvc/src/streaming.rs
 +                }
 +                CacheWriteState::Failed => {
 +                    return Poll::Ready(Err(Error::other("cache write previously failed")));
-@@ -453 +506 @@
++                }
+@@ -453 +506 @@ where
 -impl<R> AsyncRead for PrefixCacheFile<R>
 +impl<R, W> AsyncRead for PrefixCacheFile<R, W>
-@@ -455,0 +509 @@
+@@ -455,0 +509 @@ where
 +    W: AsyncWrite + AsyncSeek + Unpin,
-@@ -498 +552 @@
+@@ -498 +552 @@ where
 -                    if self.pending_chunk.is_some() {
 +                    if self.pending_chunk.is_some() || self.cached_len >= target_end {
-@@ -521 +575 @@
+@@ -521 +575 @@ where
 -impl<R> AsyncSeek for PrefixCacheFile<R>
 +impl<R, W> AsyncSeek for PrefixCacheFile<R, W>
-@@ -523,0 +578 @@
+@@ -523,0 +578 @@ where
 +    W: AsyncWrite + AsyncSeek + Unpin,
-@@ -549,5 +604,4 @@
+@@ -549,5 +604,4 @@ where
 -    fn poll_complete(
 -        mut self: Pin<&mut Self>,
 -        _cx: &mut Context<'_>,
@@ -176,9 +220,9 @@ diff --git c/crates/msixvc/src/streaming.rs w/crates/msixvc/src/streaming.rs
 +        let Some(next) = self.pending_seek else {
 +            return Poll::Ready(Ok(self.pos));
 +        };
-@@ -554,0 +609 @@
+@@ -554,0 +609 @@ where
 +            self.pending_seek = None;
-@@ -560,0 +616,9 @@
+@@ -560,0 +616,9 @@ where
 +        // A cancelled read can leave Tokio's file operation in flight. Drain it
 +        // before resetting our reader state and starting a different cache seek.
 +        match AsyncSeek::poll_complete(Pin::new(&mut self.cache_reader), cx) {
@@ -188,7 +232,7 @@ diff --git c/crates/msixvc/src/streaming.rs w/crates/msixvc/src/streaming.rs
 +        }
 +        self.cache_read_state = CacheReadState::Idle;
 +        self.pending_seek = None;
-@@ -842,0 +907,245 @@
+@@ -842,0 +907,245 @@ mod tests {
 +    // Model Tokio File's accepted-but-not-yet-visible write, while exercising
 +    // the production PrefixCacheFile state machine and a real independent reader.
 +    struct DelayedWriter {
@@ -435,15 +479,16 @@ diff --git c/crates/msixvc/src/streaming.rs w/crates/msixvc/src/streaming.rs
 +    }
 +
 diff --git c/crates/msixvc/src/xvd.rs w/crates/msixvc/src/xvd.rs
+index b74a7ae..d0993ca 100644
 --- c/crates/msixvc/src/xvd.rs
 +++ w/crates/msixvc/src/xvd.rs
-@@ -18,0 +19 @@
+@@ -18,0 +19 @@ use uuid::Uuid;
 +use sha2::{Digest, Sha256};
-@@ -857,0 +859 @@
+@@ -857,0 +859 @@ impl XvdFile {
 +                verify_segment_page(sfile, page_in_section - page_start, &page)?;
-@@ -962,0 +965 @@
+@@ -962,0 +965 @@ impl XvdFile {
 +            verify_segment_page(sfile, page_in_section - page_start, &page)?;
-@@ -1046,0 +1050,25 @@
+@@ -1046,0 +1050,25 @@ impl XvdFile {
 +
 +// XVD data hashes cover each full raw 4096-byte page before decryption and are
 +// truncated SHA-256 (20 bytes; the following 4 bytes encode the data unit).
@@ -470,27 +515,292 @@ diff --git c/crates/msixvc/src/xvd.rs w/crates/msixvc/src/xvd.rs
 +    }
 +}
 diff --git c/crates/xodus-cli/Cargo.toml w/crates/xodus-cli/Cargo.toml
+index 7b71cb7..fc2958e 100644
 --- c/crates/xodus-cli/Cargo.toml
 +++ w/crates/xodus-cli/Cargo.toml
-@@ -7,0 +8 @@
+@@ -7,0 +8 @@ default-run = "xodus-cli"
 +sha2 = "0.11.0"
 diff --git c/crates/xodus-cli/src/commands.rs w/crates/xodus-cli/src/commands.rs
+index dc75156..fa0e9b9 100644
 --- c/crates/xodus-cli/src/commands.rs
 +++ w/crates/xodus-cli/src/commands.rs
-@@ -11,0 +12,2 @@
+@@ -11,0 +12,2 @@ pub mod streaming;
 +
 +pub mod package_info;
 diff --git c/crates/xodus-cli/src/commands/extract.rs w/crates/xodus-cli/src/commands/extract.rs
+index 7d6264d..b87dd03 100644
 --- c/crates/xodus-cli/src/commands/extract.rs
 +++ w/crates/xodus-cli/src/commands/extract.rs
-@@ -21,0 +22,3 @@
+@@ -21,0 +22,3 @@ pub async fn run(
 +        false,
 +        None,
 +        None,
+diff --git c/crates/xodus-cli/src/commands/extract_eappx.rs w/crates/xodus-cli/src/commands/extract_eappx.rs
+index c8d5ebf..b12d055 100644
+--- c/crates/xodus-cli/src/commands/extract_eappx.rs
++++ w/crates/xodus-cli/src/commands/extract_eappx.rs
+@@ -1 +1,2 @@
+-use std::path::PathBuf;
++use std::io::{BufRead, Seek};
++use std::path::{Path, PathBuf};
+@@ -4 +5,2 @@ use std::process::ExitCode;
+-use eappx::EAppxFile;
++use super::streaming::streaming_resume::{Output, validate_names};
++use eappx::crypto::{CryptoFileContext, create_cipher, get_tweak_for_file};
+@@ -5,0 +8,115 @@ use eappx::keys::KeyCollection;
++use eappx::{EAppxFile, FileInfo, Manifest};
++
++type ExtractResult<T> = Result<T, Box<dyn std::error::Error>>;
++
++/// Resolve every package-selected output before creating any destination file.
++fn extraction_plan<R: BufRead + Seek>(
++    package: &EAppxFile,
++    reader: &mut R,
++) -> ExtractResult<Vec<(String, FileInfo)>> {
++    let mut plan = Vec::new();
++    let blockmap = package
++        .find_footer_for_file(package.header.block_map_file_id)
++        .ok_or("missing blockmap footer")?;
++    plan.push(("AppxBlockmap.xml".to_owned(), blockmap.into()));
++    for (name, info) in [
++        (
++            "AppxSignature.p7x",
++            package.header.appx_signature_fileinfo(),
++        ),
++        (
++            "CodeIntegrity.cat",
++            package.header.code_integrity_fileinfo(),
++        ),
++    ] {
++        if let Some(info) = info.filter(|info| info.offset_to_file < package.file_len) {
++            plan.push((name.to_owned(), info));
++        }
++    }
++    for file in &package.blockmap.files {
++        let mut info: FileInfo = package
++            .find_footer_for_file(file.id())
++            .ok_or("missing file footer")?
++            .into();
++        if file.size != info.uncompressed_length {
++            return Err("blockmap file length mismatch".into());
++        }
++        info.filehash = file.filehash_bytes();
++        info.block_hashes = Some(file.block_hashes());
++        plan.push((file.name.clone(), info));
++    }
++    if package.header.is_bundle() {
++        let Manifest::BundleManifest(manifest) = package.read_manifest(reader)? else {
++            return Err("expected bundle manifest".into());
++        };
++        for (index, file) in manifest.packages.package.into_iter().enumerate() {
++            let info: FileInfo = package
++                .find_footer_for_file(index as u64)
++                .ok_or("missing bundle footer")?
++                .into();
++            if file.offset != info.offset_to_file {
++                return Err("bundle file offset mismatch".into());
++            }
++            plan.push((file.filename, info));
++        }
++    }
++    validate_names(plan.iter().map(|(name, _)| name.as_str()))?;
++    Ok(plan)
++}
++
++fn write_entry<R: BufRead + Seek>(
++    output: &Output,
++    reader: &mut R,
++    name: &str,
++    info: FileInfo,
++    from_bundle: bool,
++    crypto: Option<CryptoFileContext>,
++    checksum: bool,
++) -> ExtractResult<()> {
++    let mut file = output.begin(name)?;
++    EAppxFile::read_file(reader, &mut file, info, from_bundle, crypto, checksum)?;
++    Ok(())
++}
++
++fn extract<R: BufRead + Seek>(
++    package: &EAppxFile,
++    reader: &mut R,
++    destination: &Path,
++) -> ExtractResult<()> {
++    let plan = extraction_plan(package, reader)?;
++    std::fs::create_dir_all(destination)?;
++    let output = Output::open(destination)?;
++    for (name, info) in plan {
++        let crypto = if info.key_id_index == 0xFFFF {
++            None
++        } else {
++            package
++                .header
++                .key_ids
++                .get(info.key_id_index as usize)
++                .and_then(|id| package.keys.get(id))
++                .map(|key| -> ExtractResult<_> {
++                    let key: [u8; 32] = key.as_slice().try_into()?;
++                    Ok(CryptoFileContext {
++                        cipher: create_cipher(&key),
++                        tweak: get_tweak_for_file(
++                            &package.header.app_name(),
++                            &package.header.publisher_id(),
++                            &name,
++                        ),
++                    })
++                })
++                .transpose()?
++        };
++        write_entry(
++            &output,
++            reader,
++            &name,
++            info,
++            package.header.is_bundle(),
++            crypto,
++            package.do_checksum_check,
++        )?;
++    }
++    Ok(())
++}
+@@ -63,8 +180 @@ pub async fn run(path: String, destination: String, key_file: Option<String>) ->
+-    if !outdir.exists() {
+-        if let Err(e) = std::fs::create_dir_all(&outdir) {
+-            eprintln!("Failed to create output directory {:?}: {e}", outdir);
+-            return ExitCode::FAILURE;
+-        }
+-    }
+-
+-    match eappx.extract(&mut reader, &outdir) {
++    match extract(&eappx, &mut reader, &outdir) {
+@@ -80,0 +191,122 @@ pub async fn run(path: String, destination: String, key_file: Option<String>) ->
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use std::io::Cursor;
++    use std::os::unix::fs::symlink;
++    fn plaintext() -> FileInfo {
++        FileInfo {
++            key_id_index: 0xFFFF,
++            compression_type: 0,
++            offset_to_file: 0,
++            uncompressed_length: 7,
++            compressed_length: 7,
++            filehash: None,
++            block_hashes: None,
++        }
++    }
++    #[test]
++    fn eappx_uses_contained_output_and_the_original_plaintext_decoder() {
++        let dest = tempfile::tempdir().unwrap();
++        let outside = tempfile::tempdir().unwrap();
++        let victim = outside.path().join("victim");
++        std::fs::write(&victim, b"outside").unwrap();
++        let output = Output::open(dest.path()).unwrap();
++        for name in ["../victim", "..\\victim", victim.to_str().unwrap()] {
++            assert!(
++                write_entry(
++                    &output,
++                    &mut Cursor::new(b"payload"),
++                    name,
++                    plaintext(),
++                    false,
++                    None,
++                    false
++                )
++                .is_err()
++            );
++        }
++        symlink(&victim, dest.path().join("link")).unwrap();
++        assert!(
++            write_entry(
++                &output,
++                &mut Cursor::new(b"payload"),
++                "link",
++                plaintext(),
++                false,
++                None,
++                false
++            )
++            .is_err()
++        );
++        assert_eq!(std::fs::read(&victim).unwrap(), b"outside");
++        write_entry(
++            &output,
++            &mut Cursor::new(b"payload"),
++            "dir\\file",
++            plaintext(),
++            false,
++            None,
++            false,
++        )
++        .unwrap();
++        assert_eq!(
++            std::fs::read(dest.path().join("dir/file")).unwrap(),
++            b"payload"
++        );
++    }
++    #[test]
++    fn encrypted_eappx_and_unencrypted_bundle_outputs_keep_their_decoder_modes() {
++        let dest = tempfile::tempdir().unwrap();
++        let output = Output::open(dest.path()).unwrap();
++        let key = [7u8; 32];
++        let name = "dir\\encrypted";
++        let tweak = get_tweak_for_file("fixture", "publisher", name);
++        let expected = vec![42u8; eappx::utils::SECTOR_SIZE];
++        let mut encrypted = expected.clone();
++        create_cipher(&key).0.encrypt_area(
++            &mut encrypted,
++            eappx::utils::SECTOR_SIZE,
++            0,
++            |sector| (tweak + sector).to_le_bytes(),
++        );
++        let mut info = plaintext();
++        info.key_id_index = 0;
++        info.compressed_length = encrypted.len() as u64;
++        info.uncompressed_length = expected.len() as u64;
++        let crypto = CryptoFileContext {
++            cipher: create_cipher(&key),
++            tweak,
++        };
++        write_entry(
++            &output,
++            &mut Cursor::new(encrypted),
++            name,
++            info,
++            false,
++            Some(crypto),
++            false,
++        )
++        .unwrap();
++        assert_eq!(
++            std::fs::read(dest.path().join("dir/encrypted")).unwrap(),
++            expected
++        );
++        let mut info = plaintext();
++        info.key_id_index = 0;
++        write_entry(
++            &output,
++            &mut Cursor::new(b"payload"),
++            "bundle.msix",
++            info,
++            true,
++            None,
++            false,
++        )
++        .unwrap();
++        assert_eq!(
++            std::fs::read(dest.path().join("bundle.msix")).unwrap(),
++            b"payload"
++        );
++    }
++}
 diff --git c/crates/xodus-cli/src/commands/login.rs w/crates/xodus-cli/src/commands/login.rs
+index 281ef9c..dfac5b6 100644
 --- c/crates/xodus-cli/src/commands/login.rs
 +++ w/crates/xodus-cli/src/commands/login.rs
-@@ -13,2 +13,62 @@
+@@ -13,2 +13,62 @@ const USER_AUTH_SCOPE: &str = "scope=service::user.auth.xboxlive.com::MBI_SSL&ap
 -pub async fn run(client: &reqwest::Client, tokens: &TokenManager) -> ExitCode {
 -    let token = tokens.get_device_sts_token().unwrap();
 +#[derive(Debug)]
@@ -555,9 +865,10 @@ diff --git c/crates/xodus-cli/src/commands/login.rs w/crates/xodus-cli/src/comma
 +            return ExitCode::from(71);
 +        }
 +    };
-@@ -17,29 +77,32 @@
+@@ -17 +77 @@ pub async fn run(client: &reqwest::Client, tokens: &TokenManager) -> ExitCode {
 -        return ExitCode::FAILURE;
--    };
++        return ExitCode::from(71);
+@@ -19,7 +79,12 @@ pub async fn run(client: &reqwest::Client, tokens: &TokenManager) -> ExitCode {
 -    let handler = LoginHandler::new(client.clone(), token, tokens.clone());
 -    let output = webview::run_sessions(handler)
 -        .expect("failed to login")
@@ -565,28 +876,6 @@ diff --git c/crates/xodus-cli/src/commands/login.rs w/crates/xodus-cli/src/comma
 -    let issued_tokens = match output {
 -        Some(soap::BodyContent::RequestSecurityTokenResponseCollection(collection)) => {
 -            collection.security_tokens
--        }
--        Some(soap::BodyContent::RequestSecurityTokenResponse(token)) => vec![*token],
--        None => {
--            eprintln!("Didn't log in");
--            vec![]
--        }
--        _ => unreachable!(),
--    };
--
--    for token in issued_tokens {
--        let address = token.applies_to.endpoint_reference.address.clone();
--        let token = token.into();
--        let address = if let secrets::Token::Legacy(legacy) = &token {
--            legacy.key_name.clone().unwrap_or(address)
--        } else {
--            address
--        };
--        tokens.save_user_token(address, token).unwrap();
--    }
--
-+        return ExitCode::from(71);
-+    };
 +    let expected = if same_account { match tokens.get_user() {
 +        Ok(user) if !user.puid.is_empty() => Some(user.puid),
 +        Err(xodus::tokens::store::TokenStoreError::NotFound) => None,
@@ -599,8 +888,24 @@ diff --git c/crates/xodus-cli/src/commands/login.rs w/crates/xodus-cli/src/comma
 +            let code = failure_code(error.as_ref());
 +            eprintln!("Microsoft sign-in failed (code {code})");
 +            return ExitCode::from(code);
-+        }
-+    };
+@@ -27,6 +91,0 @@ pub async fn run(client: &reqwest::Client, tokens: &TokenManager) -> ExitCode {
+-        Some(soap::BodyContent::RequestSecurityTokenResponse(token)) => vec![*token],
+-        None => {
+-            eprintln!("Didn't log in");
+-            vec![]
+-        }
+-        _ => unreachable!(),
+@@ -34,10 +93,13 @@ pub async fn run(client: &reqwest::Client, tokens: &TokenManager) -> ExitCode {
+-
+-    for token in issued_tokens {
+-        let address = token.applies_to.endpoint_reference.address.clone();
+-        let token = token.into();
+-        let address = if let secrets::Token::Legacy(legacy) = &token {
+-            legacy.key_name.clone().unwrap_or(address)
+-        } else {
+-            address
+-        };
+-        tokens.save_user_token(address, token).unwrap();
 +    let Some((user, body)) = output else { return ExitCode::FAILURE; };
 +    // Commit only after the complete exchange issued a usable root credential.
 +    // A closed window or incomplete exchange leaves the existing account intact.
@@ -614,47 +919,46 @@ diff --git c/crates/xodus-cli/src/commands/login.rs w/crates/xodus-cli/src/comma
 +    if tokens.save_user_token(xodus::tokens::PASSPORT_STS.into(), secrets::Token::Legacy(root)).is_err()
 +        || tokens.save_user(&user).is_err() {
 +        return ExitCode::from(72);
-+    }
-+
+@@ -45,0 +108 @@ pub async fn run(client: &reqwest::Client, tokens: &TokenManager) -> ExitCode {
 +    println!("Login completed; credentials stored.");
-@@ -53,2 +116 @@
+@@ -53,2 +116 @@ struct LoginHandler {
 -    finish: bool,
 -    tokens: TokenManager,
 +    expected: Option<String>,
-@@ -61 +123 @@
+@@ -61 +123 @@ impl LoginHandler {
 -        tokens: TokenManager,
 +        expected: Option<String>,
-@@ -67,2 +129 @@
+@@ -67,2 +129 @@ impl LoginHandler {
 -            finish: false,
 -            tokens,
 +            expected,
-@@ -100,3 +161 @@
+@@ -100,3 +161 @@ impl LoginHandler {
 -                if self.finish {
 -                    scopes.push(("http://Passport.NET/tb".to_string(), None));
 -                }
 +                scopes.push(("http://Passport.NET/tb".to_string(), None));
-@@ -122 +181 @@
+@@ -122 +181 @@ impl webview::SessionHandler for LoginHandler {
 -    type Output = Option<soap::BodyContent>;
 +    type Output = Option<(secrets::User, soap::BodyContent)>;
-@@ -140,0 +200,3 @@
+@@ -140,0 +200,3 @@ impl webview::SessionHandler for LoginHandler {
 +        if self.expected.as_ref().is_some_and(|puid| puid != &data.puid) {
 +            return Err(LoginFlowError::AccountMismatch.into());
 +        }
-@@ -145,3 +207 @@
+@@ -145,3 +207 @@ impl webview::SessionHandler for LoginHandler {
 -                if let Some(pp) = pp
 -                    && let Some(auth_url) = pp.inline_auth_url
 -                {
 +                if let Some(auth_url) = pp.as_ref().and_then(soap::PP::interactive_auth_url) {
-@@ -149,2 +209 @@
+@@ -149,2 +209 @@ impl webview::SessionHandler for LoginHandler {
 -                    self.finish = true;
 -                    runtime.open_session(webview::finalize_request(auth_url));
 +                    runtime.open_session(webview::finalize_request(auth_url.to_owned()));
-@@ -154 +212,0 @@
+@@ -154 +212,0 @@ impl webview::SessionHandler for LoginHandler {
 -                println!("User token exchange returned a fault without inline auth");
-@@ -156 +214 @@
+@@ -156 +214 @@ impl webview::SessionHandler for LoginHandler {
 -                Ok(webview::HandlerControl::Complete(None))
 +                Err(LoginFlowError::MissingChallenge.into())
-@@ -160,7 +218,3 @@
+@@ -160,7 +218,3 @@ impl webview::SessionHandler for LoginHandler {
 -                self.tokens
 -                    .save_user(&xodus::models::secrets::User {
 -                        puid: data.puid,
@@ -665,7 +969,7 @@ diff --git c/crates/xodus-cli/src/commands/login.rs w/crates/xodus-cli/src/comma
 +                Ok(webview::HandlerControl::Complete(Some((
 +                    secrets::User { puid: data.puid, username: data.username }, da,
 +                ))))
-@@ -178,0 +233,43 @@
+@@ -178,0 +233,43 @@ impl webview::SessionHandler for LoginHandler {
 +
 +#[cfg(test)]
 +mod tests {
@@ -711,6 +1015,7 @@ diff --git c/crates/xodus-cli/src/commands/login.rs w/crates/xodus-cli/src/comma
 +}
 diff --git c/crates/xodus-cli/src/commands/package_info.rs w/crates/xodus-cli/src/commands/package_info.rs
 new file mode 100644
+index 0000000..8225209
 --- /dev/null
 +++ w/crates/xodus-cli/src/commands/package_info.rs
 @@ -0,0 +1,201 @@
@@ -916,14 +1221,14 @@ new file mode 100644
 +    }
 +}
 diff --git c/crates/xodus-cli/src/commands/run.rs w/crates/xodus-cli/src/commands/run.rs
+index bc62549..ac300ec 100644
 --- c/crates/xodus-cli/src/commands/run.rs
 +++ w/crates/xodus-cli/src/commands/run.rs
-@@ -259,2 +259,2 @@
+@@ -259 +259 @@ pub async fn run(
 -    ExitCode::from(status.code().map(|c| c as u8).unwrap_or(0))
--}
 +    ExitCode::from(crate::process_status::shell_exit_code(status))
-+}
 diff --git c/crates/xodus-cli/src/commands/streaming.rs w/crates/xodus-cli/src/commands/streaming.rs
+index 6d6640c..7357d4f 100644
 --- c/crates/xodus-cli/src/commands/streaming.rs
 +++ w/crates/xodus-cli/src/commands/streaming.rs
 @@ -1 +1,6 @@
@@ -931,18 +1236,21 @@ diff --git c/crates/xodus-cli/src/commands/streaming.rs w/crates/xodus-cli/src/c
 +#[path = "streaming_progress.rs"]
 +mod streaming_progress;
 +#[path = "streaming_resume.rs"]
-+mod streaming_resume;
++pub(super) mod streaming_resume;
 +use sha2::{Digest, Sha256};
 +use std::collections::{HashMap, HashSet};
-@@ -4,0 +10,3 @@
+@@ -4,0 +10,3 @@ use std::vec;
 +use streaming_progress::Progress;
-+use streaming_resume::Resume;
++use streaming_resume::{Output, Resume};
 +use tokio::io::AsyncWriteExt;
-@@ -40,0 +49,3 @@
+@@ -11 +19 @@ use msixvc::xvd::{SegmentFile, XvdFile};
+-use tokio::fs::{File, OpenOptions};
++use tokio::fs::File;
+@@ -40,0 +49,3 @@ pub async fn run(
 +    resume_files: bool,
 +    expect_package: Option<String>,
 +    progress_fd: Option<i32>,
-@@ -41,0 +53,25 @@
+@@ -41,0 +53,25 @@ pub async fn run(
 +    if progress_fd.is_some() && !resume_files {
 +        return ExitCode::FAILURE;
 +    }
@@ -968,18 +1276,18 @@ diff --git c/crates/xodus-cli/src/commands/streaming.rs w/crates/xodus-cli/src/c
 +        return ExitCode::FAILURE;
 +    }
 +    let mut package_identity = None;
-@@ -43 +79 @@
+@@ -43 +79 @@ pub async fn run(
 -    if source.starts_with("file://") {
 +    let success = if source.starts_with("file://") {
-@@ -65,0 +102,2 @@
+@@ -65,0 +102,2 @@ pub async fn run(
 +            resume_files,
 +            package_identity,
-@@ -70,0 +109 @@
+@@ -70,0 +109 @@ pub async fn run(
 +            &machine_progress,
-@@ -72 +111 @@
+@@ -72 +111 @@ pub async fn run(
 -        .await;
 +        .await
-@@ -107,0 +147,11 @@
+@@ -107,0 +147,11 @@ pub async fn run(
 +            if resume_files {
 +                package_identity = authenticated_package_identity(&package, file);
 +                if package_identity.is_none() {
@@ -991,81 +1299,87 @@ diff --git c/crates/xodus-cli/src/commands/streaming.rs w/crates/xodus-cli/src/c
 +                // Never mix a newly selected package with an earlier approved update.
 +                return ExitCode::from(78);
 +            }
-@@ -141,0 +192,2 @@
+@@ -141,0 +192,2 @@ pub async fn run(
 +            resume_files,
 +            package_identity,
-@@ -146,0 +199 @@
+@@ -146,0 +199 @@ pub async fn run(
 +            &machine_progress,
-@@ -148,4 +201,8 @@
+@@ -148,2 +201,2 @@ pub async fn run(
 -        .await;
 -    }
--
--    ExitCode::SUCCESS
 +        .await
 +    };
-+
+@@ -151 +204,5 @@ pub async fn run(
+-    ExitCode::SUCCESS
 +    if success {
 +        ExitCode::SUCCESS
 +    } else {
 +        ExitCode::FAILURE
 +    }
-@@ -160,0 +218,2 @@
+@@ -160,0 +218,2 @@ async fn run_cli_reader<Reader>(
 +    resume_files: bool,
 +    package_identity: Option<String>,
-@@ -166 +225,2 @@
+@@ -166 +225,2 @@ async fn run_cli_reader<Reader>(
 -) -> ()
 +    machine_progress: &Progress,
 +) -> bool
-@@ -219,0 +280,2 @@
+@@ -219,0 +280,2 @@ where
 +        resume_files,
 +        package_identity,
-@@ -223,0 +286 @@
+@@ -223,0 +286 @@ where
 +        machine_progress,
-@@ -234,0 +298,2 @@
+@@ -234,0 +298,2 @@ async fn run_reader<Reader>(
 +    resume_files: bool,
 +    package_identity: Option<String>,
-@@ -239 +304,2 @@
+@@ -239 +304,2 @@ async fn run_reader<Reader>(
 -) -> ()
 +    machine_progress: &Progress,
 +) -> bool
-@@ -243,3 +309,7 @@
+@@ -243 +309,5 @@ where
 -    let out: &Path = Path::new(&destination);
--
--    std::fs::create_dir_all(out).expect("ok");
 +    let original_out = Path::new(&destination);
 +    std::fs::create_dir_all(original_out).expect("ok");
 +    let resume =
 +        resume_files.then(|| Resume::open(original_out).expect("resume destination rejected"));
-+
-+    let anchored = resume.as_ref().map(Resume::root_path);
-+    let out: &Path = anchored.as_deref().unwrap_or(original_out);
-@@ -250,3 +320,14 @@
++    let output = (!resume_files).then(|| Output::open(original_out).expect("destination rejected"));
+@@ -245,8 +315,19 @@ where
+-    std::fs::create_dir_all(out).expect("ok");
+-
+-    let cache_path = out.join(".xodus-streaming-tmp.msixvc");
+-    let final_path = out.join(".xodus-streaming.msixvc");
+-
 -    let mut remote_file = streaming::PrefixCacheFile::new(reader, l, cache_path.clone())
 -        .await
 -        .expect("no err");
-+    let mut remote_file = if let Some(r) = &resume {
-+        let (cache_reader, cache_writer) = r.prepare_cache().expect("unsafe metadata cache");
-+        streaming::PrefixCacheFile::with_cache(
-+            reader,
-+            l,
-+            File::from_std(cache_reader),
-+            File::from_std(cache_writer),
-+        )
-+        .expect("cache setup failed")
++    let anchored = if let Some(r) = &resume {
++        r.root_path()
 +    } else {
-+        streaming::PrefixCacheFile::new(reader, l, cache_path.clone())
-+            .await
-+            .expect("no err")
++        output.as_ref().unwrap().root_path()
 +    };
-@@ -284,5 +365,73 @@
++    let out = anchored.as_path();
++    let (cache_reader, cache_writer) = if let Some(r) = &resume {
++        r.prepare_cache()
++    } else {
++        output.as_ref().unwrap().prepare_cache()
++    }
++    .expect("unsafe metadata cache");
++    let mut remote_file = streaming::PrefixCacheFile::with_cache(
++        reader,
++        l,
++        File::from_std(cache_reader),
++        File::from_std(cache_writer),
++    )
++    .expect("cache setup failed");
+@@ -284,5 +365,73 @@ where
 -    let file = OpenOptions::new()
 -        .read(true)
 -        .open(final_path.to_owned())
 -        .await
 -        .ok();
++    streaming_resume::validate_names(rfiles.keys().map(String::as_str))
++        .expect("unsafe or duplicate package paths");
 +    let mut complete = HashSet::new();
 +    if let Some(r) = &resume {
-+        let mut names = HashSet::new();
 +        let mut entries: Vec<_> = rfiles.iter().collect();
 +        entries.sort_by_key(|(name, _)| *name);
 +        let mut identity = Sha256::new();
@@ -1081,8 +1395,6 @@ diff --git c/crates/xodus-cli/src/commands/streaming.rs w/crates/xodus-cli/src/c
 +        identity.update(remote_xvd.content_id().as_bytes());
 +        identity.update(l.to_le_bytes());
 +        for (name, file) in &entries {
-+            let normal = streaming_resume::normalized(name).expect("unsafe package path");
-+            assert!(names.insert(normal), "duplicate package path");
 +            identity.update((name.len() as u64).to_le_bytes());
 +            identity.update(name.as_bytes());
 +            identity.update(file.offset.to_le_bytes());
@@ -1130,48 +1442,50 @@ diff --git c/crates/xodus-cli/src/commands/streaming.rs w/crates/xodus-cli/src/c
 +    let file = if resume_files {
 +        None
 +    } else {
-+        OpenOptions::new()
-+            .read(true)
-+            .open(final_path.to_owned())
-+            .await
-+            .ok()
++        output
++            .as_ref()
++            .unwrap()
++            .previous_cache()
++            .expect("unsafe previous cache")
++            .map(File::from_std)
 +    };
-@@ -318 +467 @@
+@@ -318 +467 @@ where
 -        return;
 +        return false;
-@@ -326 +475 @@
+@@ -326 +475 @@ where
 -        return;
 +        return false;
-@@ -329 +478 @@
+@@ -329 +478 @@ where
 -        return;
 +        return false;
-@@ -336,0 +486,3 @@
+@@ -336,0 +486,3 @@ where
 +            if resume_files {
 +                return !complete.contains(*k);
 +            }
-@@ -343 +495 @@
+@@ -343 +495 @@ where
 -        .map(|(_, v)| v.length)
 +        .map(|(_, v)| output_length(v))
-@@ -355 +507 @@
+@@ -355 +507 @@ where
 -            return;
 +            return false;
-@@ -367 +519 @@
+@@ -367 +519 @@ where
 -        return;
 +        return false;
-@@ -377,0 +530 @@
+@@ -377,0 +530,2 @@ where
 +    let resume_ref = resume.as_ref();
-@@ -381,0 +535,3 @@
++    let output_ref = output.as_ref();
+@@ -381,0 +536,3 @@ where
 +                if resume_files {
 +                    return !complete.contains(*k);
 +                }
-@@ -393 +549,5 @@
+@@ -393 +550,5 @@ where
 -                    data_hashs: vec![],
 +                    data_hashs: if resume_files {
 +                        v.data_hashs.clone()
 +                    } else {
 +                        vec![]
 +                    },
-@@ -403,11 +563,15 @@
+@@ -403,11 +564,10 @@ where
 -            let target_file = out.join(job.name.replace("\\", "/"));
 -            if let Some(folder) = target_file.parent() {
 -                std::fs::create_dir_all(folder).expect("ok");
@@ -1186,23 +1500,18 @@ diff --git c/crates/xodus-cli/src/commands/streaming.rs w/crates/xodus-cli/src/c
 +            let mut fout = if let Some(r) = resume_ref {
 +                File::from_std(r.begin(&job.name).expect("resume target rejected"))
 +            } else {
-+                let target_file = out.join(job.name.replace("\\", "/"));
-+                if let Some(folder) = target_file.parent() {
-+                    std::fs::create_dir_all(folder).expect("ok");
-+                }
-+                OpenOptions::new()
-+                    .create(true)
-+                    .write(true)
-+                    .truncate(true)
-+                    .open(target_file)
-+                    .await
-+                    .expect("ok")
++                File::from_std(
++                    output_ref
++                        .unwrap()
++                        .begin(&job.name)
++                        .expect("unsafe extraction target"),
++                )
 +            };
-@@ -414,0 +579 @@
+@@ -414,0 +575 @@ where
 +            machine_progress.start(id, output_length(&job.content));
-@@ -416,0 +582 @@
+@@ -416,0 +578 @@ where
 +                machine_progress.advance(id, pos);
-@@ -428,2 +594,7 @@
+@@ -428,2 +590,7 @@ where
 -            let shown = if path.len() > 30 {
 -                format!("...{}", &path[path.len() - 27..])
 +            let shown = if path.chars().count() > 30 {
@@ -1212,12 +1521,11 @@ diff --git c/crates/xodus-cli/src/commands/streaming.rs w/crates/xodus-cli/src/c
 +                        .skip(path.chars().count() - 27)
 +                        .collect::<String>()
 +                )
-@@ -447 +617,0 @@
+@@ -447 +613,0 @@ where
 -                tx.send(ProgressEvent::Finished { id }).await.ok();
-@@ -453,2 +623,13 @@
+@@ -453 +618,0 @@ where
 -                tx.send(ProgressEvent::Finished { id }).await.ok();
--            }
-+            }
+@@ -454,0 +620,12 @@ where
 +            fout.flush().await.expect("file flush failed");
 +            if let Some(r) = resume_ref {
 +                fout.sync_all().await.expect("file sync failed");
@@ -1230,10 +1538,9 @@ diff --git c/crates/xodus-cli/src/commands/streaming.rs w/crates/xodus-cli/src/c
 +                machine_progress.finish(id);
 +            }
 +            tx.send(ProgressEvent::Finished { id }).await.ok();
-@@ -459,3 +640,235 @@
+@@ -459,2 +636,241 @@ where
 -    std::fs::remove_file(&final_path).ok();
 -    std::fs::rename(&cache_path, &final_path).expect("ok");
--}
 +    if let Some(r) = &resume {
 +        remote_file
 +            .sync_cache()
@@ -1246,8 +1553,15 @@ diff --git c/crates/xodus-cli/src/commands/streaming.rs w/crates/xodus-cli/src/c
 +        r.finish_verified(&expected)
 +            .expect("resume finalization failed");
 +    } else {
-+        std::fs::remove_file(&final_path).ok();
-+        std::fs::rename(&cache_path, &final_path).expect("ok");
++        remote_file
++            .sync_cache()
++            .await
++            .expect("metadata sync failed");
++        output
++            .as_ref()
++            .unwrap()
++            .finish()
++            .expect("metadata publication failed");
 +    }
 +    true
 +}
@@ -1468,9 +1782,9 @@ diff --git c/crates/xodus-cli/src/commands/streaming.rs w/crates/xodus-cli/src/c
 +        assert!(!expected_revision_matches(Some("a"), Some("b")));
 +        assert!(!expected_revision_matches(Some("a"), None));
 +    }
-+}
 diff --git c/crates/xodus-cli/src/commands/streaming_progress.rs w/crates/xodus-cli/src/commands/streaming_progress.rs
 new file mode 100644
+index 0000000..778517a
 --- /dev/null
 +++ w/crates/xodus-cli/src/commands/streaming_progress.rs
 @@ -0,0 +1,434 @@
@@ -1910,9 +2224,10 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-cli/src/commands/streaming_resume.rs w/crates/xodus-cli/src/commands/streaming_resume.rs
 new file mode 100644
+index 0000000..2469bfc
 --- /dev/null
 +++ w/crates/xodus-cli/src/commands/streaming_resume.rs
-@@ -0,0 +1,548 @@
+@@ -0,0 +1,869 @@
 +// SPDX-License-Identifier: GPL-3.0-only
 +//! Restart-safe completed-file receipts, not byte-level or credential storage.
 +//! A receipt is published only after the file and directory entry are durable.
@@ -1931,6 +2246,37 @@ new file mode 100644
 +use sha2::{Digest, Sha256};
 +
 +const JOURNAL: &str = ".xodus-resume";
++#[derive(Clone, Copy)]
++enum Creation {
++    Private,
++    Ordinary,
++}
++impl Creation {
++    fn file_mode(self) -> libc::mode_t {
++        match self {
++            Self::Private => 0o600,
++            Self::Ordinary => 0o666,
++        }
++    }
++    fn directory_mode(self) -> libc::mode_t {
++        match self {
++            Self::Private => 0o700,
++            Self::Ordinary => 0o777,
++        }
++    }
++    fn directory_flags(self) -> i32 {
++        match self {
++            Self::Private => libc::O_RDONLY,
++            Self::Ordinary => libc::O_PATH,
++        }
++    }
++    fn sync_directory(self, dir: &File) -> io::Result<()> {
++        match self {
++            Self::Private => dir.sync_all(),
++            Self::Ordinary => Ok(()),
++        }
++    }
++}
 +fn invalid() -> io::Error {
 +    io::Error::new(io::ErrorKind::InvalidData, "invalid streaming resume data")
 +}
@@ -1938,13 +2284,16 @@ new file mode 100644
 +    CString::new(s).map_err(|_| invalid())
 +}
 +fn open_at(dir: &File, name: &str, flags: i32) -> io::Result<File> {
++    open_at_mode(dir, name, flags, 0o600)
++}
++fn open_at_mode(dir: &File, name: &str, flags: i32, mode: libc::mode_t) -> io::Result<File> {
 +    let name = cstr(name)?;
 +    let fd = unsafe {
 +        libc::openat(
 +            dir.as_raw_fd(),
 +            name.as_ptr(),
 +            flags | libc::O_CLOEXEC | libc::O_NOFOLLOW | libc::O_NONBLOCK,
-+            0o600,
++            mode,
 +        )
 +    };
 +    if fd < 0 {
@@ -1961,18 +2310,21 @@ new file mode 100644
 +    Ok(file)
 +}
 +fn directory(dir: &File, name: &str, create: bool) -> io::Result<File> {
++    directory_with(dir, name, create, Creation::Private)
++}
++fn directory_with(dir: &File, name: &str, create: bool, creation: Creation) -> io::Result<File> {
 +    if create {
 +        let c = cstr(name)?;
-+        if unsafe { libc::mkdirat(dir.as_raw_fd(), c.as_ptr(), 0o700) } != 0 {
++        if unsafe { libc::mkdirat(dir.as_raw_fd(), c.as_ptr(), creation.directory_mode()) } != 0 {
 +            let error = io::Error::last_os_error();
 +            if error.kind() != io::ErrorKind::AlreadyExists {
 +                return Err(error);
 +            }
 +        } else {
-+            dir.sync_all()?;
++            creation.sync_directory(dir)?;
 +        }
 +    }
-+    open_at(dir, name, libc::O_RDONLY | libc::O_DIRECTORY)
++    open_at(dir, name, creation.directory_flags() | libc::O_DIRECTORY)
 +}
 +fn unlink(dir: &File, name: &str) -> io::Result<()> {
 +    let c = cstr(name)?;
@@ -1985,13 +2337,16 @@ new file mode 100644
 +    Ok(())
 +}
 +fn rename(src: &File, from: &str, dst: &File, to: &str) -> io::Result<()> {
++    rename_with(src, from, dst, to, Creation::Private)
++}
++fn rename_with(src: &File, from: &str, dst: &File, to: &str, creation: Creation) -> io::Result<()> {
 +    let from = cstr(from)?;
 +    let to = cstr(to)?;
 +    if unsafe { libc::renameat(src.as_raw_fd(), from.as_ptr(), dst.as_raw_fd(), to.as_ptr()) } != 0
 +    {
 +        return Err(io::Error::last_os_error());
 +    }
-+    dst.sync_all()?;
++    creation.sync_directory(dst)?;
 +    Ok(())
 +}
 +fn hex(bytes: impl AsRef<[u8]>) -> String {
@@ -2043,6 +2398,140 @@ new file mode 100644
 +    f.flush()?;
 +    f.sync_all()?;
 +    rename(dir, &tmp, dir, name)
++}
++
++/// Validate the complete package before any output file is opened. Keep the
++/// original names for package identities, but reject aliases on the filesystem.
++pub fn validate_names<'a>(names: impl IntoIterator<Item = &'a str>) -> io::Result<()> {
++    let mut seen = std::collections::HashSet::new();
++    for name in names {
++        if !seen.insert(normalized(name)?) {
++            return Err(invalid());
++        }
++    }
++    for name in &seen {
++        for (end, _) in name.match_indices('/') {
++            if seen.contains(&name[..end]) {
++                return Err(invalid());
++            }
++        }
++    }
++    Ok(())
++}
++
++fn target_parent(
++    root: &File,
++    name: &str,
++    create: bool,
++    creation: Creation,
++) -> io::Result<(File, String)> {
++    let name = normalized(name)?;
++    let mut parts: Vec<_> = name.split('/').collect();
++    let leaf = parts.pop().ok_or_else(invalid)?.to_string();
++    let mut dir = root.try_clone()?;
++    for part in parts {
++        dir = directory_with(&dir, part, create, creation)?;
++    }
++    Ok((dir, leaf))
++}
++
++fn prepare_cache(
++    root: &File,
++    identity: &std::sync::OnceLock<(u64, u64)>,
++    creation: Creation,
++) -> io::Result<(File, File)> {
++    for name in [".xodus-streaming-tmp.msixvc", ".xodus-streaming.msixvc"] {
++        match open_at(root, name, creation.directory_flags()) {
++            Ok(_) => (),
++            Err(e) if e.kind() == io::ErrorKind::NotFound => (),
++            Err(e) => return Err(e),
++        }
++    }
++    unlink(root, ".xodus-streaming-tmp.msixvc")?;
++    let writer = open_at_mode(
++        root,
++        ".xodus-streaming-tmp.msixvc",
++        libc::O_RDWR | libc::O_CREAT | libc::O_EXCL,
++        creation.file_mode(),
++    )?;
++    let reader = open_at(root, ".xodus-streaming-tmp.msixvc", libc::O_RDONLY)?;
++    let expected = (writer.metadata()?.dev(), writer.metadata()?.ino());
++    if expected != (reader.metadata()?.dev(), reader.metadata()?.ino()) {
++        return Err(invalid());
++    }
++    identity.set(expected).map_err(|_| invalid())?;
++    Ok((reader, writer))
++}
++
++fn finish_cache(
++    root: &File,
++    identity: &std::sync::OnceLock<(u64, u64)>,
++    creation: Creation,
++) -> io::Result<()> {
++    let cache = open_at(root, ".xodus-streaming-tmp.msixvc", libc::O_RDONLY)?;
++    if identity.get() != Some(&(cache.metadata()?.dev(), cache.metadata()?.ino())) {
++        return Err(invalid());
++    }
++    cache.sync_all()?;
++    rename_with(
++        root,
++        ".xodus-streaming-tmp.msixvc",
++        root,
++        ".xodus-streaming.msixvc",
++        creation,
++    )
++}
++
++/// Manual extraction keeps its ordinary destination permissions and overwrite
++/// behavior without adopting resume receipts or an authenticated package ID.
++pub struct Output {
++    root: File,
++    cache_identity: std::sync::OnceLock<(u64, u64)>,
++}
++impl Output {
++    pub fn open(root: &Path) -> io::Result<Self> {
++        use std::os::unix::fs::OpenOptionsExt;
++        // A caller-selected root symlink is allowed, then anchored exactly once.
++        let root = File::options()
++            .read(true)
++            .custom_flags(libc::O_PATH | libc::O_DIRECTORY | libc::O_CLOEXEC)
++            .open(root)?;
++        Ok(Self {
++            root,
++            cache_identity: std::sync::OnceLock::new(),
++        })
++    }
++    pub fn root_path(&self) -> std::path::PathBuf {
++        format!("/proc/self/fd/{}", self.root.as_raw_fd()).into()
++    }
++    pub fn begin(&self, name: &str) -> io::Result<File> {
++        let (dir, leaf) = target_parent(&self.root, name, true, Creation::Ordinary)?;
++        // Never O_TRUNC: open_at must reject hardlinks and special files before
++        // any mutation of an existing target.
++        let file = open_at_mode(&dir, &leaf, libc::O_WRONLY | libc::O_CREAT, 0o666)?;
++        file.set_len(0)?;
++        Ok(file)
++    }
++    pub fn prepare_cache(&self) -> io::Result<(File, File)> {
++        prepare_cache(&self.root, &self.cache_identity, Creation::Ordinary)
++    }
++    pub fn previous_cache(&self) -> io::Result<Option<File>> {
++        match open_at(&self.root, ".xodus-streaming.msixvc", libc::O_RDONLY) {
++            Ok(file) => Ok(Some(file)),
++            Err(e)
++                if matches!(
++                    e.kind(),
++                    io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied
++                ) =>
++            {
++                Ok(None)
++            }
++            Err(e) => Err(e),
++        }
++    }
++    pub fn finish(&self) -> io::Result<()> {
++        finish_cache(&self.root, &self.cache_identity, Creation::Ordinary)
++    }
 +}
 +
 +pub struct Resume {
@@ -2102,14 +2591,7 @@ new file mode 100644
 +        }
 +    }
 +    fn target_parent(&self, name: &str, create: bool) -> io::Result<(File, String)> {
-+        let name = normalized(name)?;
-+        let mut parts: Vec<_> = name.split('/').collect();
-+        let leaf = parts.pop().ok_or_else(invalid)?.to_string();
-+        let mut dir = self.root.try_clone()?;
-+        for part in parts {
-+            dir = directory(&dir, part, create)?;
-+        }
-+        Ok((dir, leaf))
++        target_parent(&self.root, name, create, Creation::Private)
 +    }
 +    pub fn completed(&self, name: &str, expected_len: u64) -> io::Result<bool> {
 +        let name = normalized(name)?;
@@ -2192,26 +2674,7 @@ new file mode 100644
 +        format!("/proc/self/fd/{}", self.root.as_raw_fd()).into()
 +    }
 +    pub fn prepare_cache(&self) -> io::Result<(File, File)> {
-+        for name in [".xodus-streaming-tmp.msixvc", ".xodus-streaming.msixvc"] {
-+            match open_at(&self.root, name, libc::O_RDONLY) {
-+                Ok(_) => (),
-+                Err(e) if e.kind() == io::ErrorKind::NotFound => (),
-+                Err(e) => return Err(e),
-+            }
-+        }
-+        unlink(&self.root, ".xodus-streaming-tmp.msixvc")?;
-+        let writer = open_at(
-+            &self.root,
-+            ".xodus-streaming-tmp.msixvc",
-+            libc::O_RDWR | libc::O_CREAT | libc::O_EXCL,
-+        )?;
-+        let reader = open_at(&self.root, ".xodus-streaming-tmp.msixvc", libc::O_RDONLY)?;
-+        let identity = (writer.metadata()?.dev(), writer.metadata()?.ino());
-+        if identity != (reader.metadata()?.dev(), reader.metadata()?.ino()) {
-+            return Err(invalid());
-+        }
-+        self.cache_identity.set(identity).map_err(|_| invalid())?;
-+        Ok((reader, writer))
++        prepare_cache(&self.root, &self.cache_identity, Creation::Private)
 +    }
 +    /// Seal the complete expected file set, never a directory scan. Receipts
 +    /// come only from committed downloads or freshly rehashed resume skips.
@@ -2262,17 +2725,7 @@ new file mode 100644
 +    }
 +
 +    pub fn finish(&self) -> io::Result<()> {
-+        let cache = open_at(&self.root, ".xodus-streaming-tmp.msixvc", libc::O_RDONLY)?;
-+        if self.cache_identity.get() != Some(&(cache.metadata()?.dev(), cache.metadata()?.ino())) {
-+            return Err(invalid());
-+        }
-+        cache.sync_all()?;
-+        rename(
-+            &self.root,
-+            ".xodus-streaming-tmp.msixvc",
-+            &self.root,
-+            ".xodus-streaming.msixvc",
-+        )
++        finish_cache(&self.root, &self.cache_identity, Creation::Private)
 +    }
 +}
 +
@@ -2284,6 +2737,189 @@ new file mode 100644
 +        let d = tempfile::tempdir().unwrap();
 +        std::fs::set_permissions(d.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
 +        d
++    }
++    #[test]
++    fn manual_output_preserves_ordinary_destinations_and_overwrite() {
++        let d = root();
++        std::fs::set_permissions(d.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
++        let output = Output::open(d.path()).unwrap();
++        validate_names(["dir\\Flugzeug.txt", "empty"]).unwrap();
++        output
++            .begin("dir\\Flugzeug.txt")
++            .unwrap()
++            .write_all(b"first contents")
++            .unwrap();
++        let path = d.path().join("dir/Flugzeug.txt");
++        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o640)).unwrap();
++        output
++            .begin("dir/Flugzeug.txt")
++            .unwrap()
++            .write_all(b"new")
++            .unwrap();
++        output.begin("empty").unwrap();
++        let control = root();
++        std::fs::create_dir(control.path().join("dir")).unwrap();
++        File::create(control.path().join("empty")).unwrap();
++        assert_eq!(
++            d.path().join("empty").metadata().unwrap().mode() & 0o777,
++            control.path().join("empty").metadata().unwrap().mode() & 0o777
++        );
++        assert_eq!(
++            d.path().join("dir").metadata().unwrap().mode() & 0o777,
++            control.path().join("dir").metadata().unwrap().mode() & 0o777
++        );
++        assert_eq!(std::fs::read(&path).unwrap(), b"new");
++        assert_eq!(path.metadata().unwrap().mode() & 0o777, 0o640);
++        assert_eq!(d.path().join("empty").metadata().unwrap().len(), 0);
++        assert!(!d.path().join(JOURNAL).exists());
++    }
++    #[test]
++    fn whole_manual_plan_rejects_unsafe_names_and_aliases_before_writes() {
++        let d = root();
++        let outside = root();
++        let output = Output::open(d.path()).unwrap();
++        std::fs::write(d.path().join("kept"), b"unchanged").unwrap();
++        std::fs::write(outside.path().join("victim"), b"outside").unwrap();
++        let absolute = outside.path().join("victim").to_str().unwrap().to_string();
++        for name in [
++            "../victim",
++            "..\\victim",
++            "dir/../../victim",
++            "/absolute",
++            "\\\\server\\file",
++            "C:\\file",
++            "a//b",
++            "a/./b",
++            "",
++            "a\0b",
++            "a\nb",
++            ".xodus-streaming-tmp.msixvc",
++            absolute.as_str(),
++        ] {
++            let plan = ["kept", name];
++            assert!(validate_names(plan).is_err(), "{name:?}");
++            assert!(output.begin(name).is_err(), "{name:?}");
++        }
++        for plan in [
++            ["a/b", "a\\b"],
++            ["same", "same"],
++            ["file", "file/sub"],
++            ["file/sub", "file"],
++        ] {
++            assert!(validate_names(plan).is_err(), "{plan:?}");
++        }
++        validate_names(["dir/Übung.txt", "other", "empty"]).unwrap();
++        assert_eq!(std::fs::read(d.path().join("kept")).unwrap(), b"unchanged");
++        assert_eq!(
++            std::fs::read(outside.path().join("victim")).unwrap(),
++            b"outside"
++        );
++    }
++    #[test]
++    fn manual_output_accepts_write_and_search_only_directories() {
++        let base = root();
++        let dest = base.path().join("dropbox");
++        std::fs::create_dir(&dest).unwrap();
++        std::fs::create_dir(dest.join("nested")).unwrap();
++        std::fs::set_permissions(dest.join("nested"), std::fs::Permissions::from_mode(0o333))
++            .unwrap();
++        std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o333)).unwrap();
++        File::create(dest.join("ordinary-control")).unwrap();
++        let output = Output::open(&dest).unwrap();
++        output
++            .begin("nested/file")
++            .unwrap()
++            .write_all(b"inside")
++            .unwrap();
++        let (_reader, mut writer) = output.prepare_cache().unwrap();
++        writer.write_all(b"metadata").unwrap();
++        output.finish().unwrap();
++        assert_eq!(std::fs::read(dest.join("nested/file")).unwrap(), b"inside");
++        assert!(output.previous_cache().unwrap().is_some());
++        std::fs::set_permissions(dest.join("nested"), std::fs::Permissions::from_mode(0o700))
++            .unwrap();
++        std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o700)).unwrap();
++    }
++    #[test]
++    fn manual_output_rejects_links_and_special_files_before_truncation() {
++        let d = root();
++        let outside = root();
++        let victim = outside.path().join("victim");
++        std::fs::write(&victim, b"outside").unwrap();
++        let output = Output::open(d.path()).unwrap();
++        symlink(outside.path(), d.path().join("dir")).unwrap();
++        symlink(&victim, d.path().join("leaf")).unwrap();
++        std::fs::hard_link(&victim, d.path().join("hard")).unwrap();
++        let fifo = cstr(d.path().join("fifo").to_str().unwrap()).unwrap();
++        assert_eq!(unsafe { libc::mkfifo(fifo.as_ptr(), 0o600) }, 0);
++        for name in ["dir/victim", "leaf", "hard", "fifo"] {
++            assert!(output.begin(name).is_err(), "{name}");
++            assert_eq!(std::fs::read(&victim).unwrap(), b"outside");
++        }
++    }
++    #[test]
++    fn manual_metadata_cache_rejects_links_and_changed_identity() {
++        let outside = root();
++        let victim = outside.path().join("victim");
++        std::fs::write(&victim, b"outside").unwrap();
++        for name in [".xodus-streaming-tmp.msixvc", ".xodus-streaming.msixvc"] {
++            for hard in [false, true] {
++                let d = root();
++                if hard {
++                    std::fs::hard_link(&victim, d.path().join(name)).unwrap();
++                } else {
++                    symlink(&victim, d.path().join(name)).unwrap();
++                }
++                let output = Output::open(d.path()).unwrap();
++                assert!(output.prepare_cache().is_err());
++                if name == ".xodus-streaming.msixvc" {
++                    assert!(output.previous_cache().is_err());
++                }
++                assert_eq!(std::fs::read(&victim).unwrap(), b"outside");
++            }
++        }
++        let d = root();
++        let output = Output::open(d.path()).unwrap();
++        let (_reader, _writer) = output.prepare_cache().unwrap();
++        std::fs::remove_file(d.path().join(".xodus-streaming-tmp.msixvc")).unwrap();
++        std::fs::write(d.path().join(".xodus-streaming-tmp.msixvc"), b"replacement").unwrap();
++        assert!(output.finish().is_err());
++        assert!(!d.path().join(".xodus-streaming.msixvc").exists());
++    }
++    #[test]
++    fn manual_root_is_anchored_and_cache_publication_stays_inside_it() {
++        let base = root();
++        let outside = root();
++        let selected = base.path().join("selected");
++        let actual = base.path().join("actual");
++        std::fs::create_dir(&actual).unwrap();
++        symlink(&actual, &selected).unwrap();
++        let output = Output::open(&selected).unwrap();
++        std::fs::remove_file(&selected).unwrap();
++        symlink(outside.path(), &selected).unwrap();
++        output
++            .begin("nested/file")
++            .unwrap()
++            .write_all(b"inside")
++            .unwrap();
++        assert!(output.previous_cache().unwrap().is_none());
++        let (_reader, mut writer) = output.prepare_cache().unwrap();
++        writer.write_all(b"metadata").unwrap();
++        output.finish().unwrap();
++        let mut previous = output.previous_cache().unwrap().unwrap();
++        let mut contents = Vec::new();
++        previous.read_to_end(&mut contents).unwrap();
++        assert_eq!(contents, b"metadata");
++        let control = File::create(base.path().join("control")).unwrap();
++        assert_eq!(
++            previous.metadata().unwrap().mode() & 0o777,
++            control.metadata().unwrap().mode() & 0o777
++        );
++        assert_eq!(
++            std::fs::read(actual.join("nested/file")).unwrap(),
++            b"inside"
++        );
++        assert_eq!(std::fs::read_dir(outside.path()).unwrap().count(), 0);
 +    }
 +    #[test]
 +    fn committed_file_survives_restart_and_corruption_is_not_reused() {
@@ -2462,20 +3098,21 @@ new file mode 100644
 +    }
 +}
 diff --git c/crates/xodus-cli/src/main.rs w/crates/xodus-cli/src/main.rs
+index cf0db1d..ca79efc 100644
 --- c/crates/xodus-cli/src/main.rs
 +++ w/crates/xodus-cli/src/main.rs
-@@ -11,0 +12,2 @@
+@@ -11,0 +12,2 @@ mod package;
 +#[cfg(unix)]
 +mod process_status;
-@@ -12,0 +15,2 @@
+@@ -12,0 +15,2 @@ mod webview;
 +mod store_purchase;
 +mod store_window_check;
-@@ -15,0 +20,4 @@
+@@ -15,0 +20,4 @@ enum SubCommand {
 +    #[command(hide = true)]
 +    StorePurchase,
 +    /// Display a local, offline Store renderer check.
 +    StoreWindowCheck { #[arg(long, default_value="en")] language: String },
-@@ -53 +61,7 @@
+@@ -53 +61,7 @@ enum SubCommand {
 -    Login,
 +    /// Read authenticated package version metadata without URLs, keys or a download.
 +    PackageInfo {
@@ -2484,7 +3121,7 @@ diff --git c/crates/xodus-cli/src/main.rs w/crates/xodus-cli/src/main.rs
 +        market: Option<String>,
 +    },
 +    Login { #[arg(long)] same_account: bool },
-@@ -67,0 +82,11 @@
+@@ -67,0 +82,11 @@ enum SubCommand {
 +        #[arg(
 +            long,
 +            default_value_t = false,
@@ -2496,10 +3133,9 @@ diff --git c/crates/xodus-cli/src/main.rs w/crates/xodus-cli/src/main.rs
 +        /// Numeric output-payload progress on an inherited nonblocking pipe.
 +        #[arg(long, requires = "resume_files")]
 +        progress_fd: Option<i32>,
-@@ -148 +172,0 @@
+@@ -148 +172,0 @@ async fn main() -> ExitCode {
 -        .connection_verbose(true)
-@@ -151,0 +176,8 @@
-+
+@@ -152,0 +177,8 @@ async fn main() -> ExitCode {
 +    if matches!(args.command, SubCommand::StorePurchase) {
 +        return store_purchase::run();
 +    }
@@ -2507,30 +3143,32 @@ diff --git c/crates/xodus-cli/src/main.rs w/crates/xodus-cli/src/main.rs
 +    if let SubCommand::StoreWindowCheck { ref language } = args.command {
 +        return store_window_check::run(language);
 +    }
-@@ -167 +199,4 @@
++
+@@ -167 +199,4 @@ async fn main() -> ExitCode {
 -        xodus::tokens::device::ensure_device_credentials(&client, &tokens).await;
 +        if xodus::tokens::device::ensure_device_credentials(&client, &tokens).await.is_err() {
 +            xodus::secrets::destroy_secrets();
 +            return std::process::ExitCode::from(71);
 +        }
-@@ -170,0 +206 @@
+@@ -170,0 +206 @@ async fn main() -> ExitCode {
 +        SubCommand::StorePurchase | SubCommand::StoreWindowCheck { .. } => unreachable!(),
-@@ -190 +226,4 @@
+@@ -190 +226,4 @@ async fn main() -> ExitCode {
 -        SubCommand::Login => commands::login::run(&client, &tokens).await,
 +        SubCommand::PackageInfo { product, market } => {
 +            commands::package_info::run(&client, &tokens, product, market).await
 +        }
 +        SubCommand::Login { same_account } => commands::login::run(&client, &tokens, same_account).await,
-@@ -214,0 +254,3 @@
+@@ -214,0 +254,3 @@ async fn main() -> ExitCode {
 +            resume_files,
 +            expect_package,
 +            progress_fd,
-@@ -225,0 +268,3 @@
+@@ -225,0 +268,3 @@ async fn main() -> ExitCode {
 +                resume_files,
 +                expect_package,
 +                progress_fd,
 diff --git c/crates/xodus-cli/src/process_status.rs w/crates/xodus-cli/src/process_status.rs
 new file mode 100644
+index 0000000..4bd1833
 --- /dev/null
 +++ w/crates/xodus-cli/src/process_status.rs
 @@ -0,0 +1,35 @@
@@ -2571,6 +3209,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-cli/src/store_purchase.html w/crates/xodus-cli/src/store_purchase.html
 new file mode 100644
+index 0000000..e5f839c
 --- /dev/null
 +++ w/crates/xodus-cli/src/store_purchase.html
 @@ -0,0 +1,118 @@
@@ -2694,6 +3333,7 @@ new file mode 100644
 +</script></body></html>
 diff --git c/crates/xodus-cli/src/store_purchase.rs w/crates/xodus-cli/src/store_purchase.rs
 new file mode 100644
+index 0000000..ce76be3
 --- /dev/null
 +++ w/crates/xodus-cli/src/store_purchase.rs
 @@ -0,0 +1,242 @@
@@ -2941,6 +3581,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-cli/src/store_window_check.rs w/crates/xodus-cli/src/store_window_check.rs
 new file mode 100644
+index 0000000..0cb7127
 --- /dev/null
 +++ w/crates/xodus-cli/src/store_window_check.rs
 @@ -0,0 +1,44 @@
@@ -2989,24 +3630,25 @@ new file mode 100644
 +    });Ok(outcome)
 +}
 diff --git c/crates/xodus-cli/src/webview.rs w/crates/xodus-cli/src/webview.rs
+index f761a90..f6b57b9 100644
 --- c/crates/xodus-cli/src/webview.rs
 +++ w/crates/xodus-cli/src/webview.rs
-@@ -7 +7 @@
+@@ -7 +7 @@ use wry::http::{HeaderMap, HeaderValue};
 -use wry::{PageLoadEvent, WebView, WebViewBuilder};
 +use wry::{PageLoadEvent, WebContext, WebView, WebViewBuilder};
-@@ -75,0 +76,3 @@
+@@ -75,0 +76,3 @@ struct RuntimeState<T: SessionHandler> {
 +    // Keep the password and follow-up verification in the same browser context.
 +    // A new default WebContext for each view discards in-memory session cookies.
 +    web_context: WebContext,
-@@ -77 +80 @@
+@@ -77 +80 @@ struct RuntimeState<T: SessionHandler> {
 -    error: Option<String>,
 +    error: Option<Box<dyn std::error::Error>>,
-@@ -165,0 +169 @@
+@@ -165,0 +169 @@ where
 +        web_context: WebContext::default(),
-@@ -189 +193 @@
+@@ -189 +193 @@ where
 -                    state.error = Some(err.to_string());
 +                    state.error = Some(err);
-@@ -207,6 +211,12 @@
+@@ -207,6 +211,12 @@ where
 -                apply_handler_result(
 -                    &proxy,
 -                    target,
@@ -3025,34 +3667,35 @@ diff --git c/crates/xodus-cli/src/webview.rs w/crates/xodus-cli/src/webview.rs
 +                        move |handler, runtime| handler.on_token(session_id, data, runtime),
 +                    );
 +                }
-@@ -234 +244 @@
+@@ -234 +244 @@ where
 -        return Err(std::io::Error::other(error).into());
 +        return Err(error);
-@@ -277 +287 @@
+@@ -277 +287 @@ fn apply_handler_result<T, F>(
 -        Err(err) => state.error = Some(err.to_string()),
 +        Err(err) => state.error = Some(err),
-@@ -300 +310 @@
+@@ -300 +310 @@ fn apply_actions<T>(
 -                    state.error = Some(err.to_string());
 +                    state.error = Some(err);
-@@ -335 +345 @@
+@@ -335 +345 @@ fn create_session<T: SessionHandler>(
 -    let builder = WebViewBuilder::new()
 +    let builder = WebViewBuilder::new_with_web_context(&mut state.web_context)
-@@ -381 +391,4 @@
+@@ -381 +391,4 @@ fn create_session<T: SessionHandler>(
 -        builder.build_gtk(window.default_vbox().unwrap()).unwrap()
 +        let container = window.default_vbox().ok_or_else(|| {
 +            std::io::Error::other("login window has no GTK container")
 +        })?;
 +        builder.build_gtk(container)?
-@@ -384 +397 @@
+@@ -384 +397 @@ fn create_session<T: SessionHandler>(
 -    let webview = builder.build(&window).unwrap();
 +    let webview = builder.build(&window)?;
-@@ -387,0 +401,2 @@
+@@ -387,0 +401,2 @@ fn create_session<T: SessionHandler>(
 +    window.set_visible(true);
 +    window.set_focus();
 diff --git c/crates/xodus-service/Cargo.toml w/crates/xodus-service/Cargo.toml
+index 8546c78..04f3619 100644
 --- c/crates/xodus-service/Cargo.toml
 +++ w/crates/xodus-service/Cargo.toml
-@@ -17,0 +18,7 @@
+@@ -17,0 +18,7 @@ serde_json = "1.0.151"
 +serde = { version = "1.0.229", features = ["derive"] }
 +sha2 = "0.11.0"
 +rand = "0.10.2"
@@ -3061,25 +3704,27 @@ diff --git c/crates/xodus-service/Cargo.toml w/crates/xodus-service/Cargo.toml
 +reqwest11 = { package = "reqwest", version = "0.11.27", features = ["json", "stream"] }
 +xal = { git = "https://github.com/xodus-gaming/xal-rs", rev = "6aa2420f8f0d5e6f7460ff13f399037583a942f4", version = "0.1.3" }
 diff --git c/crates/xodus-service/src/connection/router.rs w/crates/xodus-service/src/connection/router.rs
+index 8deefbe..540b426 100644
 --- c/crates/xodus-service/src/connection/router.rs
 +++ w/crates/xodus-service/src/connection/router.rs
-@@ -5 +4,0 @@
+@@ -5 +4,0 @@ use tokio_util::sync::CancellationToken;
 -use xodus::models::secrets::LegacyToken;
-@@ -13 +11,0 @@
+@@ -13 +11,0 @@ pub async fn route(
 -    device_token: LegacyToken,
-@@ -19 +17 @@
+@@ -19 +17 @@ pub async fn route(
 -    let mut context = SimpleContext::new(device_token, tokens);
 +    let mut context = SimpleContext::new(tokens);
 diff --git c/crates/xodus-service/src/connection/xml.rs w/crates/xodus-service/src/connection/xml.rs
+index 8ce765b..3ff8be1 100644
 --- c/crates/xodus-service/src/connection/xml.rs
 +++ w/crates/xodus-service/src/connection/xml.rs
-@@ -26,2 +26,3 @@
+@@ -26,2 +26,3 @@ pub async fn handle(
 -        Err(err) => {
 -            tracing::error!("Failed parsing message: {err}");
 +        Err(_) => {
 +            // Parser errors can contain input excerpts, including auth material.
 +            tracing::error!("Failed parsing IPC message");
-@@ -41,0 +43,23 @@
+@@ -41,0 +43,23 @@ pub async fn parse_message(
 +        XodusMessageType::StorePurchaseRequest => {
 +            use crate::store_purchase;
 +            let request = match store_purchase::parse(&buffer) {
@@ -3103,7 +3748,7 @@ diff --git c/crates/xodus-service/src/connection/xml.rs w/crates/xodus-service/s
 +            }
 +            Ok(result)
 +        }
-@@ -42,0 +67,94 @@
+@@ -42,0 +67,94 @@ pub async fn parse_message(
 +        XodusMessageType::StoreAccountContextRequest => {
 +            let tokens = context.tokens().clone();
 +            context.store_account.session_response(&buffer, &tokens).await
@@ -3198,31 +3843,31 @@ diff --git c/crates/xodus-service/src/connection/xml.rs w/crates/xodus-service/s
 +            }
 +            Ok(store_package_updates::encode(result))
 +        }
-@@ -44 +161,0 @@
+@@ -44 +161,0 @@ pub async fn parse_message(
 -            tracing::debug!("Raw buffer: {buffer:?}");
-@@ -46 +162,0 @@
+@@ -46 +162,0 @@ pub async fn parse_message(
 -            tracing::debug!("String buffer: {string_buf:?}");
-@@ -47,0 +164,2 @@
+@@ -47,0 +164,2 @@ pub async fn parse_message(
 +            xodus::tokens::session::ensure_session(context.tokens()).await?;
 +            let account = context.tokens().get_user()?;
-@@ -56 +174 @@
+@@ -56 +174 @@ pub async fn parse_message(
 -            let device_token = context.device_token.as_ref().unwrap();
 +            let Token::Legacy(device_token) = context.tokens().get_device_sts_token()? else { return Err("Missing broker device ticket".into()); };
-@@ -61 +179 @@
+@@ -61 +179 @@ pub async fn parse_message(
 -                "scope=service::user.auth.xboxlive.com::MBI_SSL".to_owned(),
 +                "scope=service::user.auth.xboxlive.com::MBI_SSL&api-version=2.0".to_owned(),
-@@ -66 +184 @@
+@@ -66 +184 @@ pub async fn parse_message(
 -            let ms_device_rps_token = if let Some((Token::Compact(ms_device_token), Ok(lifetime))) =
 +            let ms_device_rps_token = if let Some((Ok(ms_device_token), Ok(lifetime))) =
-@@ -69 +187 @@
+@@ -69 +187 @@ pub async fn parse_message(
 -                    (t.into(), expiry)
 +                    (compact(t), expiry)
-@@ -79 +197 @@
+@@ -79 +197 @@ pub async fn parse_message(
 -                "USERNAME".to_string(),
 +                account.username,
-@@ -89 +206,0 @@
+@@ -89 +206,0 @@ pub async fn parse_message(
 -                    ("http://Passport.NET/tb".to_string(), None),
-@@ -94,35 +211,18 @@
+@@ -94,35 +211,18 @@ pub async fn parse_message(
 -            match user_token {
 -                ExchangeUserTokenOutcome::Issued(
 -                    soap::BodyContent::RequestSecurityTokenResponseCollection(mut collection),
@@ -3276,7 +3921,7 @@ diff --git c/crates/xodus-service/src/connection/xml.rs w/crates/xodus-service/s
 +            let payload = quick_xml::se::to_string(&payload)?;
 +            if payload.len() > u16::MAX as usize { return Err("MSA response exceeds IPC frame".into()); }
 +            Ok(payload.as_bytes().to_vec())
-@@ -132,0 +233,10 @@
+@@ -132,0 +233,10 @@ pub async fn parse_message(
 +
 +fn compact(token: soap::RequestSecurityTokenResponse) -> Result<String, &'static str> {
 +    let value = token.requested_security_token.binary_security_token.ok_or("Missing compact ticket")?.value;
@@ -3288,9 +3933,10 @@ diff --git c/crates/xodus-service/src/connection/xml.rs w/crates/xodus-service/s
 +    }
 +}
 diff --git c/crates/xodus-service/src/main.rs w/crates/xodus-service/src/main.rs
+index 392bd90..3fc1304 100644
 --- c/crates/xodus-service/src/main.rs
 +++ w/crates/xodus-service/src/main.rs
-@@ -13,0 +14,9 @@
+@@ -13,0 +14,9 @@ mod simple_context;
 +mod store_account;
 +mod store_license;
 +mod store_license_token;
@@ -3300,12 +3946,12 @@ diff --git c/crates/xodus-service/src/main.rs w/crates/xodus-service/src/main.rs
 +mod store_purchase;
 +mod store_health;
 +mod store_events;
-@@ -20,0 +30,4 @@
+@@ -20,0 +30,4 @@ async fn main() {
 +    let args:Vec<_>=std::env::args_os().skip(1).collect();
 +    if args==[std::ffi::OsString::from("--store-check")] { store_health::run().await; return; }
 +    if !args.is_empty() { eprintln!("Usage: xodus-service [--store-check]"); std::process::exit(2); }
 +    store_events::launch();
-@@ -43,6 +56,4 @@
+@@ -43,6 +56,4 @@ async fn main() {
 -    xodus::tokens::device::ensure_device_credentials(&reqwest::Client::new(), &tokens).await;
 -    let xodus::models::secrets::Token::Legacy(device_token) =
 -        tokens.get_device_sts_token().unwrap()
@@ -3316,36 +3962,37 @@ diff --git c/crates/xodus-service/src/main.rs w/crates/xodus-service/src/main.rs
 +        tracing::error!("Device sign-in unavailable");
 +        return;
 +    }
-@@ -73 +83,0 @@
+@@ -73 +83,0 @@ async fn main() {
 -            let device_token = device_token.clone();
-@@ -76 +86 @@
+@@ -76 +86 @@ async fn main() {
 -                connection::router::route(accept.0, token, device_token, tokens).await
 +                connection::router::route(accept.0, token, tokens).await
-@@ -81,0 +92 @@
+@@ -81,0 +92 @@ async fn main() {
 +    xodus::secrets::destroy_secrets();
 diff --git c/crates/xodus-service/src/simple_context.rs w/crates/xodus-service/src/simple_context.rs
+index 2900465..fea415b 100644
 --- c/crates/xodus-service/src/simple_context.rs
 +++ w/crates/xodus-service/src/simple_context.rs
-@@ -5 +4,0 @@
+@@ -5 +4,0 @@ use std::sync::Arc;
 -use xodus::models::secrets::LegacyToken;
-@@ -10 +8,0 @@
+@@ -10 +8,0 @@ pub struct SimpleContext {
 -    pub device_token: Option<LegacyToken>,
-@@ -11,0 +10,5 @@
+@@ -11,0 +10,5 @@ pub struct SimpleContext {
 +    pub store_account: crate::store_account::BrokerStoreAccount,
 +    pub store_license: crate::store_license::LicenseCache,
 +    pub store_collections: crate::store_collections::Broker,
 +    pub store_inventory: crate::store_inventory::Broker,
 +    pub store_purchase: crate::store_purchase::Broker,
-@@ -15 +18 @@
+@@ -15 +18 @@ impl SimpleContext {
 -    pub fn new(device_token: LegacyToken, tokens: Arc<TokenManager>) -> Self {
 +    pub fn new(tokens: Arc<TokenManager>) -> Self {
-@@ -18 +21,2 @@
+@@ -18 +21,2 @@ impl SimpleContext {
 -            .connection_verbose(true)
 +            .timeout(std::time::Duration::from_secs(15))
 +            .redirect(reqwest::redirect::Policy::none())
-@@ -24 +27,0 @@
+@@ -24 +27,0 @@ impl SimpleContext {
 -            device_token: Some(device_token),
-@@ -25,0 +29,5 @@
+@@ -25,0 +29,5 @@ impl SimpleContext {
 +            store_account: Default::default(),
 +            store_license: Default::default(),
 +            store_collections: Default::default(),
@@ -3353,6 +4000,7 @@ diff --git c/crates/xodus-service/src/simple_context.rs w/crates/xodus-service/s
 +            store_purchase: Default::default(),
 diff --git c/crates/xodus-service/src/store_account.rs w/crates/xodus-service/src/store_account.rs
 new file mode 100644
+index 0000000..31c855e
 --- /dev/null
 +++ w/crates/xodus-service/src/store_account.rs
 @@ -0,0 +1,279 @@
@@ -3637,6 +4285,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-service/src/store_collections.rs w/crates/xodus-service/src/store_collections.rs
 new file mode 100644
+index 0000000..95f95a8
 --- /dev/null
 +++ w/crates/xodus-service/src/store_collections.rs
 @@ -0,0 +1,328 @@
@@ -3970,6 +4619,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-service/src/store_collections/auth.rs w/crates/xodus-service/src/store_collections/auth.rs
 new file mode 100644
+index 0000000..eb48d40
 --- /dev/null
 +++ w/crates/xodus-service/src/store_collections/auth.rs
 @@ -0,0 +1,304 @@
@@ -4279,6 +4929,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-service/src/store_collections/model.rs w/crates/xodus-service/src/store_collections/model.rs
 new file mode 100644
+index 0000000..eb2fb48
 --- /dev/null
 +++ w/crates/xodus-service/src/store_collections/model.rs
 @@ -0,0 +1,628 @@
@@ -4912,6 +5563,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-service/src/store_events.rs w/crates/xodus-service/src/store_events.rs
 new file mode 100644
+index 0000000..a928988
 --- /dev/null
 +++ w/crates/xodus-service/src/store_events.rs
 @@ -0,0 +1,36 @@
@@ -4953,6 +5605,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-service/src/store_health.rs w/crates/xodus-service/src/store_health.rs
 new file mode 100644
+index 0000000..22b04fa
 --- /dev/null
 +++ w/crates/xodus-service/src/store_health.rs
 @@ -0,0 +1,108 @@
@@ -5066,6 +5719,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-service/src/store_inventory.rs w/crates/xodus-service/src/store_inventory.rs
 new file mode 100644
+index 0000000..b7ce1e2
 --- /dev/null
 +++ w/crates/xodus-service/src/store_inventory.rs
 @@ -0,0 +1,533 @@
@@ -5604,6 +6258,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-service/src/store_license.rs w/crates/xodus-service/src/store_license.rs
 new file mode 100644
+index 0000000..6897f08
 --- /dev/null
 +++ w/crates/xodus-service/src/store_license.rs
 @@ -0,0 +1,342 @@
@@ -5951,6 +6606,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-service/src/store_license/verified_token.rs w/crates/xodus-service/src/store_license/verified_token.rs
 new file mode 100644
+index 0000000..081cd62
 --- /dev/null
 +++ w/crates/xodus-service/src/store_license/verified_token.rs
 @@ -0,0 +1,143 @@
@@ -6099,6 +6755,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-service/src/store_license_token.rs w/crates/xodus-service/src/store_license_token.rs
 new file mode 100644
+index 0000000..f672735
 --- /dev/null
 +++ w/crates/xodus-service/src/store_license_token.rs
 @@ -0,0 +1,250 @@
@@ -6354,6 +7011,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-service/src/store_package_updates.rs w/crates/xodus-service/src/store_package_updates.rs
 new file mode 100644
+index 0000000..409f6a7
 --- /dev/null
 +++ w/crates/xodus-service/src/store_package_updates.rs
 @@ -0,0 +1,438 @@
@@ -6797,6 +7455,7 @@ new file mode 100644
 +}
 diff --git c/crates/xodus-service/src/store_purchase.rs w/crates/xodus-service/src/store_purchase.rs
 new file mode 100644
+index 0000000..f932747
 --- /dev/null
 +++ w/crates/xodus-service/src/store_purchase.rs
 @@ -0,0 +1,247 @@
@@ -7048,18 +7707,20 @@ new file mode 100644
 +    }
 +}
 diff --git c/crates/xodus/Cargo.toml w/crates/xodus/Cargo.toml
+index fa1033c..a780402 100644
 --- c/crates/xodus/Cargo.toml
 +++ w/crates/xodus/Cargo.toml
-@@ -21,0 +22,2 @@
+@@ -21,0 +22,2 @@ keyring-core = { version = "1.0.0", features = ["sample"] }
 +ron = { version = "0.12.0", optional = true }
 +tempfile = { version = "3.27.0", optional = true }
-@@ -56 +58 @@
+@@ -56 +58 @@ prost-build = "0.14.4"
 -key-chain-file = []
 +key-chain-file = ["dep:ron", "dep:tempfile"]
 diff --git c/crates/xodus/proto/xodus/common.proto w/crates/xodus/proto/xodus/common.proto
+index c7741a6..7a95130 100644
 --- c/crates/xodus/proto/xodus/common.proto
 +++ w/crates/xodus/proto/xodus/common.proto
-@@ -10,0 +11,16 @@
+@@ -10,0 +11,16 @@ enum XodusMessageType {
 +    STORE_ACCOUNT_CONTEXT_REQUEST=5;
 +    STORE_ACCOUNT_CONTEXT_RESPONSE=6;
 +    STORE_GAME_LICENSE_REQUEST=7;
@@ -7077,47 +7738,47 @@ diff --git c/crates/xodus/proto/xodus/common.proto w/crates/xodus/proto/xodus/co
 +    STORE_PURCHASE_REQUEST=19;
 +    STORE_PURCHASE_RESPONSE=20;
 diff --git c/crates/xodus/src/api/live/mod.rs w/crates/xodus/src/api/live/mod.rs
+index f9abc32..1a64687 100644
 --- c/crates/xodus/src/api/live/mod.rs
 +++ w/crates/xodus/src/api/live/mod.rs
-@@ -11,0 +12 @@
+@@ -11,0 +12 @@ mod utils;
 +pub use rst::{RSTError, ResponseStep};
-@@ -18,2 +19,2 @@
+@@ -18,2 +19,2 @@ pub async fn login_device_credential(
 -) -> reqwest::Result<DeviceAddResponse> {
 -    let data = quick_xml::se::to_string(&data).unwrap();
 +) -> Result<DeviceAddResponse, rst::RSTError> {
 +    let data = quick_xml::se::to_string(&data)?;
-@@ -26,0 +28 @@
+@@ -26,0 +28 @@ pub async fn login_device_credential(
 +        .timeout(std::time::Duration::from_secs(15))
-@@ -29,2 +31,2 @@
+@@ -29,2 +31,2 @@ pub async fn login_device_credential(
 -    let text = response.text().await?;
 -    let resp: DeviceAddResponse = quick_xml::de::from_str(&text).expect("Failed to de xml");
 +    let text = response.error_for_status()?.text().await?;
 +    let resp: DeviceAddResponse = quick_xml::de::from_str(&text)?;
-@@ -38 +40 @@
+@@ -38 +40 @@ pub async fn authenticate_device(
 -) -> Result<soap::Envelope, rst::RSTError> {
 +) -> Result<soap::ResponseEnvelope, rst::RSTError> {
-@@ -55,2 +57,3 @@
+@@ -55,2 +57,3 @@ pub async fn exchange_device_token(
 -    let secret = BASE64_STANDARD.decode(token.binary_secret.as_ref().unwrap())?;
 -    let secret: [u8; 4096] = secret.try_into().unwrap();
 +    let secret = BASE64_STANDARD.decode(token.binary_secret.as_ref().ok_or(rst::RSTError::InvalidCredential)?)?;
 +    let secret: [u8; 4096] = secret.try_into().map_err(|_| rst::RSTError::InvalidCredential)?;
 +    if u32::from_le_bytes(secret[..4].try_into().map_err(|_|rst::RSTError::InvalidCredential)?) != 4 { return Err(rst::RSTError::InvalidCredential); }
-@@ -76,4 +79,4 @@
+@@ -76,2 +79,2 @@ pub async fn exchange_device_token(
 -            let token = collection.security_tokens.remove(0);
 -            Ok(token)
--        }
--        b => unimplemented!("Exchange token supports only singular token right now {b:?}"),
 +            if !collection.challenges.is_empty() || collection.security_tokens.len() != 1 { return Err(rst::RSTError::InvalidResponse); }
 +            Ok(collection.security_tokens.remove(0))
-+        }
+@@ -79 +82 @@ pub async fn exchange_device_token(
+-        b => unimplemented!("Exchange token supports only singular token right now {b:?}"),
 +        _ => Err(rst::RSTError::InvalidResponse),
-@@ -96,2 +99,3 @@
+@@ -96,2 +99,3 @@ pub async fn exchange_user_token(
 -    let secret = BASE64_STANDARD.decode(device_token.binary_secret.as_ref().unwrap())?;
 -    let secret: [u8; 4096] = secret.try_into().unwrap();
 +    let secret = BASE64_STANDARD.decode(device_token.binary_secret.as_ref().ok_or(rst::RSTError::InvalidCredential)?)?;
 +    let secret: [u8; 4096] = secret.try_into().map_err(|_| rst::RSTError::InvalidCredential)?;
 +    if u32::from_le_bytes(secret[..4].try_into().map_err(|_|rst::RSTError::InvalidCredential)?) != 4 { return Err(rst::RSTError::InvalidCredential); }
-@@ -126,2 +130,22 @@
+@@ -126,2 +130,22 @@ pub async fn exchange_user_token(
 -    Ok(match envelope.body.body {
 -        soap::BodyContent::Fault(_) => ExchangeUserTokenOutcome::Fault(envelope.header.pp),
 +    user_exchange_outcome(envelope.body.body, envelope.header.pp)
@@ -7142,9 +7803,7 @@ diff --git c/crates/xodus/src/api/live/mod.rs w/crates/xodus/src/api/live/mod.rs
 +            && pp.as_ref().and_then(soap::PP::interactive_auth_url).is_none() =>
 +                return Err(rst::RSTError::AuthenticationRejected),
 +        soap::BodyContent::Fault(_) => ExchangeUserTokenOutcome::Fault(pp),
-@@ -129,0 +154,62 @@
-+}
-+
+@@ -131,0 +156,62 @@ pub async fn exchange_user_token(
 +#[cfg(test)]
 +mod auth_fault_tests {
 +    use super::*;
@@ -7205,10 +7864,13 @@ diff --git c/crates/xodus/src/api/live/mod.rs w/crates/xodus/src/api/live/mod.rs
 +            } else { assert!(matches!(result,Ok(ExchangeUserTokenOutcome::Fault(None)))); }
 +        }
 +    }
-@@ -145 +231 @@
++}
++
+@@ -145 +231 @@ mod test {
 -        ensure_device_credentials(&client, &mgr).await;
 +        ensure_device_credentials(&client, &mgr).await.unwrap();
 diff --git c/crates/xodus/src/api/live/rst/error.rs w/crates/xodus/src/api/live/rst/error.rs
+index 5e5789b..55983f0 100644
 --- c/crates/xodus/src/api/live/rst/error.rs
 +++ w/crates/xodus/src/api/live/rst/error.rs
 @@ -0,0 +1,15 @@
@@ -7227,7 +7889,7 @@ diff --git c/crates/xodus/src/api/live/rst/error.rs w/crates/xodus/src/api/live/
 +    RateLimit,
 +}
 +
-@@ -2,0 +18,14 @@
+@@ -2,0 +18,14 @@ pub enum RSTError {
 +    // This context is fixed metadata. Never display the source: parser and
 +    // signature errors may contain credentials, URLs or server response text.
 +    #[error("Microsoft response processing failed at {step:?}")]
@@ -7242,7 +7904,7 @@ diff --git c/crates/xodus/src/api/live/rst/error.rs w/crates/xodus/src/api/live/
 +    InvalidCredential,
 +    #[error("Invalid token response")]
 +    InvalidResponse,
-@@ -23,0 +53,6 @@
+@@ -23,0 +53,6 @@ pub enum RSTError {
 +impl RSTError {
 +    pub fn at(self, step: ResponseStep) -> Self {
 +        Self::Response { step, source: Box::new(self) }
@@ -7250,23 +7912,26 @@ diff --git c/crates/xodus/src/api/live/rst/error.rs w/crates/xodus/src/api/live/
 +}
 +
 diff --git c/crates/xodus/src/api/live/rst/request.rs w/crates/xodus/src/api/live/rst/request.rs
+index 8fff9ae..c5110cc 100644
 --- c/crates/xodus/src/api/live/rst/request.rs
 +++ w/crates/xodus/src/api/live/rst/request.rs
-@@ -6,0 +7,3 @@
+@@ -6,0 +7,3 @@ use crate::models::soap;
 +use super::{RSTError, ResponseStep};
 +
 +const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
-@@ -18 +21 @@
+@@ -18 +21 @@ impl<'a> RSTRequest<'a> {
 -    ) -> Result<soap::Envelope, super::RSTError> {
 +    ) -> Result<soap::ResponseEnvelope, RSTError> {
-@@ -20 +23 @@
+@@ -20 +23 @@ impl<'a> RSTRequest<'a> {
 -        let response = client
 +        let mut response = client
-@@ -25,0 +29 @@
+@@ -25,0 +29 @@ impl<'a> RSTRequest<'a> {
 +        .timeout(std::time::Duration::from_secs(15))
-@@ -29,2 +33,18 @@
+@@ -29,4 +33,16 @@ impl<'a> RSTRequest<'a> {
 -        let response_text = response.text().await?;
 -        let envelope: soap::Envelope = quick_xml::de::from_str(&response_text)?;
+-
+-        verify_and_decrypt_envelope(self.signature, response_text, envelope)
 +        // SOAP faults can use HTTP 500. Parse them, but bound the body before
 +        // allocation and never treat an HTTP error with an issued token as success.
 +        let status = response.status();
@@ -7283,10 +7948,7 @@ diff --git c/crates/xodus/src/api/live/rst/request.rs w/crates/xodus/src/api/liv
 +        let response_text = String::from_utf8(bytes)
 +            .map_err(|_| RSTError::InvalidResponse.at(ResponseStep::Encoding))?;
 +        parse_response(self.signature, response_text, status)
-+    }
-+}
-@@ -32 +52,12 @@
--        verify_and_decrypt_envelope(self.signature, response_text, envelope)
+@@ -35,0 +52,16 @@ impl<'a> RSTRequest<'a> {
 +fn parse_response(
 +    signature: Option<super::RSTSignature<'_>>,
 +    response_text: String,
@@ -7299,9 +7961,11 @@ diff --git c/crates/xodus/src/api/live/rst/request.rs w/crates/xodus/src/api/liv
 +    let envelope = verify_and_decrypt_envelope(signature, response_text, envelope)?;
 +    if !status.is_success() && !matches!(envelope.body.body, soap::BodyContent::Fault(_)) {
 +        return Err(RSTError::InvalidResponse.at(ResponseStep::HttpStatus));
-@@ -33,0 +65 @@
++    }
 +    Ok(envelope)
-@@ -39,2 +71,10 @@
++}
++
+@@ -39,2 +71,10 @@ fn verify_and_decrypt_envelope<'a>(
 -    mut envelope: soap::Envelope,
 -) -> Result<soap::Envelope, super::RSTError> {
 +    mut envelope: soap::ResponseEnvelope,
@@ -7314,40 +7978,40 @@ diff --git c/crates/xodus/src/api/live/rst/request.rs w/crates/xodus/src/api/liv
 +    {
 +        return Err(RSTError::InvalidResponse.at(ResponseStep::Shape));
 +    }
-@@ -44,0 +85,6 @@
+@@ -44,0 +85,6 @@ fn verify_and_decrypt_envelope<'a>(
 +    let Some(security) = envelope.header.security.as_ref() else {
 +        if envelope.header.encrypted_pp.is_some() {
 +            return Err(RSTError::MissingNonce.at(ResponseStep::ChallengeDecryption));
 +        }
 +        return Ok(envelope); // A plain fault, never an issued or encrypted token.
 +    };
-@@ -46,3 +92 @@
+@@ -46,3 +92 @@ fn verify_and_decrypt_envelope<'a>(
 -    let nonces: HashMap<String, String> = envelope
 -        .header
 -        .security
 +    let nonces: HashMap<String, String> = security
-@@ -54,3 +98,3 @@
+@@ -54,3 +98,3 @@ fn verify_and_decrypt_envelope<'a>(
 -    if let Some(security_signature) = &envelope.header.security.signature
 -        && let Some(key_info) = &security_signature.key_info
 -    {
 +    if let Some(security_signature) = &security.signature {
 +        (|| -> Result<(), RSTError> {
 +        let key_info = security_signature.key_info.as_ref().ok_or(RSTError::MissingNonce)?;
-@@ -58 +102,2 @@
+@@ -58 +102,2 @@ fn verify_and_decrypt_envelope<'a>(
 -        let nonce = nonces.get(&id[1..]).ok_or(super::RSTError::MissingNonce)?;
 +        let id = id.strip_prefix('#').filter(|id| !id.is_empty()).ok_or(super::RSTError::MissingNonce)?;
 +        let nonce = nonces.get(id).ok_or(super::RSTError::MissingNonce)?;
-@@ -70,0 +116,2 @@
+@@ -70,0 +116,2 @@ fn verify_and_decrypt_envelope<'a>(
 +        Ok(())
 +        })().map_err(|error| error.at(ResponseStep::Signature))?;
-@@ -81 +128 @@
+@@ -81 +128 @@ fn verify_and_decrypt_envelope<'a>(
 -        )?;
 +        ).map_err(|error| at_decryption(error, ResponseStep::ChallengeDecryption, ResponseStep::ChallengeXml))?;
-@@ -87 +134,2 @@
+@@ -87 +134,2 @@ fn verify_and_decrypt_envelope<'a>(
 -        envelope.body.body = utils::decrypt_soap_encrypted_data(enc_data, &signature, &nonces)?;
 +        envelope.body.body = utils::decrypt_soap_encrypted_data(enc_data, &signature, &nonces)
 +            .map_err(|error| at_decryption(error, ResponseStep::BodyDecryption, ResponseStep::BodyXml))?;
-@@ -91,0 +140,8 @@
+@@ -91,0 +140,8 @@ fn verify_and_decrypt_envelope<'a>(
 +
 +fn at_decryption(error: RSTError, decryption: ResponseStep, xml: ResponseStep) -> RSTError {
 +    let step = if matches!(error, RSTError::Deserialization(_)) { xml } else { decryption };
@@ -7358,6 +8022,7 @@ diff --git c/crates/xodus/src/api/live/rst/request.rs w/crates/xodus/src/api/liv
 +mod tests;
 diff --git c/crates/xodus/src/api/live/rst/request/tests.rs w/crates/xodus/src/api/live/rst/request/tests.rs
 new file mode 100644
+index 0000000..44dfbbe
 --- /dev/null
 +++ w/crates/xodus/src/api/live/rst/request/tests.rs
 @@ -0,0 +1,267 @@
@@ -7629,33 +8294,34 @@ new file mode 100644
 +        Err(RSTError::Response { step: ResponseStep::BodyXml, .. })));
 +}
 diff --git c/crates/xodus/src/api/live/utils.rs w/crates/xodus/src/api/live/utils.rs
+index 33c3d62..abaf9f4 100644
 --- c/crates/xodus/src/api/live/utils.rs
 +++ w/crates/xodus/src/api/live/utils.rs
-@@ -4 +4 @@
+@@ -4 +4 @@ use std::collections::HashMap;
 -use aes::cipher::block_padding::Pkcs7;
 +use aes::cipher::block_padding::NoPadding;
-@@ -104,4 +104,2 @@
+@@ -104,4 +104,2 @@ pub fn decrypt_soap_encrypted_data<T: serde::de::DeserializeOwned>(
 -    let id = &encrypted_data
 -        .key_info
 -        .as_signature()
 -        .security_token_reference
 +    let id = &encrypted_data.key_info.security_token_reference
 +        .as_ref().ok_or(rst::RSTError::MissingNonce)?
-@@ -111 +109,2 @@
+@@ -111 +109,2 @@ pub fn decrypt_soap_encrypted_data<T: serde::de::DeserializeOwned>(
 -    let nonce = nonces.get(&id[1..]).ok_or(rst::RSTError::MissingNonce)?;
 +    let id = id.strip_prefix('#').filter(|id| !id.is_empty()).ok_or(rst::RSTError::MissingNonce)?;
 +    let nonce = nonces.get(id).ok_or(rst::RSTError::MissingNonce)?;
-@@ -115,0 +115,6 @@
+@@ -115,0 +115,6 @@ pub fn decrypt_soap_encrypted_data<T: serde::de::DeserializeOwned>(
 +    if encrypted_data.encryption_method.algorithm != "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
 +        || cipher_value.len() < 32 || cipher_value.len() > 2 * 1024 * 1024
 +        || cipher_value.len() % 16 != 0
 +    {
 +        return Err(rst::RSTError::InvalidResponse);
 +    }
-@@ -117 +122 @@
+@@ -117 +122 @@ pub fn decrypt_soap_encrypted_data<T: serde::de::DeserializeOwned>(
 -    let iv: &[u8; 16] = iv.try_into().unwrap();
 +    let iv: &[u8; 16] = iv.try_into().map_err(|_| rst::RSTError::InvalidResponse)?;
-@@ -119,6 +124,11 @@
+@@ -119,6 +124,11 @@ pub fn decrypt_soap_encrypted_data<T: serde::de::DeserializeOwned>(
 -    let mut block = [0; 8192];
 -
 -    decryptor
@@ -7674,17 +8340,19 @@ diff --git c/crates/xodus/src/api/live/utils.rs w/crates/xodus/src/api/live/util
 +    let result = std::str::from_utf8(&plaintext[..plaintext.len() - padding])
 +        .map_err(|_| rst::RSTError::InvalidResponse)?;
 diff --git c/crates/xodus/src/licensing/splicense.rs w/crates/xodus/src/licensing/splicense.rs
+index 45852b8..0440b32 100644
 --- c/crates/xodus/src/licensing/splicense.rs
 +++ w/crates/xodus/src/licensing/splicense.rs
-@@ -388,0 +389,4 @@
+@@ -388,0 +389,4 @@ impl ClepSignState {
 +    pub fn try_get_rsa_key(&self) -> Option<BCryptRsaBlock> {
 +        (self.version == 4).then(|| BCryptRsaBlock(decrypt_cbc_zero_iv(self.key_schedule, &self.key_data)))
 +    }
 +
 diff --git c/crates/xodus/src/models/soap/base.rs w/crates/xodus/src/models/soap/base.rs
+index 07bf70f..2349139 100644
 --- c/crates/xodus/src/models/soap/base.rs
 +++ w/crates/xodus/src/models/soap/base.rs
-@@ -13 +13,27 @@
+@@ -13 +13,27 @@ pub struct MustUnderstandValue {
 -pub struct Fault {}
 +pub struct Fault {
 +    #[serde(rename = "faultcode", skip_serializing_if = "Option::is_none")]
@@ -7713,7 +8381,7 @@ diff --git c/crates/xodus/src/models/soap/base.rs w/crates/xodus/src/models/soap
 +                Some("FailedAuthentication" | "InvalidSecurityToken")))
 +    }
 +}
-@@ -121,0 +148,16 @@
+@@ -121,0 +148,16 @@ pub struct PP {
 +
 +impl PP {
 +    /// The same Microsoft HTTPS challenge is usable by interactive login and
@@ -7731,10 +8399,10 @@ diff --git c/crates/xodus/src/models/soap/base.rs w/crates/xodus/src/models/soap
 +    }
 +}
 diff --git c/crates/xodus/src/models/soap/envelope.rs w/crates/xodus/src/models/soap/envelope.rs
+index 2b629a0..dfc5e2f 100644
 --- c/crates/xodus/src/models/soap/envelope.rs
 +++ w/crates/xodus/src/models/soap/envelope.rs
-@@ -9,0 +10,26 @@
-+
+@@ -10,0 +11,26 @@ use super::tokens::{
 +// Response headers differ from the headers we send. In particular, Microsoft
 +// can return a plain SOAP fault containing only PP and its inline challenge.
 +// Keep request construction strict, and validate successful response headers
@@ -7760,10 +8428,81 @@ diff --git c/crates/xodus/src/models/soap/envelope.rs w/crates/xodus/src/models/
 +    #[serde(rename = "pp")]
 +    pub pp: Option<PP>,
 +}
++
+diff --git c/crates/xodus/src/models/soap/tokens.rs w/crates/xodus/src/models/soap/tokens.rs
+index 8d1a87e..d021d42 100644
+--- c/crates/xodus/src/models/soap/tokens.rs
++++ w/crates/xodus/src/models/soap/tokens.rs
+@@ -3 +3 @@ use serde::{Deserialize, Serialize};
+-use super::base::{AppliesTo, PolicyReference, Timestamp};
++use super::base::{AppliesTo, PP, PolicyReference, Timestamp};
+@@ -96 +96 @@ pub struct RequestMultipleSecurityTokens {
+-#[derive(Debug, Clone, Serialize, Deserialize)]
++#[derive(Debug, Clone, Serialize)]
+@@ -102,0 +103,58 @@ pub struct RequestSecurityTokenResponseCollection {
++    #[serde(rename = "wst:RequestSecurityTokenResponse", skip_serializing_if = "Vec::is_empty")]
++    pub challenges: Vec<ScopedTokenChallenge>,
++}
++
++#[derive(Debug, Clone, Serialize)]
++pub struct ScopedTokenChallenge {
++    #[serde(rename = "wsp:AppliesTo")]
++    pub applies_to: AppliesTo,
++    #[serde(rename = "psf:pp")]
++    pub pp: PP,
++}
++
++// A multi-scope reply can issue one token and return a verification step for
++// another scope. Only this wire model accepts absent issued-token fields;
++// callers still receive either a complete token or an explicit challenge.
++#[derive(Deserialize)]
++struct TokenResponseWire {
++    #[serde(rename = "AppliesTo")]
++    applies_to: AppliesTo,
++    #[serde(rename = "TokenType")]
++    token_type: Option<String>,
++    #[serde(rename = "Lifetime")]
++    lifetime: Option<Timestamp>,
++    #[serde(rename = "RequestedSecurityToken")]
++    requested_security_token: Option<RequestedSecurityToken>,
++    #[serde(rename = "RequestedProofToken")]
++    requested_proof_token: Option<RequestedProofToken>,
++    #[serde(rename = "pp")]
++    pp: Option<PP>,
++}
++
++impl<'de> Deserialize<'de> for RequestSecurityTokenResponseCollection {
++    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
++        #[derive(Deserialize)]
++        struct CollectionWire {
++            #[serde(rename = "RequestSecurityTokenResponse")]
++            responses: Vec<TokenResponseWire>,
++        }
++        let wire = CollectionWire::deserialize(deserializer)?;
++        let mut result = Self { security_tokens: Vec::new(), challenges: Vec::new() };
++        for response in wire.responses {
++            match (response.token_type, response.lifetime, response.requested_security_token) {
++                (Some(token_type), Some(lifetime), Some(requested_security_token)) => {
++                    result.security_tokens.push(RequestSecurityTokenResponse {
++                        token_type, lifetime, requested_security_token,
++                        applies_to: response.applies_to,
++                        requested_proof_token: response.requested_proof_token,
++                    });
++                }
++                (None, None, None) if response.requested_proof_token.is_none() => {
++                    let pp = response.pp.ok_or_else(|| serde::de::Error::custom("missing token or verification step"))?;
++                    result.challenges.push(ScopedTokenChallenge { applies_to: response.applies_to, pp });
++                }
++                _ => return Err(serde::de::Error::custom("incomplete token response")),
++            }
++        }
++        Ok(result)
++    }
 diff --git c/crates/xodus/src/models/xgameruntime/xuser.rs w/crates/xodus/src/models/xgameruntime/xuser.rs
+index 10d2158..6b6ec06 100644
 --- c/crates/xodus/src/models/xgameruntime/xuser.rs
 +++ w/crates/xodus/src/models/xgameruntime/xuser.rs
-@@ -20,0 +21,36 @@
+@@ -20,0 +21,36 @@ pub struct MSATokenResponse {
 +
 +impl MSATokenResponse {
 +    /// Broker-issued RPS tickets only. Device failure does not turn a valid
@@ -7801,13 +8540,14 @@ diff --git c/crates/xodus/src/models/xgameruntime/xuser.rs w/crates/xodus/src/mo
 +    }
 +}
 diff --git c/crates/xodus/src/secrets.rs w/crates/xodus/src/secrets.rs
+index dba6b2f..e56ec8a 100644
 --- c/crates/xodus/src/secrets.rs
 +++ w/crates/xodus/src/secrets.rs
-@@ -1,0 +2,3 @@
-+
+@@ -2,0 +3,3 @@ pub static SERVICE_NAME: &str = "Xodus Service";
 +#[cfg(feature = "key-chain-file")]
 +mod file;
-@@ -6,6 +9,5 @@
++
+@@ -6,6 +9,5 @@ pub fn init_secrets() -> Result<(), keyring_core::Error> {
 -        let store = keyring_core::sample::Store::new_with_backing(
 -            secrets_backing_file()
 -                .to_str()
@@ -7819,7 +8559,7 @@ diff --git c/crates/xodus/src/secrets.rs w/crates/xodus/src/secrets.rs
 +        // changes made by another CLI or service process.
 +        file::initialize(&secrets_backing_file())
 +            .map_err(|err| keyring_core::Error::PlatformFailure(Box::new(err)))?;
-@@ -38,2 +40,14 @@
+@@ -38,2 +40,14 @@ pub fn init_secrets() -> Result<(), keyring_core::Error> {
 -pub fn get_entry(user: &str) -> Result<keyring_core::Entry, keyring_core::Error> {
 -    keyring_core::Entry::new(SERVICE_NAME, user)
 +pub(crate) fn with_entry<T>(
@@ -7836,13 +8576,13 @@ diff --git c/crates/xodus/src/secrets.rs w/crates/xodus/src/secrets.rs
 +        let _ = write;
 +        operation(&keyring_core::Entry::new(SERVICE_NAME, user)?)
 +    }
-@@ -42,0 +57 @@
+@@ -42,0 +57 @@ pub fn destroy_secrets() {
 +    #[cfg(not(feature = "key-chain-file"))]
-@@ -47,0 +63,3 @@
+@@ -47,0 +63,3 @@ fn secrets_backing_file() -> std::path::PathBuf {
 +    if let Some(path) = std::env::var_os("XODUS_KEYRING_FILE") {
 +        return path.into();
 +    }
-@@ -53,0 +72,51 @@
+@@ -53,0 +72,51 @@ fn secrets_backing_file() -> std::path::PathBuf {
 +
 +#[cfg(feature = "key-chain-file")]
 +fn prepare_private_backing_file(path: &std::path::Path) -> std::io::Result<()> {
@@ -7896,6 +8636,7 @@ diff --git c/crates/xodus/src/secrets.rs w/crates/xodus/src/secrets.rs
 +}
 diff --git c/crates/xodus/src/secrets/file.rs w/crates/xodus/src/secrets/file.rs
 new file mode 100644
+index 0000000..ac12432
 --- /dev/null
 +++ w/crates/xodus/src/secrets/file.rs
 @@ -0,0 +1,88 @@
@@ -7989,6 +8730,7 @@ new file mode 100644
 +mod tests;
 diff --git c/crates/xodus/src/secrets/file/tests.rs w/crates/xodus/src/secrets/file/tests.rs
 new file mode 100644
+index 0000000..54a990b
 --- /dev/null
 +++ w/crates/xodus/src/secrets/file/tests.rs
 @@ -0,0 +1,123 @@
@@ -8116,14 +8858,16 @@ new file mode 100644
 +    assert_eq!(std::fs::read(&target).unwrap(), b"untouched");
 +}
 diff --git c/crates/xodus/src/tokens.rs w/crates/xodus/src/tokens.rs
+index 7b7fd9a..b8de5e1 100644
 --- c/crates/xodus/src/tokens.rs
 +++ w/crates/xodus/src/tokens.rs
-@@ -3,0 +4 @@
+@@ -3,0 +4 @@ pub mod manager;
 +pub mod session;
 diff --git c/crates/xodus/src/tokens/backend/keychain.rs w/crates/xodus/src/tokens/backend/keychain.rs
+index 6aa6cde..3937a17 100644
 --- c/crates/xodus/src/tokens/backend/keychain.rs
 +++ w/crates/xodus/src/tokens/backend/keychain.rs
-@@ -7,6 +7 @@
+@@ -7,6 +7 @@ impl TokenBackend for KeychainBackend {
 -        let entry = crate::secrets::get_entry(key)?;
 -        match entry.get_secret() {
 -            Ok(bytes) => Ok(Some(bytes)),
@@ -8131,10 +8875,10 @@ diff --git c/crates/xodus/src/tokens/backend/keychain.rs w/crates/xodus/src/toke
 -            Err(e) => Err(e.into()),
 -        }
 +        crate::secrets::with_entry(key, false, read_entry)
-@@ -16 +11 @@
+@@ -16 +11 @@ impl TokenBackend for KeychainBackend {
 -        Ok(crate::secrets::get_entry(key)?.set_secret(value)?)
 +        crate::secrets::with_entry(key, true, |entry| Ok(entry.set_secret(value)?))
-@@ -20 +15,11 @@
+@@ -20 +15,19 @@ impl TokenBackend for KeychainBackend {
 -        Ok(crate::secrets::get_entry(key)?.delete_credential()?)
 +        crate::secrets::with_entry(key, true, |entry| Ok(entry.delete_credential()?))
 +    }
@@ -8147,29 +8891,29 @@ diff --git c/crates/xodus/src/tokens/backend/keychain.rs w/crates/xodus/src/toke
 +        crate::secrets::with_entry(key, true, |entry| {
 +            Ok(entry.set_secret(&update(read_entry(entry)?)?)?)
 +        })
-@@ -22,0 +28,8 @@
++    }
++}
 +
 +fn read_entry(entry: &keyring_core::Entry) -> Result<Option<Vec<u8>>, TokenStoreError> {
 +    match entry.get_secret() {
 +        Ok(bytes) => Ok(Some(bytes)),
 +        Err(keyring_core::Error::NoEntry) => Ok(None),
 +        Err(err) => Err(err.into()),
-+    }
-+}
 diff --git c/crates/xodus/src/tokens/device.rs w/crates/xodus/src/tokens/device.rs
+index ec363e4..1d3e0d9 100644
 --- c/crates/xodus/src/tokens/device.rs
 +++ w/crates/xodus/src/tokens/device.rs
-@@ -2,2 +2 @@
+@@ -2,2 +2 @@ use crate::hardware;
 -use crate::licensing::splicense::SPLicense;
 -use crate::licensing::utils::{generate_string, parse_bcrypt_rsa_private};
 +use crate::licensing::utils::generate_string;
-@@ -6 +5 @@
+@@ -6 +5 @@ use crate::models::secrets::Device;
 -use crate::models::soap::BodyContent;
 +use super::{session::{SessionError, renew_device}, store::TokenStoreError};
-@@ -11 +10 @@
+@@ -11 +10 @@ use crate::tokens::manager::TokenManager;
 -pub async fn ensure_device_credentials(client: &reqwest::Client, tokens: &TokenManager) {
 +pub async fn ensure_device_credentials(client: &reqwest::Client, tokens: &TokenManager) -> Result<(), SessionError> {
-@@ -13,3 +12,4 @@
+@@ -13,3 +12,4 @@ pub async fn ensure_device_credentials(client: &reqwest::Client, tokens: &TokenM
 -        Err(_) => provision_device(client, tokens).await,
 -        Ok(license) if tokens.get_device_sts_token().is_err() => {
 -            reauthenticate_device(client, tokens, license).await
@@ -8177,24 +8921,24 @@ diff --git c/crates/xodus/src/tokens/device.rs w/crates/xodus/src/tokens/device.
 +        Err(error) => Err(error.into()),
 +        Ok(_) if !device_token_is_current(tokens.get_device_sts_token().ok().as_ref()) => {
 +            renew_device(client, tokens).await.map(|_|())
-@@ -17 +17 @@
+@@ -17 +17 @@ pub async fn ensure_device_credentials(client: &reqwest::Client, tokens: &TokenM
 -        Ok(_) => {}
 +        Ok(_) => Ok(()),
-@@ -21 +21 @@
+@@ -21 +21 @@ pub async fn ensure_device_credentials(client: &reqwest::Client, tokens: &TokenM
 -async fn provision_device(client: &reqwest::Client, tokens: &TokenManager) {
 +async fn provision_device(client: &reqwest::Client, tokens: &TokenManager) -> Result<(), SessionError> {
-@@ -35,2 +35 @@
+@@ -35,2 +35 @@ async fn provision_device(client: &reqwest::Client, tokens: &TokenManager) {
 -        .await
 -        .expect("Failed to get device creds");
 +        .await?;
-@@ -48,2 +47 @@
+@@ -48,2 +47 @@ async fn provision_device(client: &reqwest::Client, tokens: &TokenManager) {
 -        .save_device_license(&device)
 -        .expect("Failed to save device license");
 +        .save_device_license(&device)?;
-@@ -51 +49 @@
+@@ -51 +49 @@ async fn provision_device(client: &reqwest::Client, tokens: &TokenManager) {
 -    reauthenticate_device(client, tokens, device).await;
 +    renew_device(client, tokens).await.map(|_|())
-@@ -54,12 +52,42 @@
+@@ -54,12 +52,42 @@ async fn provision_device(client: &reqwest::Client, tokens: &TokenManager) {
 -async fn reauthenticate_device(client: &reqwest::Client, tokens: &TokenManager, license: Device) {
 -    let sp_license =
 -        SPLicense::parse_base64(&license.splicense).expect("Failed to parse SPLicense");
@@ -8249,7 +8993,7 @@ diff --git c/crates/xodus/src/tokens/device.rs w/crates/xodus/src/tokens/device.
 +        assert!(device_token_is_current(Some(&token(
 +            "2999-01-01T00:00:00Z"
 +        ))));
-@@ -68,20 +95,0 @@
+@@ -68,20 +95,0 @@ async fn reauthenticate_device(client: &reqwest::Client, tokens: &TokenManager,
 -
 -fn save_device_sts_token(
 -    tokens: &TokenManager,
@@ -8271,15 +9015,14 @@ diff --git c/crates/xodus/src/tokens/device.rs w/crates/xodus/src/tokens/device.
 -        .expect("Failed to save device token");
 -}
 diff --git c/crates/xodus/src/tokens/manager.rs w/crates/xodus/src/tokens/manager.rs
+index aeb9897..fc0758f 100644
 --- c/crates/xodus/src/tokens/manager.rs
 +++ w/crates/xodus/src/tokens/manager.rs
-@@ -26,0 +27 @@
+@@ -26,0 +27 @@ pub struct TokenManager {
 +    pub(crate) session_refresh: Arc<tokio::sync::Mutex<super::session::RefreshState>>,
-@@ -36,0 +38 @@
+@@ -36,0 +38 @@ impl TokenManager {
 +            session_refresh: Default::default(),
-@@ -110,0 +113,17 @@
-+    }
-+
+@@ -112,0 +115,17 @@ impl TokenManager {
 +    /// Do not overwrite a credential published by another login or refresh.
 +    pub(crate) fn replace_user_sts(&self, old: &Token, new: &Token) -> Result<bool, TokenStoreError> {
 +        use std::sync::atomic::{AtomicBool, Ordering};
@@ -8295,7 +9038,9 @@ diff --git c/crates/xodus/src/tokens/manager.rs w/crates/xodus/src/tokens/manage
 +            Ok(serde_json::to_vec(&store)?)
 +        })?;
 +        Ok(replaced.load(Ordering::Relaxed))
-@@ -171,8 +190,10 @@
++    }
++
+@@ -171,8 +190,10 @@ impl TokenManager {
 -        let mut tokens: HashMap<String, Token> = match backend.get(key)? {
 -            Some(bytes) if !bytes.is_empty() => {
 -                serde_json::from_slice::<TokenStore>(&bytes)?.tokens
@@ -8316,6 +9061,7 @@ diff --git c/crates/xodus/src/tokens/manager.rs w/crates/xodus/src/tokens/manage
 +        })
 diff --git c/crates/xodus/src/tokens/session.rs w/crates/xodus/src/tokens/session.rs
 new file mode 100644
+index 0000000..ecc84b4
 --- /dev/null
 +++ w/crates/xodus/src/tokens/session.rs
 @@ -0,0 +1,172 @@
@@ -8493,6 +9239,7 @@ new file mode 100644
 +mod tests;
 diff --git c/crates/xodus/src/tokens/session/tests.rs w/crates/xodus/src/tokens/session/tests.rs
 new file mode 100644
+index 0000000..3ef1f05
 --- /dev/null
 +++ w/crates/xodus/src/tokens/session/tests.rs
 @@ -0,0 +1,119 @@
@@ -8616,9 +9363,10 @@ new file mode 100644
 +    }
 +}
 diff --git c/crates/xodus/src/tokens/store.rs w/crates/xodus/src/tokens/store.rs
+index 76d2329..d218ecb 100644
 --- c/crates/xodus/src/tokens/store.rs
 +++ w/crates/xodus/src/tokens/store.rs
-@@ -6,0 +7,8 @@
+@@ -6,0 +7,8 @@ pub trait TokenBackend: Send + Sync {
 +
 +    fn update(
 +        &self,
@@ -8627,72 +9375,3 @@ diff --git c/crates/xodus/src/tokens/store.rs w/crates/xodus/src/tokens/store.rs
 +    ) -> Result<(), TokenStoreError> {
 +        self.set(key, &update(self.get(key)?)?)
 +    }
-diff --git c/crates/xodus/src/models/soap/tokens.rs w/crates/xodus/src/models/soap/tokens.rs
---- c/crates/xodus/src/models/soap/tokens.rs
-+++ w/crates/xodus/src/models/soap/tokens.rs
-@@ -3 +3 @@
--use super::base::{AppliesTo, PolicyReference, Timestamp};
-+use super::base::{AppliesTo, PP, PolicyReference, Timestamp};
-@@ -96 +96 @@
--#[derive(Debug, Clone, Serialize, Deserialize)]
-+#[derive(Debug, Clone, Serialize)]
-@@ -102,0 +103,2 @@
-+    #[serde(rename = "wst:RequestSecurityTokenResponse", skip_serializing_if = "Vec::is_empty")]
-+    pub challenges: Vec<ScopedTokenChallenge>,
-@@ -103,0 +106,56 @@
-+
-+#[derive(Debug, Clone, Serialize)]
-+pub struct ScopedTokenChallenge {
-+    #[serde(rename = "wsp:AppliesTo")]
-+    pub applies_to: AppliesTo,
-+    #[serde(rename = "psf:pp")]
-+    pub pp: PP,
-+}
-+
-+// A multi-scope reply can issue one token and return a verification step for
-+// another scope. Only this wire model accepts absent issued-token fields;
-+// callers still receive either a complete token or an explicit challenge.
-+#[derive(Deserialize)]
-+struct TokenResponseWire {
-+    #[serde(rename = "AppliesTo")]
-+    applies_to: AppliesTo,
-+    #[serde(rename = "TokenType")]
-+    token_type: Option<String>,
-+    #[serde(rename = "Lifetime")]
-+    lifetime: Option<Timestamp>,
-+    #[serde(rename = "RequestedSecurityToken")]
-+    requested_security_token: Option<RequestedSecurityToken>,
-+    #[serde(rename = "RequestedProofToken")]
-+    requested_proof_token: Option<RequestedProofToken>,
-+    #[serde(rename = "pp")]
-+    pp: Option<PP>,
-+}
-+
-+impl<'de> Deserialize<'de> for RequestSecurityTokenResponseCollection {
-+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-+        #[derive(Deserialize)]
-+        struct CollectionWire {
-+            #[serde(rename = "RequestSecurityTokenResponse")]
-+            responses: Vec<TokenResponseWire>,
-+        }
-+        let wire = CollectionWire::deserialize(deserializer)?;
-+        let mut result = Self { security_tokens: Vec::new(), challenges: Vec::new() };
-+        for response in wire.responses {
-+            match (response.token_type, response.lifetime, response.requested_security_token) {
-+                (Some(token_type), Some(lifetime), Some(requested_security_token)) => {
-+                    result.security_tokens.push(RequestSecurityTokenResponse {
-+                        token_type, lifetime, requested_security_token,
-+                        applies_to: response.applies_to,
-+                        requested_proof_token: response.requested_proof_token,
-+                    });
-+                }
-+                (None, None, None) if response.requested_proof_token.is_none() => {
-+                    let pp = response.pp.ok_or_else(|| serde::de::Error::custom("missing token or verification step"))?;
-+                    result.challenges.push(ScopedTokenChallenge { applies_to: response.applies_to, pp });
-+                }
-+                _ => return Err(serde::de::Error::custom("incomplete token response")),
-+            }
-+        }
-+        Ok(result)
-+    }
-+}

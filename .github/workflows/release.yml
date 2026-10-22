@@ -89,13 +89,13 @@ jobs:
             --output build/release-assets
           build/flightdeck-tools source-release --output "build/release-assets/flightdeck-source-${RELEASE_VERSION}.tar.gz"
           build/flightdeck-tools release unpack --archive build/release-assets/Flightdeck-Linux-x86_64.tar.gz --output build/release-current
-      - name: Test actual installation, service handoff and rollback against published 0.2.13
+      - name: Test actual installation, service handoff and rollback against published 0.2.14
         run: |
           build/flightdeck-tools package-check \
             --package build/release-current/flightdeck-linux \
             --previous-native build/release-previous/flightdeck-linux \
             --output build/release-package-check
-      - name: Bind the tested assets and unchanged corresponding sources to this commit
+      - name: Bind the tested assets and corresponding sources to this commit
         run: |
           build/flightdeck-tools release stage \
             --assets build/release-assets --cache build/release-inputs \

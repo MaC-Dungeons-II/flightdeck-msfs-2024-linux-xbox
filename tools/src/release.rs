@@ -21,7 +21,7 @@ pub const PACKAGE: &str = "Flightdeck-Linux-x86_64.tar.gz";
 const MAX_ARCHIVE: u64 = 512 * 1024 * 1024;
 
 /// What a release is built against: the previously published package for the
-/// update and rollback test, and the unchanged corresponding sources.
+/// update and rollback test, and the corresponding source archives.
 pub struct Pins {
     pub previous_base: &'static str,
     pub previous_sha: &'static str,
@@ -32,13 +32,13 @@ pub struct Pins {
 impl Pins {
     pub fn current() -> Self {
         Self {
-            previous_base: "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/download/v0.2.13/",
-            previous_sha: "462801b9d32515860817974fe9ddb9b9a0865027ee21841c3796e5072e2ea3f9",
-            native_sha: "19d2e97e327315dde4563d299dab07d6ff64e09d6df8f51a3a94b26db94751b6",
+            previous_base: "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/download/v0.2.14/",
+            previous_sha: "b146223173a2ee670c671944409404513670fb47d2c971ab2b2c6499e7bdab84",
+            native_sha: "ed5301bda7d63400846ee1d2b5f22e900dc866ebd88442ed766ae8627e2d1f2f",
             sources: [
                 (
-                    "flightdeck-native-sources-0.1.16.tar.gz",
-                    "bd9cab21421783b3f0cc2ce959aafa24522af17bbcfd2cbd41b2d74e3ab2e9c9",
+                    "flightdeck-native-sources-0.2.15.tar.gz",
+                    "15a37c24c34dfec8444c73c163d501c821c42ca4682f8c288a878fee1cfec386",
                 ),
                 (
                     "flightdeck-dxvk-0.1.11-sources.tar.gz",
@@ -352,7 +352,7 @@ fn sums(hashes: &BTreeMap<String, String>, names: &BTreeSet<String>) -> String {
         .collect()
 }
 
-/// Binds the tested assets and the unchanged corresponding sources to a commit.
+/// Binds the tested assets and corresponding sources to a commit.
 pub fn stage(
     root: &Path,
     pins: &Pins,
