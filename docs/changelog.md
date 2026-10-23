@@ -1,5 +1,19 @@
 # Changes and release status
 
+## 0.2.19 — in preparation, not published
+
+- Make Fenix game launches and helper commands explicitly use server
+  synchronization on the pinned Wine 11 generation with `PROTON_NO_NTSYNC=1`,
+  retaining the separate CachyOS 10 fast-sync switch. Previously the Wine 11
+  backend depended on whether the host exposed `/dev/ntsync`. This aligns
+  starts with the tested backend. The reporter confirmed that disabling
+  ntsync leaves both NVIDIA Display/Gateway failures unchanged in
+  [Fenix #7](https://github.com/marselnenaj/fenix-a320-linux-patch/issues/7#issuecomment-6362571590).
+- Keep the Fenix integration pinned to the public preview.10 archive while
+  the regular 0.1.0 patch release is prepared. Its future manifest and
+  verified candidate assets are retained in the unpublished Fenix release
+  draft; adopting them requires publication of the exact final archive.
+
 ## 0.2.18 — 23 October 2026
 
 Stable launcher release with the experimental Fenix patch preview.10.
