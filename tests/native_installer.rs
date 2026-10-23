@@ -11,7 +11,12 @@ use std::{
     os::unix::fs::{PermissionsExt, symlink},
     path::{Path, PathBuf},
     process::Command,
+    sync::{Mutex, MutexGuard},
 };
+// flock leases can be inherited by another test's fork until that child execs.
+// Keep real-binary spawning and synchronous install/rollback fixtures apart;
+// otherwise a released lease can briefly appear busy in the next assertion.
+static INSTALLER_TESTS: Mutex<()> = Mutex::new(());
 fn write(path: &Path, data: &[u8]) {
     files::private_dir(path.parent().unwrap()).unwrap();
     files::atomic(path, data).unwrap();
@@ -48,9 +53,11 @@ struct F {
     root: PathBuf,
     bin: PathBuf,
     apps: PathBuf,
+    _serial: MutexGuard<'static, ()>,
 }
 impl F {
     fn new() -> Self {
+        let serial = INSTALLER_TESTS.lock().unwrap_or_else(|e| e.into_inner());
         let t = tempfile::tempdir().unwrap();
         let result = Self {
             source: t.path().join("source"),
@@ -58,6 +65,7 @@ impl F {
             bin: t.path().join("bin"),
             apps: t.path().join("applications"),
             _temp: t,
+            _serial: serial,
         };
         source(&result.source, "one");
         result
