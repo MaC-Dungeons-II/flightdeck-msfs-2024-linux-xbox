@@ -2,16 +2,17 @@
 
 [Deutsch](known-issues.de.md) · [Documentation](index.md)
 
-Status: 21 October 2026, covering the stable **0.2.14** release.
-See the [release changes](changelog.md#0214--21-october-2026).
+Status: 23 October 2026, covering the stable **0.2.18** release.
+See the [release changes](changelog.md#0218--23-october-2026).
 
 - **NVIDIA:** Normal MSFS 2024 rendering is confirmed by user testing. Smaller
   issues remain possible, including a missing or black startup video. This does
   not qualify every GPU/driver combination, VR or NVIDIA's optional features.
   Version 0.2.13 prefers software H.264 decoding and fixes codec selection for
-  supported Proton builds. The RTX 5080 crash reported in
-  [issue #3](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/3)
-  still needs confirmation on the affected machine.
+  supported Proton builds. For the Nobara/RTX 5080 launch crash, the reporter
+  [confirms that an alternative Proton such as Proton-GE works](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/3#issuecomment-6348916712).
+  The default Xodus crash remains unresolved; the working Proton and Flightdeck
+  versions have not yet been supplied.
   If the main map or cockpit is also black, report it separately.
   [Graphics setup and reporting](graphics.md).
 - **Alternate Proton:** Version 0.2.14 repairs Xbox sign-in error
@@ -21,6 +22,13 @@ See the [release changes](changelog.md#0214--21-october-2026).
   [Issue #4](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4).
 - **VSync:** The one-third-refresh-rate limit exceeding 48 FPS on a 144 Hz
   screen, also reported in issue #4, remains unverified.
+- **Fenix v3:** Patch preview.10 is experimental. Official installation, login
+  and cockpit displays were checked on Xodus with Fenix 3.0.0.7454. One startup
+  hit Wine's `create_view` assertion; six later starts, including five warm
+  backend restarts, did not reproduce it. The cause, full-flight stability and
+  the earlier simulator display freeze remain unresolved. Other runners have
+  matching native module tests, but no real v3 cockpit qualification.
+  [Test sequence and limits](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.10/docs/fenix-v3.md).
 - **Fenix installation:** The message “application install hook failed” can
   leave FenixApp files present without completing setup. A reproduced ICU/.NET
   case is repairable; the generic warning alone does not identify the cause.
