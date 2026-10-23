@@ -226,7 +226,7 @@ a game crash or **Stop**, with a bounded fallback for stuck processes. Since
 installation or livery download there before quitting MSFS. Other Wine profiles
 are excluded from that cleanup.
 
-Flightdeck 0.2.18 pins patch **0.1.0-preview.10**. Installing the
+Flightdeck 0.2.19 pins patch **0.1.0-preview.11**. Installing the
 standalone patch does not update an existing Flightdeck launcher. Newer patch versions are adopted
 through a Flightdeck update; the launcher does not independently check for the
 latest Fenix patch on GitHub. Supported earlier patches update to Flightdeck's
@@ -264,22 +264,27 @@ engine/wing variant, simulator version and extra archive directory level.
 
 #### Compatibility and recovery
 
-**Fenix v3 is experimental.** Preview.10 completes the official Installer
-1.0.359, login and user-confirmed cockpit displays with Fenix **3.0.0.7454**,
-MSFS 2024 **1.8.16.0** and Xodus **11.0 / 7c0b4354**, using GPU displays and
-Legacy readouts. One startup hit Wine's `create_view` assertion; a fresh
-production-payload start and five warm backend restarts did not reproduce it.
-Its cause and long-session stability remain unknown. Real v3 cockpit tests on
-other runners, NVIDIA and full flights remain outstanding.
-[Detailed v3 results and limits](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.10/docs/fenix-v3.md).
+**Fenix v3 is experimental.** Preview.11 fixes the Gateway loader-name
+allowlist on all four pinned runners. On the reported **Fenix 3.0.0.7454 /
+Steam MSFS 2020 / CachyOS 11 / NVIDIA-PRIME** setup, the reporter confirms
+Gateway logging, port 8083 and a working EFB after this fix. GPU displays work
+with **USE DISPLAY SAFE MODE off** in the Fenix application; CPU mode remains
+an available fallback. These are community runtime results, backed by 64
+independent native process-name comparisons across the four patched runners.
+
+The earlier maintainer Xodus/MSFS 2024 test reached working cockpit displays
+and passed a fresh start plus five backend restarts. One earlier Wine
+`create_view` assertion remains unexplained, and full-flight v3 stability is
+unvalidated. The separate Fenix 2 System-memory growth remains open.
+[Gateway fix and scope](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.11/docs/gateway-loader-case.md).
 
 Earlier tested cockpit: Fenix 2.4.0.4720, MSFS 2024 1.8.16.0 and Hyprland. PFD/ND/ECAM,
 MCDU, clock, FCU and radio rendering were verified. Full-flight testing remains
 outstanding. The Xodus GPU path was checked with PFD, ND, ECAM and a moving
-airspeed tape on AMD. NVIDIA and GPU weather radar remain unvalidated; weather
+airspeed tape on AMD. NVIDIA support beyond the reported setup and GPU weather radar remain unvalidated; weather
 radar is unavailable in the CPU renderer. Earlier automatic CPU settings migrate
 to GPU on capable overlays, while a saved CPU preference survives updates.
-See the patch's [GPU scope and fallback instructions](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.10/docs/gpu-displays.md).
+See the patch's [GPU scope and fallback instructions](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.11/docs/gpu-displays.md).
 The binary preview
 requires x86_64 Linux and glibc 2.38+; Flightdeck's full native package still requires
 glibc 2.39+. Starting with 0.1.20, matched Fenix overlays are available for Proton

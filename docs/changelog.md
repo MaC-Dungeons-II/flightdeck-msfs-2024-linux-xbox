@@ -1,18 +1,20 @@
 # Changes and release status
 
-## 0.2.19 — in preparation, not published
+## 0.2.19 — 23 October 2026
 
-- Make Fenix game launches and helper commands explicitly use server
-  synchronization on the pinned Wine 11 generation with `PROTON_NO_NTSYNC=1`,
-  retaining the separate CachyOS 10 fast-sync switch. Previously the Wine 11
-  backend depended on whether the host exposed `/dev/ntsync`. This aligns
-  starts with the tested backend. The reporter confirmed that disabling
-  ntsync leaves both NVIDIA Display/Gateway failures unchanged in
-  [Fenix #7](https://github.com/marselnenaj/fenix-a320-linux-patch/issues/7#issuecomment-6362571590).
-- Keep the Fenix integration pinned to the public preview.10 archive while
-  the regular 0.1.0 patch release is prepared. Its future manifest and
-  verified candidate assets are retained in the unpublished Fenix release
-  draft; adopting them requires publication of the exact final archive.
+- Adopt [Fenix patch 0.1.0-preview.11](https://github.com/marselnenaj/fenix-a320-linux-patch/releases/tag/v0.1.0-preview.11),
+  including @malik05051's Gateway loader-name correction and matching PE NTDLL
+  for all four pinned runners. The reporter confirms a working Gateway/EFB and
+  GPU displays with **USE DISPLAY SAFE MODE off** on the affected NVIDIA setup.
+  Aircraft files, saved renderer preferences and restore points survive updates.
+- Make Fenix game launches and helper commands explicitly select the tested
+  server-synchronization backend on Wine 11 with `PROTON_NO_NTSYNC=1`, retaining
+  CachyOS 10's separate fast-sync switch. Synchronization alone did not fix #7;
+  the Gateway correction is the separate loader-name change above.
+- Retain the official v3 installer/startup and Direct2D Display-memory fixes.
+  Fenix v3 full-flight stability, an earlier Wine assertion and the separate
+  Fenix 2 System-memory growth remain open. The regular Fenix 0.1.0 release
+  remains in preparation.
 
 ## 0.2.18 — 23 October 2026
 
