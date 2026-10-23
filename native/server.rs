@@ -358,6 +358,7 @@ pub async fn serve(
                 state.active.is_some()
                     || state.launcher_updates.worker.is_some()
                     || state.startup_updates.worker.is_some()
+                    || state.fenix_updates.worker.is_some()
             } {
                 tokio::time::sleep(Duration::from_millis(50)).await;
             }

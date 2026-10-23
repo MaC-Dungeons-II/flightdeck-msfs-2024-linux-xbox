@@ -173,7 +173,7 @@ fn retry(root: &Path, state: &Value, ctx: &Context) -> Result<()> {
     Ok(())
 }
 pub fn verify_installed(root: &Path, state: &Value) -> Result<()> {
-    let current = bundle::manifest(state["variant"].as_str())?;
+    let current = crate::fenix_update::installed_manifest(state, state["variant"].as_str())?;
     let lock = if state["version"] == current["version"] {
         &current
     } else {
@@ -228,8 +228,8 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     host_check()?;
     validate(root, false)?;
     wine_processes::idle(&root.join("local/msfs-prefix"))?;
-    bundle::verify(payload)?;
-    let current = bundle::manifest(None)?;
+    bundle::verify_payload(payload)?;
+    let current = bundle::payload_manifest(payload, None)?;
     let marker = root.join(MARKER);
     let mut upgrade = None;
     if files::exists(&marker) {
@@ -260,7 +260,7 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     } else {
         bundle::runner_variant(&original_runner, false)?
     };
-    let lock = bundle::manifest(variant.as_deref())?;
+    let lock = bundle::payload_manifest(payload, variant.as_deref())?;
     let renderer = match &upgrade {
         Some(previous) => setup::DisplayRenderer::for_state(&lock, previous)?,
         None => setup::DisplayRenderer::from_manifest(&lock)?,
@@ -296,6 +296,13 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     files::private_dir(&backup)?;
     files::private_dir(&work)?;
     let mut state = json!({"format":1,"version":lock["version"],"state":"preparing","work":work.strip_prefix(root).map_err(|_|Error::Invalid("Invalid staging path."))?,"backup":backup.strip_prefix(root).map_err(|_|Error::Invalid("Invalid backup path."))?,"previous_runner":fs::read_link(root.join("runner"))?,"previous_prefix":format!("local/msfs-prefix.before-fenix-{stamp}"),"configured":false,"original_prefix_id":identity(&prefix)?,"variant":variant,"proton_before":optional(&root.join("private/proton-selection.json"))?});
+    let selected = crate::fenix_update::selected(ctx)?;
+    require(
+        selected["bundle"] == current,
+        "The selected Fenix release changed. Please retry.",
+    )?;
+    state["bundle_manifest"] = current;
+    state["bundle_release"] = selected["release"].clone();
     if let Some(previous) = &upgrade {
         files::atomic_json(&backup.join("previous-patch.json"), previous)?;
         for key in [
@@ -537,7 +544,7 @@ pub fn configure(ctx: &Context) -> Result<()> {
         "Finish patch installation first.",
     )?;
     verify_installed(root, &state)?;
-    let lock = bundle::manifest(state["variant"].as_str())?;
+    let lock = crate::fenix_update::installed_manifest(&state, state["variant"].as_str())?;
     let renderer = setup::DisplayRenderer::for_state(&lock, &state)?;
     let backup = tx::new_directory(
         &bundle::contained(root, string(&state, "backup")?)?,
@@ -836,7 +843,7 @@ fn windows_app_run(
     result
 }
 pub fn snapshot(app: &Launcher) -> Value {
-    let (root, busy, owned, closing, job) = {
+    let (root, busy, owned, closing, job, update_status, candidate, can_check_updates) = {
         let mut s = app.lock();
         Launcher::poll(&mut s);
         (
@@ -851,9 +858,17 @@ pub fn snapshot(app: &Launcher) -> Value {
                     j["runtime_path"].as_str() == s.runtime.as_ref().and_then(|p| p.to_str())
                 })
                 .unwrap_or(Value::Null),
+            s.fenix_updates.status.clone(),
+            s.fenix_updates.candidate.clone(),
+            !s.closing && s.fenix_updates.worker.is_none(),
         )
     };
     let mut value = json!({"state":"unavailable","version":bundle::manifest(None).ok().map(|v|v["version"].clone()),"configured":false,"installed":false,"fenix_installed":false,"can_restore":false,"can_retry":false,"manager_installed":false,"idle":false,"message":"Zuerst MSFS 2024 in Flightdeck einrichten.","job":job,"last_attempt":null,"runtime_path":root,"busy":busy||owned,"fenix_running":false,"can_stop":false,"can_change":false,"project":"https://github.com/marselnenaj/fenix-a320-linux-patch"});
+    value["patch_update"] = update_status;
+    value["can_check_updates"] = json!(can_check_updates);
+    if !candidate.is_null() {
+        value["version"] = candidate["bundle"]["version"].clone();
+    }
     if let Some(root) = root {
         // Jobs are intentionally transient. Keep only the selected runtime's
         // validated, structured evidence visible after a service restart too.
@@ -899,12 +914,32 @@ pub fn snapshot(app: &Launcher) -> Value {
                 value["can_restore"] = json!(state["migrated"] != true);
                 value["can_retry"] = json!(retryable(&root, &state));
                 value["installed_version"] = state["version"].clone();
+                let mut target = bundle::manifest(None)?;
+                if !candidate.is_null()
+                    && crate::fenix_update::version(string(&candidate["bundle"], "version")?)?
+                        > crate::fenix_update::version(string(&target, "version")?)?
+                    && (crate::fenix_update::version(string(&state, "version")?)?.1 != u32::MAX
+                        || crate::fenix_update::version(string(&candidate["bundle"], "version")?)?
+                            .1
+                            == u32::MAX)
+                {
+                    target = candidate["bundle"].clone();
+                }
+                if crate::fenix_update::version(string(&state, "version")?)?
+                    > crate::fenix_update::version(string(&target, "version")?)?
+                {
+                    value["version"] = state["version"].clone();
+                } else {
+                    value["version"] = target["version"].clone();
+                }
+                let target = bundle::select_variant(target, state["variant"].as_str())?;
                 value["update_available"] = json!(
                     state["state"] == "installed"
-                        && state["version"]
-                            .as_str()
-                            .is_some_and(|v| bundle::manifest(None)
-                                .is_ok_and(|l| l["previous_releases"].get(v).is_some()))
+                        && crate::fenix_update::version(string(&target, "version")?)?
+                            > crate::fenix_update::version(string(&state, "version")?)?
+                        && target["previous_releases"]
+                            .get(string(&state, "version")?)
+                            .is_some()
                 );
             } else if root.join("private/fenix-compat.json").exists() {
                 value["state"] = json!("legacy");
@@ -995,7 +1030,7 @@ pub fn start(app: &Arc<Launcher>, operation: &str, data: &Value) -> Result<Value
     let data = data.clone();
     let operation = operation.to_string();
     app.start_job("fenix",&operation.clone(),true,move|ctx|{
-        if ["configure","installer","open","manager"].contains(&operation.as_str())&&snapshot(&ctx.launcher)["update_available"]==true{let payload=bundle::obtain(&ctx.launcher.state_dir.join("fenix-bundles"),None,ctx)?;install(ctx,&payload)?;}
+        if ["configure","installer","open","manager"].contains(&operation.as_str()){crate::fenix_update::ensure(ctx)?;}
         match operation.as_str(){"install"=>{let payload=bundle::obtain(&ctx.launcher.state_dir.join("fenix-bundles"),data["bundle_path"].as_str(),ctx)?;install(ctx,&payload)?;},"restore"=>restore(ctx)?,"configure"=>configure(ctx)?,"stop"=>{validate(ctx.root()?,true)?;wine_processes::stop(ctx.root()?,wine_processes::FENIX)?;},_=>windows_app(ctx,&operation,&data)?,}
         Ok(json!({"state":"complete","stopping":false,"message":match operation.as_str(){"install"=>"Fenix-Patch eingerichtet. Die nächsten Schritte stehen oben.","configure"=>"Anzeigen und automatischer Fenix-Start sind eingerichtet.","restore"=>"Das Profil vor dem Patch wurde wiederhergestellt.","installer"=>"Installer beendet. Prüfe die nächsten Schritte oben; die Fenix-Einrichtung ist noch nicht automatisch abgeschlossen.","repair"=>"Der Fenix-Einrichtungsschritt wurde erfolgreich repariert. Öffne die Fenix-App, um die Flugzeuginstallation fortzusetzen.",_=>"Fenix wurde beendet."}}))
     })

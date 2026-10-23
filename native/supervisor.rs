@@ -405,6 +405,7 @@ pub fn spawn_reserved(ctx: &Context) -> Result<Value> {
         "Die Runtime ist nicht startbereit oder das Spiel läuft bereits.",
     )?;
     wine_processes::idle(&root.join("local/msfs-prefix"))?;
+    crate::fenix_update::ensure(ctx)?;
     crate::framework_maintenance::ensure(ctx)?;
     ctx.launcher.lock().graphics_report = Value::Null;
     let at = files::now();

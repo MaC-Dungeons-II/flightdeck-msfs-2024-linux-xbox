@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
-//! Pinned overlay payloads; never execute or import downloaded installer scripts.
+//! Verified overlay payloads; never execute or import downloaded installer scripts.
 use crate::{
     Error, Result,
     backend::{Context, string},
-    bootstrap,
     error::require,
     files, resources, runtime, transaction as tx,
 };
@@ -121,15 +120,35 @@ pub fn verify_runner(runner: &Path, lock: &Value, patched: bool) -> Result<()> {
     Ok(())
 }
 pub fn runner_variant(runner: &Path, patched: bool) -> Result<Option<String>> {
-    if verify_runner(runner, &manifest(None)?, patched).is_ok() {
+    runner_variant_with(runner, patched, &manifest(None)?)
+}
+fn supported_runner(runner: &Path, lock: &Value, patched: bool) -> bool {
+    if verify_runner(runner, lock, patched).is_ok() {
+        return true;
+    }
+    // A preserved default runner can predate an independently applied patch.
+    // Accept only an exact recorded payload before copying and overlaying it.
+    patched
+        && lock["previous_releases"]
+            .as_object()
+            .into_iter()
+            .flat_map(|v| v.values())
+            .any(|snapshot| {
+                let mut previous = lock.clone();
+                previous["files"] = snapshot["files"].clone();
+                verify_runner(runner, &previous, true).is_ok()
+            })
+}
+pub fn runner_variant_with(runner: &Path, patched: bool, lock: &Value) -> Result<Option<String>> {
+    if supported_runner(runner, lock, patched) {
         return Ok(None);
     }
-    for name in manifest(None)?["variants"]
+    for name in lock["variants"]
         .as_object()
         .into_iter()
         .flat_map(|v| v.keys())
     {
-        if verify_runner(runner, &manifest(Some(name))?, patched).is_ok() {
+        if supported_runner(runner, &select_variant(lock.clone(), Some(name))?, patched) {
             return Ok(Some(name.clone()));
         }
     }
@@ -156,14 +175,24 @@ fn wanted(lock: &Value) -> Result<BTreeMap<String, Option<String>>> {
     Ok(wanted)
 }
 pub fn verify(bundle: &Path) -> Result<PathBuf> {
+    verify_with(bundle, &manifest(None)?)
+}
+pub fn payload_manifest(bundle: &Path, variant: Option<&str>) -> Result<Value> {
+    let lock = runtime::value(&bundle.join("bundle.json"))?;
+    crate::fenix_update::compatible_manifest(&lock)?;
+    select_variant(lock, variant)
+}
+pub fn verify_payload(bundle: &Path) -> Result<PathBuf> {
+    verify_with(bundle, &payload_manifest(bundle, None)?)
+}
+fn verify_with(bundle: &Path, lock: &Value) -> Result<PathBuf> {
     let bundle = bundle.canonicalize()?;
     files::directory(&bundle, false)?;
-    let lock = manifest(None)?;
     require(
-        runtime::value(&bundle.join("bundle.json"))? == lock,
+        runtime::value(&bundle.join("bundle.json"))? == *lock,
         "The patch bundle does not match this installer version.",
     )?;
-    for (name, hash) in wanted(&lock)? {
+    for (name, hash) in wanted(lock)? {
         if let Some(hash) = hash {
             let file = tx::owned_file(&bundle, &bundle.join(name))?;
             require(
@@ -175,37 +204,37 @@ pub fn verify(bundle: &Path) -> Result<PathBuf> {
     Ok(bundle)
 }
 pub fn obtain(cache: &Path, supplied: Option<&str>, ctx: &Context) -> Result<PathBuf> {
+    ctx.interrupted()?;
+    let selected = crate::fenix_update::selected(ctx)?;
+    let lock = &selected["bundle"];
+    let release = &selected["release"];
     if let Some(supplied) = supplied.filter(|s| !s.is_empty()) {
         let path = files::expand(supplied);
         require(
             path.is_absolute() && supplied.len() <= 4096,
             "Select the extracted Fenix patch release directory.",
         )?;
-        return verify(&path);
+        return verify_with(&path, lock);
     }
-    let lock = manifest(None)?;
-    let release = resources::json("compat/fenix/release.json")?;
     files::private_dir(cache)?;
-    let target = cache.join(string(&lock, "version")?);
+    let target = cache.join(string(lock, "version")?);
     if files::exists(&target) {
-        return verify(&target);
+        return verify_with(&target, lock);
     }
     ctx.progress("Das geprüfte Fenix-Paket wird heruntergeladen …");
-    let archive = bootstrap::download(
-        string(&release, "url")?,
-        string(&release, "sha256")?,
-        &cache.join(format!("{}.zip", string(&lock, "version")?)),
-        &ctx.cancel,
-        |_| {},
+    let archive = crate::fenix_update::download(
+        release,
+        &cache.join(format!("{}.zip", string(lock, "version")?)),
+        ctx,
     )?;
     let stage = tx::new_directory(cache, ".fenix-extract-")?;
     let result = (|| {
-        let wanted = wanted(&lock)?;
+        let wanted = wanted(lock)?;
         let mut zipped = zip::ZipArchive::new(File::open(&archive)?)
             .map_err(|_| Error::Invalid("Invalid Fenix release archive."))?;
         require(zipped.len() < 10000, "Invalid Fenix release archive.")?;
         let mut seen = BTreeSet::new();
-        let prefix = format!("{}/", string(&release, "archive_root")?);
+        let prefix = format!("{}/", string(release, "archive_root")?);
         for i in 0..zipped.len() {
             ctx.interrupted()?;
             let mut entry = zipped
@@ -240,7 +269,7 @@ pub fn obtain(cache: &Path, supplied: Option<&str>, ctx: &Context) -> Result<Pat
             seen == wanted.keys().cloned().collect(),
             "Incomplete Fenix release archive.",
         )?;
-        verify(&stage)?;
+        verify_with(&stage, lock)?;
         tx::publish(&stage, &target)?;
         Ok(target.clone())
     })();
@@ -287,7 +316,7 @@ pub fn overlay(
     variant: Option<&str>,
     ctx: &Context,
 ) -> Result<()> {
-    let lock = manifest(variant)?;
+    let lock = payload_manifest(bundle, variant)?;
     let payload = if let Some(v) = variant {
         bundle.join("payload/variants").join(v)
     } else {

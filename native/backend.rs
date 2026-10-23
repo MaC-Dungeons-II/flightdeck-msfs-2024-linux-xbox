@@ -40,6 +40,7 @@ pub struct State {
     pub mod_removal: Option<crate::mods::Removal>,
     pub launcher_updates: crate::launcher_update::State,
     pub startup_updates: crate::startup_updates::State,
+    pub fenix_updates: crate::fenix_update::State,
 }
 pub struct Launcher {
     pub state_dir: PathBuf,
@@ -166,6 +167,7 @@ impl Launcher {
                 mod_removal: None,
                 launcher_updates: crate::launcher_update::State::default(),
                 startup_updates: crate::startup_updates::State::default(),
+                fenix_updates: crate::fenix_update::State::default(),
             }),
         });
         if let Some(path) = selected {
@@ -652,6 +654,9 @@ impl Launcher {
         let mut s = self.lock();
         s.closing = true;
         if let Some(cancel) = &s.startup_updates.worker {
+            cancel.store(true, Ordering::Relaxed);
+        }
+        if let Some(cancel) = &s.fenix_updates.worker {
             cancel.store(true, Ordering::Relaxed);
         }
         if s.launcher_updates.job["can_cancel"] == true

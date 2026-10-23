@@ -129,6 +129,15 @@ fn published_payload_updates_every_runner_and_prefix_without_changing_originals(
             assert_eq!(transaction::digest(&target).expect("preceding hash"), *hash);
         }
         let aircraft = prefix.join("installed-aircraft-sentinel");
+        assert_eq!(
+            fenix_bundle::runner_variant_with(&runner, true, &manifest)
+                .expect("recognize preserved preceding patch for Proton restore"),
+            variant.map(str::to_string)
+        );
+        assert!(
+            fenix_bundle::runner_variant_with(&runner, false, &manifest).is_err(),
+            "a patched backup is not an unmodified runner"
+        );
         fs::write(&aircraft, b"retain aircraft and preferences").expect("sentinel");
         fenix_bundle::overlay(&prefix, &runner, &bundle, variant, &ctx)
             .expect("production overlay");

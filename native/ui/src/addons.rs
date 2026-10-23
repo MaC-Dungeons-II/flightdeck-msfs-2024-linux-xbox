@@ -27,6 +27,58 @@ fn fenix_hook_failure(data: &Value) -> Option<&str> {
 }
 
 impl App {
+    pub(crate) fn fenix_update_controls<'a>(&'a self, data: &'a Value) -> Element<'a, Message> {
+        let mut manage = column![].spacing(14);
+        let installed = s(data, "installed_version");
+        let version = if installed.is_empty() {
+            s(data, "version")
+        } else {
+            installed
+        };
+        if !version.is_empty() {
+            manage = manage.push(self.paragraph(format!(
+                "{}: {version}",
+                self.tr("Patch-Version", "Patch version")
+            )));
+        }
+        if data["patch_update"]["state"] == "checking" {
+            manage = manage.push(self.paragraph(self.tr(
+                "Fenix-Updates werden geprüft …",
+                "Checking for Fenix updates …",
+            )));
+        } else if yes(&data["patch_update"], "requires_launcher_update") {
+            manage = manage.push(self.paragraph(self.tr(
+                "Für den neuesten Fenix-Patch ist zuerst ein Flightdeck-Update erforderlich.",
+                "Update Flightdeck first to use the latest Fenix patch.",
+            )));
+        } else if data["patch_update"]["state"] == "failed" {
+            manage = manage.push(self.paragraph(self.tr("Die Fenix-Updateprüfung ist fehlgeschlagen. Der installierte Patch bleibt nutzbar. Versuche es später erneut.", "The Fenix update check failed. Your installed patch remains available. Try again later.")));
+        } else if data["patch_update"]["state"] == "complete"
+            && yes(data, "installed")
+            && !yes(data, "update_available")
+        {
+            manage = manage.push(self.paragraph(self.tr(
+                "Der Fenix-Patch ist aktuell.",
+                "The Fenix patch is up to date.",
+            )));
+        }
+        if yes(data, "update_available") {
+            manage = manage.push(self.paragraph(format!("{}: {}. {}", self.tr("Neuer Fenix-Patch", "New Fenix patch"), s(data, "version"), self.tr("Wird vor dem nächsten MSFS- oder Fenix-Start automatisch installiert. MSFS und Fenix vorher schließen.", "Installs automatically before the next MSFS or Fenix launch. Close MSFS and Fenix first."))));
+        }
+        manage = manage.push(
+            self.control(
+                self.tr("Fenix-Updates prüfen", "Check Fenix updates"),
+                self.request(&Fenix("check-update"))
+                    .map(|_| Message::Action(Fenix("check-update"))),
+                false,
+            ),
+        );
+        if yes(data, "update_available") {
+            manage = manage.push(self.action("Patch aktualisieren", Fenix("install")));
+        }
+        manage.into()
+    }
+
     fn addon_action<'a>(&self, title: &str, action: model::Action) -> Element<'a, Message> {
         let message = self.request(&action).map(|_| Message::Action(action));
         self.control(title, message, true)
@@ -300,9 +352,6 @@ impl App {
             if yes(data, "configured") {
                 actions.push(("Einstellungen erneut anwenden", Fenix("configure")));
             }
-            if yes(data, "update_available") {
-                actions.push(("Patch aktualisieren", Fenix("install")));
-            }
             for (title, action) in actions {
                 let message = self.request(&action).map(|_| Message::Action(action));
                 manage = manage.push(self.control(title, message, false));
@@ -319,7 +368,7 @@ impl App {
                     ))
                     .push(self.fenix_installer(true));
             }
-            manage = manage.push(self.job("fenix"))
+            manage = manage.push(self.fenix_update_controls(data)).push(self.job("fenix"))
                 .push(self.disclosure(Disclosure::FenixAdvanced, "Lokales Patch-Paket und Wiederherstellung", "", column![
                     self.input("Entpacktes Release (leer = geprüfter Download)", "bundle_path", self.tr("Automatisch herunterladen", "Download automatically"), Some(FenixPick("bundle"))),
                     self.paragraph(self.t("Die Wiederherstellung verwendet das Profil von vor dem Patch. Das neuere Profil bleibt als Sicherung erhalten.").to_string()),

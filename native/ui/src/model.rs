@@ -405,6 +405,10 @@ impl App {
                 body = json!({"runtime_path":root});
                 if fenix {
                     match *op {
+                        "check-update" => (
+                            "fenix/check-update",
+                            enabled && yes(data, "can_check_updates"),
+                        ),
                         "install" => {
                             body["bundle_path"] = json!(self.forms.get("bundle_path"));
                             (

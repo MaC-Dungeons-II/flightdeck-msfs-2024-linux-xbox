@@ -243,14 +243,26 @@ Fenix-App, falls sie noch geöffnet ist; schließe Installationen oder
 Livery-Downloads dort ab, bevor du MSFS beendest. Andere Wine-Profile bleiben
 davon unberührt.
 
-Flightdeck 0.2.19 verwendet Patch **0.1.0-preview.11**. Der
-eigenständige Patch aktualisiert keinen bereits installierten Flightdeck-Launcher.
-Neuere Patch-Versionen werden
-mit einem Flightdeck-Update übernommen; der Launcher sucht nicht eigenständig
-nach dem neuesten Fenix-Patch auf GitHub. Unterstützte ältere Patches werden
-beim Öffnen von Fenix, seinem Installer oder Manager sowie beim Abschließen der
-Einrichtung auf die mit Flightdeck bereitgestellte Version aktualisiert.
-Eine Flightdeck-Installation richtet Fenix nicht automatisch ein.
+Flightdeck 0.2.20 enthält Patch **0.1.0-preview.11** als geprüfte Ausgangsversion
+und sucht beim Start sowie alle 30 Minuten eigenständig auf GitHub nach
+kompatiblen Fenix-Patches. Fehlgeschlagene Prüfungen werden nach fünf Minuten
+wiederholt; der installierte Patch bleibt nutzbar. Unter **Updates** und
+**Mods → Fenix A320 → Verwalten & reparieren** stehen die installierte Version,
+ein verfügbares Update und **Fenix-Updates prüfen**.
+
+Ein gefundenes kompatibles Update wird vor dem MSFS-Start, vor dem Öffnen von
+Fenix, seinem Installer oder Manager sowie beim Abschließen der Einrichtung
+automatisch installiert. Alternativ **Patch aktualisieren** wählen. MSFS und
+Fenix müssen geschlossen sein; Runtime-Sperre und die vorhandenen Profil- und
+Runner-Sicherungen schützen die Installation. Flugzeugdateien, Renderer-Wahl und
+Wiederherstellungspunkte bleiben erhalten. Nach einem Launcher-Neustart oder
+einer Offline-Prüfung wird ein neuerer installierter Patch nicht zurückgestuft.
+Preview-Installationen bevorzugen eine verfügbare stabile Version; stabile
+Installationen folgen stabilen Releases. Benötigt ein Patch eine neue
+Installer-Schnittstelle oder andere Runner, ist zuerst ein Flightdeck-Update nötig.
+
+Die Flightdeck-Installation richtet das Fenix-Flugzeug nicht automatisch ein.
+Flugzeug-Updates und Lizenzierung übernimmt weiterhin die offizielle Fenix-App.
 Für den öffentlichen Patch-Download ist keine GitHub-Anmeldung nötig. Das
 Flugzeug selbst wird mit dem offiziellen Fenix-Programm heruntergeladen und über
 dein Fenix-Konto aktiviert.

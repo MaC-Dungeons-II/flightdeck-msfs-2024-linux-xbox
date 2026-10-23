@@ -158,7 +158,8 @@ pub fn geometry(wine: &StagedWine<'_>, cache: &Path, payload: &Path, ctx: &Conte
     }
     let helper = payload.join("integration/FenixGeometrySetup.exe");
     require(
-        tx::digest(&helper)? == bundle::manifest(None)?["integration"]["FenixGeometrySetup.exe"],
+        tx::digest(&helper)?
+            == bundle::payload_manifest(payload, None)?["integration"]["FenixGeometrySetup.exe"],
         "Fenix geometry helper checksum mismatch.",
     )?;
     let work = tx::new_directory(cache, ".fenix-geometry-")?;

@@ -98,7 +98,8 @@ Flightdeck.
 
 1. Build and test the patch with its documented upstream sources. Publish its
    Linux installer ZIP, complete corresponding sources and `SHA256SUMS` as a
-   public GitHub release. Keep already pinned release assets immutable.
+   public GitHub release, including `flightdeck-update.json` from the release
+   tool. Keep already pinned release assets immutable.
 2. Run `cargo run --locked -p flightdeck-tools -- probe sync-fenix
    /absolute/path/to/patch-project` and review the Rust integration, license and
    both imported manifests. The import command copies files; it does not
@@ -107,8 +108,11 @@ Flightdeck.
    SHA-256 matches `compat/fenix/release.json`. Run the native add-on/framework/Proton tests,
    installer checks and the native UI interaction tests.
 4. Update the English/German add-on guides and changelog, then include the
-   integration in the next Flightdeck source/full package. Publishing the patch
-   alone does not update an already installed Flightdeck launcher.
+   integration in the next Flightdeck source/full package as its verified
+   fallback. Flightdeck 0.2.20+ independently adopts compatible published patch
+   releases; a launcher release is needed when the installer contract, runner
+   identities, supported paths or setup policy change. See the
+   [update contract](fenix-updates.md).
 
 For a release-payload regression check, supply the current public ZIP, the
 preceding public ZIP and a JSON object mapping `xodus` and every manifest

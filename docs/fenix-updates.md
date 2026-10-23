@@ -1,0 +1,57 @@
+# Fenix patch update contract
+
+Flightdeck 0.2.20 and later discover releases from the fixed public
+`marselnenaj/fenix-a320-linux-patch` GitHub repository. The bounded release feed
+must advertise one uploaded `flightdeck-update.json` asset with a GitHub SHA-256
+digest. Older releases without that asset are handled through Flightdeck's
+embedded fallback. No caller-provided download URL or downloaded installer
+script enters the update path.
+
+The Fenix release tool writes this descriptor alongside its ZIP and source
+archive:
+
+```json
+{
+  "format": 1,
+  "installer_contract": 1,
+  "minimum_flightdeck_version": "0.2.20",
+  "release": {
+    "version": "0.1.0-preview.11",
+    "url": "https://github.com/marselnenaj/fenix-a320-linux-patch/releases/download/v0.1.0-preview.11/fenix-a320-linux-patch-0.1.0-preview.11-linux-x86_64.zip",
+    "archive_root": "fenix-a320-linux-patch-0.1.0-preview.11",
+    "sha256": "<archive SHA-256>",
+    "size": 283879943
+  },
+  "bundle": "<the complete bundle.json object>"
+}
+```
+
+The placeholder strings illustrate the fields; the actual asset contains the
+complete manifest and a lowercase hexadecimal digest. Attach this file to the
+same published release as the immutable archive. It may be added to an existing
+release when generated from that release's exact manifest and unchanged ZIP;
+do not regenerate or replace the existing archives.
+
+Contract 1 accepts new native/helper hashes for the existing destinations. It
+requires the embedded variant set, original runner identities, server protocol,
+renderer policy and geometry dependency to remain compatible. Existing upgrade
+snapshots must be preserved, including the preceding embedded patch. Changed
+paths, runner builds or setup behavior require a Flightdeck integration update
+and, where needed, a new contract/minimum version. Publishing an unsupported
+descriptor produces an explicit launcher-update requirement.
+
+Checks run without taking the runtime lease. Installation takes the existing
+launcher/runtime lease, confirms the Wine prefix is idle, verifies archive size,
+SHA-256 and every allowlisted payload, then uses the existing staged profile and
+runner transaction. The installed marker retains the exact manifest and release
+coordinates for offline verification, reapplication and Proton switching. No
+vendor aircraft, credentials or scripts are fetched by this contract.
+
+Tests cover preview/stable ordering, foreign URLs, duplicate releases, altered
+metadata, incompatible contracts, isolated archive extraction, cancellation,
+retained versions after restart and all four original runners. The explicitly
+enabled public metadata test uses no existing Wine profile:
+
+```sh
+cargo test --locked --test native_fenix_updates public_preview_descriptor -- --ignored
+```

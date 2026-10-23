@@ -511,10 +511,7 @@ impl App {
                 self.overview_update_status("launcher-update", "Flightdeck"),
                 self.overview_update_status("game-update", "Simulator"),
                 label(
-                    self.tr(
-                        "Automatische Prüfung · Downloads startest du selbst.",
-                        "Automatic checks · You choose when to download."
-                    ),
+                    self.tr("Automatische Updateprüfung.", "Automatic update checks."),
                     13.0,
                     Weight::Normal,
                     MUTED
@@ -873,22 +870,24 @@ impl App {
             ])
         ]
         .spacing(16);
-        let mut page = column![
-            self.heading(self.tr(
-                "Updates für Flightdeck & Simulator",
-                "Flightdeck & simulator updates"
-            )),
-            self.paragraph(
-                self.t("Aktualisiere Flightdeck und deinen Simulator direkt hier im Launcher.")
-                    .to_string()
-            ),
-            self.update_panel(
-                self.t("Flightdeck · GitHub-Releases"),
-                "refresh",
-                &launcher_title,
-                launcher,
-                launcher_view
-            ),
+        let fenix = self.data("fenix");
+        let fenix_view: Element<'_, Message> = if self.fresh("fenix")
+            && s(fenix, "runtime_path") == self.runtime()
+            && yes(fenix, "installed")
+        {
+            self.card(
+                "Fenix Linux-Patch",
+                column![
+                    self.fenix_update_controls(fenix),
+                    self.job("fenix"),
+                    self.link(
+                        self.tr("Fenix-Patch verwalten", "Manage Fenix patch"),
+                        Page::Mods
+                    )
+                ]
+                .spacing(12),
+            )
+        } else {
             row![
                 column![
                     label(
@@ -913,7 +912,26 @@ impl App {
                 )
             ]
             .spacing(20)
-            .align_y(alignment::Vertical::Center),
+            .align_y(alignment::Vertical::Center)
+            .into()
+        };
+        let mut page = column![
+            self.heading(self.tr(
+                "Updates für Flightdeck & Simulator",
+                "Flightdeck & simulator updates"
+            )),
+            self.paragraph(
+                self.t("Aktualisiere Flightdeck und deinen Simulator direkt hier im Launcher.")
+                    .to_string()
+            ),
+            self.update_panel(
+                self.t("Flightdeck · GitHub-Releases"),
+                "refresh",
+                &launcher_title,
+                launcher,
+                launcher_view
+            ),
+            fenix_view,
             self.update_panel(
                 &self.edition.name(),
                 "download",

@@ -1,5 +1,22 @@
 # Changes and release status
 
+## 0.2.20 — 23 October 2026
+
+- Discover Fenix patch releases independently of Flightdeck releases, using the
+  existing automatic startup checks and a manual check under **Updates** and
+  **Mods → Fenix A320**. Retry failed checks after five minutes; successful
+  checks are throttled to 30 minutes.
+- Apply a discovered compatible patch before the next MSFS or Fenix launch,
+  while both are closed, through the existing recoverable profile/runner
+  transaction. Preserve aircraft, graphics preferences and restore points.
+- Retain the installed manifest across service restarts and Proton switches.
+  Prefer stable releases when leaving previews and prevent automatic downgrades
+  or re-entry into previews after a stable installation.
+- Verify repository-bound release metadata, archive size and SHA-256, every
+  extracted payload and the supported installer contract. Incompatible runner
+  or setup changes require a Flightdeck update. Keep preview.11 as the embedded
+  fallback; official aircraft updates remain in the Fenix app.
+
 ## 0.2.19 — 23 October 2026
 
 - Adopt [Fenix patch 0.1.0-preview.11](https://github.com/marselnenaj/fenix-a320-linux-patch/releases/tag/v0.1.0-preview.11),

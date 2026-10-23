@@ -226,12 +226,24 @@ a game crash or **Stop**, with a bounded fallback for stuck processes. Since
 installation or livery download there before quitting MSFS. Other Wine profiles
 are excluded from that cleanup.
 
-Flightdeck 0.2.19 pins patch **0.1.0-preview.11**. Installing the
-standalone patch does not update an existing Flightdeck launcher. Newer patch versions are adopted
-through a Flightdeck update; the launcher does not independently check for the
-latest Fenix patch on GitHub. Supported earlier patches update to Flightdeck's
-included version when opening Fenix, its installer or manager, or finishing setup.
-Installing Flightdeck itself does not install Fenix automatically.
+Flightdeck 0.2.20 includes patch **0.1.0-preview.11** as its verified fallback
+and independently checks GitHub for compatible Fenix patch releases at startup
+and every 30 minutes. Failed checks retry after five minutes and do not prevent
+using the installed patch. **Updates** and **Mods → Fenix A320 → Manage & repair**
+show the installed version, available update and **Check Fenix updates**.
+
+A discovered compatible update installs automatically before starting MSFS,
+opening Fenix, its installer or manager, or finishing setup. You can also choose
+**Update patch** yourself. MSFS and Fenix must be closed; the runtime lock and
+existing profile/runner backups protect the installation. Aircraft, renderer
+preferences and restore points are retained. A launcher restart or offline check
+does not downgrade a newer independently installed patch. Preview installations
+prefer a stable release when one becomes available; stable installations follow
+stable releases. Releases requiring a new installer contract or different runner
+integration require a Flightdeck update first.
+
+Installing Flightdeck itself does not install the Fenix aircraft. The official
+Fenix app remains responsible for aircraft updates and licensing.
 No GitHub login is needed for the public patch download. Download and activation
 of the purchased aircraft use the official Fenix software and your Fenix account.
 

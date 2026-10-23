@@ -521,9 +521,13 @@ pub fn prepare(
             fenix_state = json!({"format":1,"state":"installed","migrated":true,"configured":true,"proton_before":null});
         }
         let runner = Path::new(string(candidate, "path")?);
-        variant = bundle::runner_variant(runner, false).or_else(|e| {
+        let manifest = bundle::payload_manifest(
+            payload.ok_or(Error::Invalid("Missing Fenix bundle."))?,
+            None,
+        )?;
+        variant = bundle::runner_variant_with(runner, false, &manifest).or_else(|e| {
             if restoring {
-                bundle::runner_variant(runner, true)
+                bundle::runner_variant_with(runner, true, &manifest)
             } else {
                 Err(e)
             }
@@ -645,7 +649,10 @@ pub fn prepare(
                 variant.as_deref(),
                 ctx,
             )?;
-            let lock = bundle::manifest(variant.as_deref())?;
+            let lock = bundle::payload_manifest(
+                payload.ok_or(Error::Invalid("Missing Fenix bundle."))?,
+                variant.as_deref(),
+            )?;
             let renderer = fenix_setup::DisplayRenderer::for_state(&lock, &fenix_state)?;
             fenix_setup::migrate_renderer(
                 &mut fenix_state,
@@ -655,7 +662,18 @@ pub fn prepare(
                 &ctx.cancel,
             )?;
             fenix_state["variant"] = json!(variant);
-            fenix_state["version"] = bundle::manifest(None)?["version"].clone();
+            fenix_state["version"] = lock["version"].clone();
+            let selected = crate::fenix_update::selected(ctx)?;
+            require(
+                selected["bundle"]
+                    == bundle::payload_manifest(
+                        payload.ok_or(Error::Invalid("Missing Fenix bundle."))?,
+                        None,
+                    )?,
+                "The selected Fenix release changed. Please retry.",
+            )?;
+            fenix_state["bundle_manifest"] = selected["bundle"].clone();
+            fenix_state["bundle_release"] = selected["release"].clone();
             fenix_state["work"] = json!(
                 work.strip_prefix(root)
                     .map_err(|_| Error::Invalid("Invalid Fenix staging path."))?
@@ -710,7 +728,7 @@ pub fn recover(root: &Path) -> Result<()> {
                 && root.join(string(fenix_state, "work")?).join("runner") == runner,
             "Invalid Fenix recovery record.",
         )?;
-        bundle::manifest(fenix_state["variant"].as_str())?;
+        crate::fenix_update::installed_manifest(fenix_state, fenix_state["variant"].as_str())?;
     }
     let relative = runner
         .strip_prefix(root)
