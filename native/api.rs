@@ -98,9 +98,10 @@ pub fn post(app: &Arc<Launcher>, path: &str, data: &Value, locale: &str) -> Opti
         "/api/setup/check" => crate::setup::check(app, data),
         "/api/setup/start" => string(data, "check_id").and_then(|id| crate::setup::start(app, id)),
         "/api/setup/cancel" => string(data, "job_id").and_then(|id| app.cancel("setup", id)),
-        "/api/setup/pause" | "/api/setup/resume" => string(data, "job_id").and_then(|id| {
-            crate::setup::download_action(app, id, path.rsplit('/').next().unwrap_or(""))
-        }),
+        "/api/setup/pause" | "/api/setup/resume" | "/api/setup/retry" => string(data, "job_id")
+            .and_then(|id| {
+                crate::setup::download_action(app, id, path.rsplit('/').next().unwrap_or(""))
+            }),
         "/api/setup/pick" => crate::setup::pick(app, data, locale),
         "/api/config" => string(data, "runtime_path").and_then(|p| app.configure(p)),
         "/api/game/register" => string(data, "runtime_path").and_then(|p| app.register(p)),

@@ -279,10 +279,18 @@ impl App {
                         "setup/resume",
                         self.fresh("setup") && job["phase"] == "paused" && yes(job, "can_resume"),
                     ),
+                    "retry" => (
+                        "setup/retry",
+                        self.fresh("setup")
+                            && self.stopped()
+                            && job["state"] == "failed"
+                            && job["phase"] == "download_failed"
+                            && yes(job, "can_retry"),
+                    ),
                     "cancel" => (
                         "setup/cancel",
                         self.fresh("setup")
-                            && (active(job) || job["state"] == "ready")
+                            && (active(job) || job["state"] == "ready" || yes(job, "can_retry"))
                             && !s(job, "id").is_empty(),
                     ),
                     _ => return None,

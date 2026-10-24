@@ -36,6 +36,7 @@ pub struct State {
     pub cloud: Value,
     pub cloud_data: crate::cloud_sync::State,
     pub graphics_report: Value,
+    pub installation_report: Value,
     pub maintenance: Option<crate::maintenance::Plan>,
     pub mod_removal: Option<crate::mods::Removal>,
     pub launcher_updates: crate::launcher_update::State,
@@ -146,6 +147,7 @@ impl Launcher {
         {
             known.insert(game.id().into(), root.clone());
         }
+        let installation_report = crate::setup_diagnostics::load(&state_dir);
         let app = Arc::new(Self {
             state_dir,
             state: Mutex::new(State {
@@ -163,6 +165,7 @@ impl Launcher {
                 cloud: json!({"enabled":true,"state":"idle","phase":null,"message":"","error_code":null,"error_details":{},"can_retry":false,"can_play_local":false,"can_cancel":false,"request_id":null,"last_synced_at":null,"conflict":false,"summary":null}),
                 cloud_data: crate::cloud_sync::State::default(),
                 graphics_report: Value::Null,
+                installation_report,
                 maintenance: None,
                 mod_removal: None,
                 launcher_updates: crate::launcher_update::State::default(),
@@ -412,10 +415,13 @@ impl Launcher {
                     });
                     job["message"] = json!(error.to_string());
                     job["error"] = json!(error.to_string());
-                    job["failure_phase"] = job["phase"].clone();
+                    if job["phase"] != "download_failed" {
+                        job["failure_phase"] = job["phase"].clone();
+                    }
                     job["phase"] = job["state"].clone();
                     job["can_pause"] = json!(false);
                     job["can_resume"] = json!(false);
+                    job["can_retry"] = json!(false);
                     job["transfer"] = Value::Null;
                     job["auth_required"] = json!(matches!(error, Error::AuthRequired(_)));
                     if let Error::Cloud(error) = &error {
@@ -441,6 +447,11 @@ impl Launcher {
                     }
                 }
             }
+        }
+        if ctx.kind == "setup"
+            && let Some(job) = s.jobs.get("setup")
+        {
+            s.installation_report = crate::setup_diagnostics::persist(&self.state_dir, job);
         }
         if !retain
             || s.jobs

@@ -2,8 +2,16 @@
 
 [Deutsch](known-issues.de.md) · [Documentation](index.md)
 
-Status: 24 October 2026, covering the stable **0.2.20** release.
-See the [release changes](changelog.md#0220--23-october-2026).
+Status: 24 October 2026, covering the stable **0.2.21** release.
+See the [release changes](changelog.md#0221--24-october-2026).
+
+- **Game downloads:** Version 0.2.21 offers **Retry download** after a failed
+  resumable download or sign-in while its background service remains running.
+  The existing folder is reused with completed-file checks. Numeric setup
+  failures are retained in diagnostics even before the first installation.
+  Older reports cannot establish missing error codes, and jobs ended by an
+  older version or a service restart cannot be recovered through this button.
+  [Recovery and limits](download-pause.md).
 
 - **NVIDIA:** Normal MSFS 2024 rendering is confirmed by user testing. Smaller
   issues remain possible, including a missing or black startup video. This does

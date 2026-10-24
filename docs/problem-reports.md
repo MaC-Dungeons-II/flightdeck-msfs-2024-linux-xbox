@@ -34,6 +34,12 @@ validated app version, runner category, exit codes and a fixed failure category.
 They never include Fenix log text. Prepare a new report after the failed attempt;
 older reports cannot recover this evidence retroactively.
 
+**In 0.2.21:** reports also include the latest setup attempt, including when no
+runtime is configured: edition, fixed phase/state categories, attempt count and
+numeric sign-in/download exit codes. This summary is retained across service
+restarts. Raw downloader output and workspace paths are excluded. An old
+report cannot recover codes that an earlier version did not retain.
+
 Collection uses Flightdeck's existing diagnostic allowlist. Raw game logs,
 account credentials, authentication tokens, usernames, local paths, hardware
 UUIDs and save contents are not collected. Free text is yours: do not paste

@@ -2,8 +2,16 @@
 
 [English](known-issues.md) · [Dokumentation](index.md)
 
-Stand: 24. Oktober 2026, für die stabile Version **0.2.20**.
-Siehe [Änderungsübersicht](changelog.md#0220--23-october-2026).
+Stand: 24. Oktober 2026, für die stabile Version **0.2.21**.
+Siehe [Änderungsübersicht](changelog.md#0221--24-october-2026).
+
+- **Spieldownload:** Version 0.2.21 bietet bei fehlgeschlagenem fortsetzbarem
+  Download oder fehlgeschlagener Anmeldung **Download erneut versuchen**, solange
+  der Hintergrunddienst läuft. Der vorhandene Ordner wird nach Prüfung fertiger
+  Dateien weiterverwendet. Numerische Einrichtungsfehler bleiben auch vor der
+  ersten Installation in der Diagnose erhalten. Alte Berichte liefern fehlende
+  Codes nicht nach; von älteren Versionen oder einem Dienstneustart beendete
+  Jobs stellt der Knopf nicht wieder her. [Ablauf und Grenzen](download-pause.de.md).
 
 - **NVIDIA:** Die normale MSFS-2024-Darstellung ist durch Nutzertests bestätigt.
   Kleinere Probleme bleiben möglich, etwa ein fehlendes oder schwarzes Startvideo.

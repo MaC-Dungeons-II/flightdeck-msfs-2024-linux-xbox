@@ -248,6 +248,7 @@ impl App {
         for (title, op) in [
             ("Download pausieren", "pause"),
             ("Download fortsetzen", "resume"),
+            ("Download erneut versuchen", "retry"),
             ("Abbrechen", "cancel"),
         ] {
             if self.request(&SetupControl(op)).is_some() {
@@ -294,6 +295,11 @@ impl App {
             MUTED
         )]
         .spacing(24);
+        if self.request(&SetupControl("retry")).is_some()
+            && self.data("setup")["job"]["mode"] != "update"
+        {
+            return page.push(self.download_retry_view()).into();
+        }
         let busy = model::active(&self.data("setup")["job"])
             && self.data("setup")["job"]["mode"] != "update";
         if yes(&status["runtime"], "configured") && !busy {

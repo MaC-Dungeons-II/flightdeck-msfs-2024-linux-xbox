@@ -20,18 +20,19 @@ of MSFS 2024 or 2020** through Wine/Proton. Sign in with your Microsoft account,
 download the licensed game and start it from the native Rust desktop application.
 Windows, the Xbox app and a previous MSFS installation are not required.
 
-**Current stable release: [Flightdeck 0.2.20](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.20).**
+**Current stable release: [Flightdeck 0.2.21](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.21).**
 The launcher, installer and updater need no Python.
 
-**New in 0.2.20:** Flightdeck checks for Fenix patch releases independently.
-Compatible updates install before the next MSFS or Fenix launch, with aircraft,
-settings and restore points retained. You can also check and install them under
-**Updates** or **Mods → Fenix A320**. See the [changelog](docs/changelog.md).
+**New in 0.2.21:** Retry an interrupted game download or sign-in from the same
+installation. Finished files are checked and reused, and reports retain setup
+failure codes even before a game is installed. Independent Fenix patch updates
+remain available under **Updates** and **Mods → Fenix A320**.
+See the [changelog](docs/changelog.md).
 
 ## Get started
 
 1. Download **Flightdeck-Linux-x86_64.tar.gz** from the
-   [0.2.20 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.20),
+   [0.2.21 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.21),
    extract it and open **Install Flightdeck.desktop**. Your file manager may ask
    you to trust this local launcher. Alternatively, run `./install.sh` there.
 2. Choose **Install MSFS**, select 2024 or 2020 and a destination, then
@@ -65,7 +66,7 @@ use the full installer once; existing runtimes and saves are preserved.
 
 | Area | What it provides |
 | --- | --- |
-| **Install and updates** | Licensed downloads, pause/resume, game-file verification, full repair and rollback. [Details](docs/game-updates.md) |
+| **Install and updates** | Licensed downloads, retry and pause/resume, game-file verification, full repair and rollback. [Details](docs/game-updates.md) |
 | **Mods** | Community-folder management and optional Fenix/GSX setup through their official installers. [Guide](docs/addons.md) |
 | **Saves** | Local backups and experimental automatic Xbox cloud sync with conflict recovery. [Guide](docs/cloud-saves.md) |
 | **Graphics and VR** | Automatic GPU setup, NVIDIA compatibility options and optional OpenXR setup. [Graphics](docs/graphics.md) · [VR](docs/vr.md) |

@@ -21,19 +21,19 @@ Microsoft-Konto an, lade das lizenzierte Spiel herunter und starte es über die
 native Rust-Oberfläche. Windows, die Xbox-App und eine bestehende MSFS-Installation
 sind dafür nicht erforderlich.
 
-**Aktuelle stabile Version: [Flightdeck 0.2.20](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.20).**
+**Aktuelle stabile Version: [Flightdeck 0.2.21](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.21).**
 Launcher, Installer und Updater benötigen kein Python.
 
-**Neu in 0.2.20:** Flightdeck sucht eigenständig nach neuen Fenix-Patches.
-Kompatible Updates werden vor dem nächsten MSFS- oder Fenix-Start installiert;
-Flugzeugdateien, Einstellungen und Wiederherstellungspunkte bleiben erhalten.
-Prüfen und installieren kannst du sie auch unter **Updates** oder
-**Mods → Fenix A320**. [Änderungsübersicht](changelog.md)
+**Neu in 0.2.21:** Unterbrochene Spieldownloads und Anmeldungen lassen sich in
+derselben Installation erneut versuchen. Fertige Dateien werden geprüft und
+weiterverwendet; Berichte behalten Einrichtungsfehler samt Exitcodes auch vor
+der ersten Installation. Eigenständige Fenix-Patch-Updates bleiben unter
+**Updates** und **Mods → Fenix A320** verfügbar. [Änderungsübersicht](changelog.md)
 
 ## Loslegen
 
 1. Lade **Flightdeck-Linux-x86_64.tar.gz** aus der
-   [0.2.20-Veröffentlichung](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.20),
+   [0.2.21-Veröffentlichung](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.21),
    entpacke es und öffne **Install Flightdeck.desktop**. Eventuell musst du den
    lokalen Starter im Dateimanager freigeben. Alternativ dort `./install.sh` ausführen.
 2. Wähle **MSFS installieren**, die Edition 2024 oder 2020 und einen Zielordner.
@@ -69,7 +69,7 @@ bleiben erhalten. [Update und Rollback](install.md#update-and-rollback) ·
 
 | Bereich | Funktionen |
 | --- | --- |
-| **Installation und Updates** | Lizenzierte Downloads, Pause/Fortsetzen, Dateiprüfung, vollständige Reparatur und Rollback. [Details](game-updates.md) |
+| **Installation und Updates** | Lizenzierte Downloads, erneute Versuche, Pause/Fortsetzen, Dateiprüfung, vollständige Reparatur und Rollback. [Details](game-updates.md) |
 | **Mods** | Community-Ordner verwalten sowie Fenix und GSX über ihre offiziellen Installer einrichten. [Anleitung](addons.de.md) |
 | **Spielstände** | Lokale Backups und experimenteller automatischer Xbox-Cloud-Abgleich mit Konfliktbehandlung. [Anleitung](cloud-saves.de.md) |
 | **Grafik und VR** | Automatische GPU-Einrichtung, NVIDIA-Kompatibilitätsoptionen und optionale OpenXR-Einrichtung. [Grafik](graphics.de.md) · [VR](vr.de.md) |
@@ -79,7 +79,7 @@ Die Oberfläche unterstützt Deutsch und Englisch. Der lokale Hintergrunddienst
 startet automatisch; kein Terminal muss geöffnet bleiben. Das Schließen von
 Flightdeck beendet einen laufenden Simulator nicht. Ein Download lässt sich nach
 einem Dienst- oder Linux-Neustart noch nicht wiederaufnehmen.
-[Grenzen von Pause/Fortsetzen](download-pause.md)
+[Grenzen von Pause/Fortsetzen](download-pause.de.md)
 
 ## Kompatibilität
 

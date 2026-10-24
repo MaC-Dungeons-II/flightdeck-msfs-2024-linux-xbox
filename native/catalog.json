@@ -684,5 +684,8 @@
   "Ein Prozess lässt sich der vorherigen Spielsitzung nicht sicher zuordnen. Beende ihn und versuche es erneut.": "A process cannot be reliably matched to the previous game session. Close it and try again.",
   "Eine andere Windows-Anwendung verwendet dieses Profil noch. Schließe sie oder beende sie mit Sitzung prüfen.": "Another Windows application is still using this profile. Close it, or end it with Check session.",
   "Ein Prozess der vorherigen Spielsitzung ließ sich nicht beenden. Beende ihn und versuche es erneut.": "A process from the previous game session could not be ended. Close it and try again.",
-  "Vorherige Spielsitzung wird beendet und lokale Spielstände werden gesichert …": "Ending the previous game session and backing up local saves …"
+  "Vorherige Spielsitzung wird beendet und lokale Spielstände werden gesichert …": "Ending the previous game session and backing up local saves …",
+  "Download erneut versuchen": "Retry download",
+  "Der Download wurde unterbrochen. Erneut versuchen verwendet bereits vollständig geladene Dateien nach erneuter Prüfung weiter.": "The download was interrupted. Retry rechecks and reuses files that have already finished downloading.",
+  "Der Spieldownload wurde nicht abgeschlossen. Bitte Kaufberechtigung, Speicherplatz und Verbindung prüfen.": "The game download did not complete. Check game ownership, disk space and your connection."
 }

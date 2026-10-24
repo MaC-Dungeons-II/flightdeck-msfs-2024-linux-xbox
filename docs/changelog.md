@@ -1,12 +1,29 @@
 # Changes and release status
 
-Documentation follow-up, 24 October 2026: record the issue #4 reporter's MSFS
-2024 menu/scene startup with 0.2.20 and CachyOS 11.0-20261015 after a black
-loading screen. Video playback, the one-third-rate VSync limit and complete
-flights remain unverified. Refresh both known-issues guides to 0.2.20 and Fenix
-preview.11. This documentation update does not change the published binaries.
+## 0.2.21 — 24 October 2026
+
+- Offer **Retry download** after a failed game download or Microsoft sign-in
+  when the verified components support file reuse. Keep the original private
+  workspace and job reserved; retry checks completed files through the existing
+  resume protocol. Cancellation releases the reservation and retains files.
+- Show retry, cancellation and numeric failure codes before the first runtime
+  is configured. Retain bounded sign-in retries and package-revision checks;
+  a changed pinned revision requires checking the update again.
+- Include the latest setup phase, edition, attempt count and numeric sign-in/
+  download exit codes in diagnostics and support drafts, surviving a service
+  restart. Capture no raw child output, paths or credentials. An old report
+  cannot recover missing historical error codes.
+- Keep the existing limit that interrupted jobs cannot be resumed after a
+  background-service or Linux restart. Closing the desktop window keeps the
+  background service running. This release improves recovery and evidence; it
+  does not establish the cause of an earlier generic download failure.
 
 ## 0.2.20 — 23 October 2026
+
+Documentation follow-up, 24 October: record the issue #4 reporter's MSFS 2024
+menu/scene startup with 0.2.20 and CachyOS 11.0-20261015 after a black loading
+screen. Video playback, the one-third-rate VSync limit and complete flights
+remain unverified. This follow-up did not change the published 0.2.20 binaries.
 
 - Discover Fenix patch releases independently of Flightdeck releases, using the
   existing automatic startup checks and a manual check under **Updates** and

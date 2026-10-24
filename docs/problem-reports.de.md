@@ -39,6 +39,13 @@ eine feste Fehlerkategorie. Fenix-Logtext wird nicht übernommen. Nach dem Fehle
 einen neuen Bericht vorbereiten; alte Berichte enthalten diesen Befund nicht
 rückwirkend.
 
+**In 0.2.21:** Zusätzlich wird der letzte Einrichtungsversuch erfasst, auch
+ohne fertige Installation: Edition, feste Phasen-/Statuskategorien,
+Versuchszahl und numerische Anmelde-/Downloadcodes. Diese Zusammenfassung
+übersteht einen Dienstneustart. Rohe Downloader-Ausgaben und Arbeitsordner
+werden nicht übernommen. Alte Berichte erhalten früher nicht gespeicherte
+Codes nicht rückwirkend.
+
 Flightdeck übernimmt keine rohen Spiellogs, Kontozugangsdaten, Anmeldetokens,
 Benutzernamen, lokalen Pfade, Hardware-UUIDs oder Spielstandinhalte. Das
 Beschreibungsfeld ist Freitext: Füge dort keine Passwörter oder privaten Logs

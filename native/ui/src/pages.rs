@@ -200,6 +200,7 @@ impl App {
                 | Backup
                 | SetupCheck
                 | SetupStart
+                | SetupControl("retry")
                 | ModsOpen
                 | ModsRemove
                 | Report
@@ -406,6 +407,20 @@ impl App {
         }
         rows.into()
     }
+    pub(crate) fn download_retry_view(&self) -> Element<'_, Message> {
+        self.card(
+            "Download unterbrochen",
+            column![
+                self.job("setup"),
+                self.actions(&[
+                    ("Download erneut versuchen", SetupControl("retry")),
+                    ("Abbrechen", SetupControl("cancel"))
+                ]),
+                self.link(self.t("Diagnose öffnen"), Page::Diagnostics),
+            ]
+            .spacing(16),
+        )
+    }
     pub(crate) fn job<'a>(&self, key: &str) -> Element<'a, Message> {
         let data = self.data(key);
         let job = &data["job"];
@@ -433,7 +448,17 @@ impl App {
                     iced::color!(0xff9199),
                 ));
             }
-            if active(job) {
+            if job["state"] == "failed" {
+                for (key, de, en) in [
+                    ("download_exit_code", "Downloadcode", "Download code"),
+                    ("login_exit_code", "Anmeldecode", "Sign-in code"),
+                ] {
+                    if let Some(code) = job[key].as_i64().filter(|code| *code != 0) {
+                        out = out.push(self.paragraph(format!("{}: {code}", self.tr(de, en))));
+                    }
+                }
+            }
+            if active(job) || (yes(job, "can_retry") && job["transfer"].is_object()) {
                 let transfer = &job["transfer"];
                 if !transfer.is_null() {
                     let received = number(&transfer["received_bytes"]);
@@ -755,6 +780,11 @@ impl App {
         .into()
     }
     fn updates_page(&self) -> Element<'_, Message> {
+        if self.request(&SetupControl("retry")).is_some()
+            && self.data("setup")["job"]["mode"] == "update"
+        {
+            return self.download_retry_view();
+        }
         let launcher = self.data("launcher-update");
         let game = self.data("game-update");
         let mut launcher_actions = vec![];
@@ -821,6 +851,7 @@ impl App {
         for (title, op) in [
             ("Download pausieren", "pause"),
             ("Download fortsetzen", "resume"),
+            ("Download erneut versuchen", "retry"),
             ("Abbrechen", "cancel"),
         ] {
             if self.request(&SetupControl(op)).is_some() {

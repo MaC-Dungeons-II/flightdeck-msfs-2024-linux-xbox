@@ -70,6 +70,9 @@ network activity and **Resume** to continue. Complete files are verified before
 reuse. Up to four unfinished files may restart, so pausing does not preserve
 every byte already transferred. If the Microsoft sign-in has expired, Flightdeck
 asks you to sign in again and keeps the verified files.
+If sign-in or the download fails, **Retry download** in 0.2.21 keeps the same
+job and rechecks completed files before reuse. The service waits for Retry or
+Cancel; the displayed error codes are also retained in diagnostic reports.
 The progress bar shows received MB/GB and percentage once the content total is
 known. Paused downloads keep those values visible.
 [Progress and resume details](download-pause.md)

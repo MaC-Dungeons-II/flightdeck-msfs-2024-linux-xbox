@@ -11,7 +11,7 @@ use std::{
     fs::Metadata,
     path::Path,
 };
-pub const SCHEMA: u32 = 7;
+pub const SCHEMA: u32 = 8;
 const USERS: &[&str] = &[
     "XUserAddAsync.service",
     "XUserAddAsync.complete",

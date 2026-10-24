@@ -75,6 +75,7 @@ pub mod save_history;
 pub mod save_state;
 pub mod server;
 pub mod setup;
+pub mod setup_diagnostics;
 pub mod startup_updates;
 pub mod store_check;
 pub mod store_diagnostics;

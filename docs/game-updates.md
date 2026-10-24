@@ -58,6 +58,11 @@ Pause/resume has the same limits as [installation downloads](download-pause.md):
 completed files are hash-verified, up to four interrupted files restart, and
 the Flightdeck background-service session must remain running. Automatic job
 recovery after restarting the service or computer is not implemented.
+
+Since 0.2.21, a failed resumable download offers **Retry download** in the same
+reserved job. Its existing workspace is reused after file verification; cancel
+the job to release it. A changed pinned package revision still requires a new
+update check. [Retry behavior](download-pause.md).
 Downloads show received MB/GB and percentage when the content total is known;
 pausing keeps the last values visible. These counters cover the base package,
 not additional content downloaded inside MSFS. The same display is used for

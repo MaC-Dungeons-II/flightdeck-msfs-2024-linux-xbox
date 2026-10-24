@@ -46,6 +46,7 @@ pub fn from_state(s: &State) -> Value {
         }
     }
     summary["store_check"] = store_check::report(s);
+    summary["installation"] = s.installation_report.clone();
     summary["fenix"] = root.map(fenix_diagnostics::load).unwrap_or(Value::Null);
     let cloud = cloud_sync::automatic(s);
     summary["cloud_sync"] = ["state", "phase", "error_code", "error_details"]
