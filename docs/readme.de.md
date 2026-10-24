@@ -43,6 +43,9 @@ der ersten Installation. Eigenständige Fenix-Patch-Updates bleiben unter
    Auf der Übersicht wechselst du zwischen installierten Editionen. Jede behält
    ihre eigene Runtime, ihr Wine-Profil, ihre Updates und lokalen Spielstände.
 
+**Bazzite:** Im Desktop-Modus installieren. Meldet der Installer einen
+symbolischen Link im Pfad, hilft die [Installationsanleitung mit Ausweichlösung](install.md#bazzite-and-symbolic-link-errors).
+
 Du benötigst eine Internetverbindung und eine gekaufte PC-Lizenz. Plane mindestens
 **100 GiB freien Speicher** ein, auch für gestreamte Inhalte, Caches und aufbewahrte
 Spielversionen. Die angezeigte Größe des Basisspiel-Downloads ist nur ein Teil davon.

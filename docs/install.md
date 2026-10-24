@@ -1,13 +1,13 @@
 # Install the Flightdeck launcher
 
-The current stable **0.2.14** native Rust package needs no Python interpreter.
-Version 0.1.22 and native versions 0.2.1–0.2.13 can update in-app.
+The current stable **0.2.21** native Rust package needs no Python interpreter.
+Version 0.1.22 and native versions 0.2.1–0.2.20 can update in-app.
 Users of 0.1.21 or earlier should run this full
 installer once; their old updater cannot install native packages. See [update ordering](rust-transition.md),
 [changes](changelog.md) and [native status](rust-migration.md).
 
 Download **Flightdeck-Linux-x86_64.tar.gz** from the
-[0.2.14 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.14)
+[0.2.21 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.21)
 and extract it on your Linux computer. This full installer includes the six
 pinned compatibility components and their license notices. Version 0.1.22
 needs Python 3.10.12+ and the Linux libraries listed below. The native package
@@ -91,11 +91,45 @@ do not include this binary bundle and require the documented
 game files, account credentials, a game license or proprietary SDK files, and
 setup does not purchase the game.
 
-Flightdeck 0.2.14 opens a native Rust desktop window. Its local
+Flightdeck opens a native Rust desktop window. Its local
 HTTP endpoint exposes only the API. Native language preferences are stored in
 `ui-preferences.json` under the launcher state directory; an explicit
 `--language de` or `--language en` overrides the saved choice. See [the native
 interface](native-ui.md) for build and Fenix installer changes.
+
+## Bazzite and symbolic-link errors
+
+Start the installation in **Desktop Mode**. Download the full
+**Flightdeck-Linux-x86_64.tar.gz** package linked above and **extract the entire
+archive**, rather than opening its desktop launcher inside the archive viewer.
+The extracted directory is named `flightdeck-linux`.
+
+If installation reports **“The installation path contains a symbolic link”**,
+Flightdeck 0.2.21's path checks can reject the normal Fedora Atomic layout:
+[`/home` points to `/var/home`](https://github.com/fedora-silverblue/silverblue-docs/blob/master/modules/ROOT/pages/technical-information.adoc#filesystem-layout).
+This is an installer limitation; changing the desktop launcher's executable
+permission alone does not resolve it.
+
+For a package extracted directly into your Downloads directory, open a terminal
+and run:
+
+```sh
+cd -P "$HOME/Downloads/flightdeck-linux" &&
+HOME="$(realpath "$HOME")" \
+XDG_DATA_HOME="$(realpath -m "${XDG_DATA_HOME:-$HOME/.local/share}")" \
+bash ./install.sh
+```
+
+Adjust the first line if you extracted the package elsewhere. Run the remaining
+lines only after changing into the extracted directory successfully. These
+settings apply to this installer invocation and resolve the home/data paths to
+their actual directories. The installer creates the usual **Flightdeck** menu
+entry without sudo or changes to the operating system's symlinks.
+
+The path workaround passed a synthetic `/home` → `/var/home` installation test
+with the 0.2.21 installer, including its menu entry. It does not establish
+simulator compatibility on Bazzite. If installation still fails, report the
+exact terminal error, Flightdeck version and Bazzite version.
 
 ## Download size and storage
 
@@ -244,7 +278,8 @@ reopen the menu if necessary.
 `--data-dir`, `--bin-dir` and `--applications-dir` accept custom absolute paths.
 For example, a contained test install can use three directories under a temporary
 workspace. Symlinks in installation/source paths are rejected with an explanatory
-message; use real directories. The installer will not overwrite a pre-existing
+message; use real directories. For Fedora Atomic home-directory aliases, see the
+[Bazzite workaround](#bazzite-and-symbolic-link-errors). The installer will not overwrite a pre-existing
 unrelated `flightdeck` command or `flightdeck.desktop` file.
 
 For development only, `flightdeck --no-browser` runs the foreground local HTTP
@@ -254,19 +289,19 @@ it; users do not need to manage the HTTP service themselves.
 
 ## Update and rollback
 
-**0.2.14 is the current stable release.** Version 0.1.22 and native versions
-0.2.1–0.2.13 receive it through
+**0.2.21 is the current stable release.** Version 0.1.22 and native versions
+0.2.1–0.2.20 receive it through
 **Updates → Flightdeck**.
 
 Version 0.1.21 and earlier only understand Python update packages. Use the full
-[0.2.14 installer](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.14)
+[0.2.21 installer](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.21)
 once to update those installations while retaining their settings. Alternatively,
 install the unchanged [0.1.22 transition package](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.1.22)
-explicitly, restart, then use its updater for 0.2.14. The bridge is still available,
+explicitly, restart, then use its updater for 0.2.21. The bridge is still available,
 but is no longer automatically returned by GitHub's Latest endpoint.
 
 If you already installed 0.2.0-dev.1 or the withdrawn 0.2.0, use the complete
-0.2.14 installer once. Their native HTTP update check is defective and cannot
+0.2.21 installer once. Their native HTTP update check is defective and cannot
 download this repair; 0.1.22's updater is unaffected.
 
 Alternatively, run the **new native package's `./install.sh`** directly. The

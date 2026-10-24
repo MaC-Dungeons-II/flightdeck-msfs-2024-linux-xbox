@@ -41,6 +41,9 @@ See the [changelog](docs/changelog.md).
    Select an installed edition on the overview to switch between separate
    runtimes, Wine prefixes, updates and local saves.
 
+**Bazzite:** Install in Desktop Mode. If the installer reports that its path
+contains a symbolic link, follow the [installation workaround](docs/install.md#bazzite-and-symbolic-link-errors).
+
 An Internet connection and a purchased PC license are required. Allow at least
 **100 GiB free**, including room for streamed content, caches and retained game
 versions. The displayed base-game download size is only part of that storage.

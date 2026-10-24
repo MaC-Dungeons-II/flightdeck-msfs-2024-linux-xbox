@@ -2,6 +2,11 @@
 
 ## 0.2.21 — 24 October 2026
 
+Documentation follow-up: add a Bazzite/Fedora Atomic installation workaround
+for the symbolic-link path error, checked with a synthetic home-directory
+layout. The published installer binaries are unchanged; installation and
+simulator operation on an actual Bazzite desktop remain unverified.
+
 - Offer **Retry download** after a failed game download or Microsoft sign-in
   when the verified components support file reuse. Keep the original private
   workspace and job reserved; retry checks completed files through the existing

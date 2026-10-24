@@ -5,6 +5,12 @@
 Stand: 24. Oktober 2026, für die stabile Version **0.2.21**.
 Siehe [Änderungsübersicht](changelog.md#0221--24-october-2026).
 
+- **Bazzite-Installation:** Der Installer lehnt symbolische Links in Quell- und
+  Zielpfaden ab, auch Fedora Atomics `/home`-Verknüpfung. Im Desktop-Modus mit
+  [aufgelösten Verzeichnispfaden installieren](install.md#bazzite-and-symbolic-link-errors).
+  Die Ausweichlösung bestand einen synthetischen Installer-Test; die
+  Simulator-Kompatibilität auf Bazzite bleibt ungeprüft.
+
 - **Spieldownload:** Version 0.2.21 bietet bei fehlgeschlagenem fortsetzbarem
   Download oder fehlgeschlagener Anmeldung **Download erneut versuchen**, solange
   der Hintergrunddienst läuft. Der vorhandene Ordner wird nach Prüfung fertiger

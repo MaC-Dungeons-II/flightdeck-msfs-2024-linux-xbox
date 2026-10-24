@@ -5,6 +5,12 @@
 Status: 24 October 2026, covering the stable **0.2.21** release.
 See the [release changes](changelog.md#0221--24-october-2026).
 
+- **Bazzite installation:** The installer rejects symbolic links in its source
+  and destination paths, including Fedora Atomic's `/home` alias. Install from
+  Desktop Mode using the [physical-path workaround](install.md#bazzite-and-symbolic-link-errors).
+  The workaround passed a synthetic installer test; Bazzite simulator
+  compatibility remains unverified.
+
 - **Game downloads:** Version 0.2.21 offers **Retry download** after a failed
   resumable download or sign-in while its background service remains running.
   The existing folder is reused with completed-file checks. Numeric setup
