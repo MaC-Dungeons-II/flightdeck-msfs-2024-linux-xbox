@@ -1,13 +1,13 @@
 # Install the Flightdeck launcher
 
-The current stable **0.2.22** native Rust package needs no Python interpreter.
-Version 0.1.22 and native versions 0.2.1–0.2.21 can update in-app.
+The current stable **0.2.23** native Rust package needs no Python interpreter.
+Version 0.1.22 and native versions 0.2.1–0.2.22 can update in-app.
 Users of 0.1.21 or earlier should run this full
 installer once; their old updater cannot install native packages. See [update ordering](rust-transition.md),
 [changes](changelog.md) and [native status](rust-migration.md).
 
 Download **Flightdeck-Linux-x86_64.tar.gz** from the
-[0.2.22 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.22)
+[0.2.23 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.23)
 and extract it on your Linux computer. This full installer includes the six
 pinned compatibility components and their license notices. Version 0.1.22
 needs Python 3.10.12+ and the Linux libraries listed below. The native package
@@ -289,19 +289,19 @@ it; users do not need to manage the HTTP service themselves.
 
 ## Update and rollback
 
-**0.2.22 is the current stable release.** Version 0.1.22 and native versions
-0.2.1–0.2.21 receive it through
+**0.2.23 is the current stable release.** Version 0.1.22 and native versions
+0.2.1–0.2.22 receive it through
 **Updates → Flightdeck**.
 
 Version 0.1.21 and earlier only understand Python update packages. Use the full
-[0.2.22 installer](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.22)
+[0.2.23 installer](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.23)
 once to update those installations while retaining their settings. Alternatively,
 install the unchanged [0.1.22 transition package](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.1.22)
-explicitly, restart, then use its updater for 0.2.22. The bridge is still available,
+explicitly, restart, then use its updater for 0.2.23. The bridge is still available,
 but is no longer automatically returned by GitHub's Latest endpoint.
 
 If you already installed 0.2.0-dev.1 or the withdrawn 0.2.0, use the complete
-0.2.22 installer once. Their native HTTP update check is defective and cannot
+0.2.23 installer once. Their native HTTP update check is defective and cannot
 download this repair; 0.1.22's updater is unaffected.
 
 Alternatively, run the **new native package's `./install.sh`** directly. The

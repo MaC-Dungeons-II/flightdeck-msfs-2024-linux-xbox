@@ -30,16 +30,29 @@ impl App {
     pub(crate) fn fenix_update_controls<'a>(&'a self, data: &'a Value) -> Element<'a, Message> {
         let mut manage = column![].spacing(14);
         let installed = s(data, "installed_version");
-        let version = if installed.is_empty() {
-            s(data, "version")
-        } else {
-            installed
-        };
-        if !version.is_empty() {
+        if !installed.is_empty() {
             manage = manage.push(self.paragraph(format!(
-                "{}: {version}",
+                "{}: {installed}",
                 self.tr("Patch-Version", "Patch version")
             )));
+        } else if data["state"] == "legacy" {
+            manage = manage.push(self.paragraph(self.tr(
+                "Installierter Patch: lokale Einrichtung, Version nicht bestätigt.",
+                "Installed patch: local setup, version unverified.",
+            )));
+        }
+        if installed.is_empty() && !s(data, "version").is_empty() {
+            manage = manage.push(self.paragraph(format!(
+                "{}: {}",
+                self.tr("Verfügbarer Patch", "Available patch"),
+                s(data, "version")
+            )));
+        }
+        if yes(data, "migration_required") {
+            manage = manage.push(self.paragraph(self.tr(
+                "Vorhandene Einrichtung übernehmen und auf den aktuellen Patch aktualisieren. Flightdeck prüft die Dateien und sichert den bisherigen Stand.",
+                "Adopt the existing setup and update to the current patch. Flightdeck verifies the files and backs up the previous state.",
+            ))).push(self.action("Einrichtung übernehmen & aktualisieren", Fenix("migrate")));
         }
         if data["patch_update"]["state"] == "checking" {
             manage = manage.push(self.paragraph(self.tr(
@@ -259,7 +272,7 @@ impl App {
                             Some(Message::Navigate(Page::Overview)),
                             true,
                         ));
-                        if data["readouts"] == false {
+                        if data["readouts"] == false && !yes(data, "readouts_preference_retained") {
                             // Otherwise only reachable in the collapsed management section.
                             let action = Fenix("configure");
                             let message = self.request(&action).map(|_| Message::Action(action));
@@ -270,6 +283,9 @@ impl App {
                             ));
                         }
                     } else if data["state"] == "legacy" {
+                        content = content.push(
+                            self.action("Einrichtung übernehmen & aktualisieren", Fenix("migrate")),
+                        );
                         if yes(data, "fenix_installed") {
                             content =
                                 content.push(self.addon_action("Fenix öffnen", Fenix("open")));

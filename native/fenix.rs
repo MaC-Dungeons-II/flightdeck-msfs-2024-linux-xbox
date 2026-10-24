@@ -255,24 +255,38 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
         }
     }
     let original_runner = root.join("runner").canonicalize()?;
+    let legacy = if upgrade.is_none()
+        && !files::exists(&marker)
+        && files::exists(&root.join(crate::fenix_legacy::MARKER))
+    {
+        Some(crate::fenix_legacy::inspect(root, &current)?)
+    } else {
+        None
+    };
     let variant = if let Some(upgrade) = &upgrade {
         upgrade["variant"].as_str().map(str::to_string)
+    } else if let Some(legacy) = &legacy {
+        legacy.variant.clone()
     } else {
         bundle::runner_variant(&original_runner, false)?
     };
     let lock = bundle::payload_manifest(payload, variant.as_deref())?;
     let renderer = match &upgrade {
         Some(previous) => setup::DisplayRenderer::for_state(&lock, previous)?,
-        None => setup::DisplayRenderer::from_manifest(&lock)?,
+        None => match &legacy {
+            Some(plan) => plan.renderer,
+            None => setup::DisplayRenderer::from_manifest(&lock)?,
+        },
     };
     for name in bundle::LAUNCH_FILES {
         require(
-            bundle::accepted_script(
-                name,
-                &tx::digest(&root.join("tools").join(name))?,
-                &lock,
-                upgrade.as_ref().and_then(|v| v["version"].as_str()),
-            )?,
+            legacy.is_some()
+                || bundle::accepted_script(
+                    name,
+                    &tx::digest(&root.join("tools").join(name))?,
+                    &lock,
+                    upgrade.as_ref().and_then(|v| v["version"].as_str()),
+                )?,
             "Custom Flightdeck launch script detected; it will not be overwritten.",
         )?;
         bundle::script(name)?;
@@ -303,6 +317,19 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     )?;
     state["bundle_manifest"] = current;
     state["bundle_release"] = selected["release"].clone();
+    if let Some(legacy) = &legacy {
+        tx::copy_path(
+            &root.join(crate::fenix_legacy::MARKER),
+            &backup.join("legacy-patch.json"),
+            None,
+            &ctx.cancel,
+        )?;
+        state["adopted_legacy"] = json!(true);
+        if legacy.renderer_saved {
+            state["display_renderer_override"] = json!(legacy.renderer.as_str());
+        }
+        state["readouts_preference_retained"] = json!(legacy.readouts_saved);
+    }
     if let Some(previous) = &upgrade {
         files::atomic_json(&backup.join("previous-patch.json"), previous)?;
         for key in [
@@ -314,6 +341,7 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
             "proton_before",
             "display_renderer",
             "display_renderer_override",
+            "readouts_preference_retained",
         ] {
             state[key] = previous[key].clone();
         }
@@ -382,7 +410,7 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
             |message| ctx.progress(message),
         )?;
         crate::fenix_installer::prepare(&wine.wine)?;
-        if upgrade.is_none() {
+        if upgrade.is_none() && legacy.is_none() {
             ctx.progress("Preparing fonts, graphics dependencies and Fenix settings …");
             setup::graphics_fonts(&wine)?;
         }
@@ -392,7 +420,13 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     let stopped = wine.stop();
     setup_result.and(stopped)?;
     bundle::overlay(&staged, &runner, payload, variant.as_deref(), ctx)?;
-    if upgrade.is_none() {
+    if let Some(legacy) = &legacy {
+        setup::configure_autostart(&staged)?;
+        state["configured"] = json!(legacy.configured);
+        state["readouts"] = json!(legacy.readouts);
+        state["display_renderer"] = json!(legacy.renderer.as_str());
+        legacy.revalidate(root, &state["bundle_manifest"])?;
+    } else if upgrade.is_none() {
         setup::apply_settings(&mut state, &staged, renderer)?;
     } else if setup::migrate_renderer(
         &mut state,
@@ -905,6 +939,8 @@ pub fn snapshot(app: &Launcher) -> Value {
                 value["installed"] = json!(state["state"] == "installed");
                 value["configured"] = json!(state["configured"] == true);
                 value["readouts"] = json!(readouts(&state));
+                value["readouts_preference_retained"] =
+                    state["readouts_preference_retained"].clone();
                 value["display_renderer"] = if state["configured"] == true {
                     json!(setup::DisplayRenderer::from_state(&state).as_str())
                 } else {
@@ -913,7 +949,11 @@ pub fn snapshot(app: &Launcher) -> Value {
                 value["display_renderer_override"] = state["display_renderer_override"].clone();
                 value["can_restore"] = json!(state["migrated"] != true);
                 value["can_retry"] = json!(retryable(&root, &state));
-                value["installed_version"] = state["version"].clone();
+                value["installed_version"] = if state["state"] == "installed" {
+                    state["version"].clone()
+                } else {
+                    Value::Null
+                };
                 let mut target = bundle::manifest(None)?;
                 if !candidate.is_null()
                     && crate::fenix_update::version(string(&candidate["bundle"], "version")?)?
@@ -941,10 +981,11 @@ pub fn snapshot(app: &Launcher) -> Value {
                             .get(string(&state, "version")?)
                             .is_some()
                 );
-            } else if root.join("private/fenix-compat.json").exists() {
+            } else if root.join(crate::fenix_legacy::MARKER).exists() {
                 value["state"] = json!("legacy");
+                value["migration_required"] = json!(true);
                 value["message"] = json!(
-                    "An earlier local Fenix patch is active. Keep using it; automatic replacement is disabled."
+                    "The local Fenix patch is not managed yet. Flightdeck can verify and update a known installation while retaining its aircraft, settings and previous profile."
                 );
             } else {
                 host_check()?;
@@ -982,12 +1023,14 @@ pub fn snapshot(app: &Launcher) -> Value {
             value["message"] = json!(error.to_string());
         }
     }
+    value["available_version"] = value["version"].clone();
     value
 }
 pub fn start(app: &Arc<Launcher>, operation: &str, data: &Value) -> Result<Value> {
     require(
         [
             "install",
+            "migrate",
             "configure",
             "restore",
             "installer",
@@ -1030,9 +1073,14 @@ pub fn start(app: &Arc<Launcher>, operation: &str, data: &Value) -> Result<Value
     let data = data.clone();
     let operation = operation.to_string();
     app.start_job("fenix",&operation.clone(),true,move|ctx|{
+        if operation=="migrate" {
+            validate(ctx.root()?,false)?;
+            wine_processes::idle(&ctx.root()?.join("local/msfs-prefix"))?;
+            crate::fenix_legacy::inspect(ctx.root()?,&crate::fenix_update::selected(ctx)?["bundle"])?;
+        }
         if ["configure","installer","open","manager"].contains(&operation.as_str()){crate::fenix_update::ensure(ctx)?;}
-        match operation.as_str(){"install"=>{let payload=bundle::obtain(&ctx.launcher.state_dir.join("fenix-bundles"),data["bundle_path"].as_str(),ctx)?;install(ctx,&payload)?;},"restore"=>restore(ctx)?,"configure"=>configure(ctx)?,"stop"=>{validate(ctx.root()?,true)?;wine_processes::stop(ctx.root()?,wine_processes::FENIX)?;},_=>windows_app(ctx,&operation,&data)?,}
-        Ok(json!({"state":"complete","stopping":false,"message":match operation.as_str(){"install"=>"Fenix-Patch eingerichtet. Die nächsten Schritte stehen oben.","configure"=>"Anzeigen und automatischer Fenix-Start sind eingerichtet.","restore"=>"Das Profil vor dem Patch wurde wiederhergestellt.","installer"=>"Installer beendet. Prüfe die nächsten Schritte oben; die Fenix-Einrichtung ist noch nicht automatisch abgeschlossen.","repair"=>"Der Fenix-Einrichtungsschritt wurde erfolgreich repariert. Öffne die Fenix-App, um die Flugzeuginstallation fortzusetzen.",_=>"Fenix wurde beendet."}}))
+        match operation.as_str(){"install"|"migrate"=>{let payload=bundle::obtain(&ctx.launcher.state_dir.join("fenix-bundles"),data["bundle_path"].as_str(),ctx)?;install(ctx,&payload)?;},"restore"=>restore(ctx)?,"configure"=>configure(ctx)?,"stop"=>{validate(ctx.root()?,true)?;wine_processes::stop(ctx.root()?,wine_processes::FENIX)?;},_=>windows_app(ctx,&operation,&data)?,}
+        Ok(json!({"state":"complete","stopping":false,"message":match operation.as_str(){"install"=>"Fenix-Patch eingerichtet. Die nächsten Schritte stehen oben.","migrate"=>"Fenix-Einrichtung übernommen und Patch aktualisiert. Der vorherige Stand bleibt wiederherstellbar.","configure"=>"Anzeigen und automatischer Fenix-Start sind eingerichtet.","restore"=>"Das Profil vor dem Patch wurde wiederhergestellt.","installer"=>"Installer beendet. Prüfe die nächsten Schritte oben; die Fenix-Einrichtung ist noch nicht automatisch abgeschlossen.","repair"=>"Der Fenix-Einrichtungsschritt wurde erfolgreich repariert. Öffne die Fenix-App, um die Flugzeuginstallation fortzusetzen.",_=>"Fenix wurde beendet."}}))
     })
 }
 

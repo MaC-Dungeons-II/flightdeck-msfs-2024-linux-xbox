@@ -30,6 +30,7 @@ pub mod fenix_bundle;
 pub mod fenix_desktop;
 pub mod fenix_diagnostics;
 pub mod fenix_installer;
+pub mod fenix_legacy;
 pub mod fenix_setup;
 pub mod fenix_update;
 pub mod files;

@@ -79,7 +79,7 @@ impl App {
                 .spacing(12)
                 .align_y(alignment::Vertical::Center);
         let badge = match section {
-            Disclosure::Fenix => Some("Community-Vorschau"),
+            Disclosure::Fenix => Some("Community-Patch"),
             Disclosure::Gsx => Some("Experimentell"),
             _ => None,
         };
@@ -210,7 +210,7 @@ impl App {
                 | MaintenanceStart
                 | Launcher("install" | "restart")
                 | Game("start" | "sign-in")
-                | Fenix("install" | "configure")
+                | Fenix("install" | "migrate" | "configure")
                 | Gsx("prepare" | "configure")
         );
         self.control(title, allowed.then_some(Message::Action(action)), primary)
@@ -535,6 +535,7 @@ impl App {
             column![
                 self.overview_update_status("launcher-update", "Flightdeck"),
                 self.overview_update_status("game-update", "Simulator"),
+                self.overview_fenix_update(),
                 label(
                     self.tr("Automatische Updateprüfung.", "Automatic update checks."),
                     13.0,
@@ -611,6 +612,48 @@ impl App {
                 Weight::Normal
             },
             if available {
+                self.edition.accent()
+            } else {
+                MUTED
+            },
+        )
+        .into()
+    }
+    fn overview_fenix_update(&self) -> Element<'_, Message> {
+        let data = self.data("fenix");
+        if !self.fresh("fenix")
+            || s(data, "runtime_path") != self.runtime()
+            || !(yes(data, "installed") || data["state"] == "legacy")
+        {
+            return Space::new().height(0).into();
+        }
+        let attention = yes(data, "update_available") || yes(data, "migration_required");
+        let status = if yes(data, "migration_required") {
+            self.tr(
+                "Einrichtung übernehmen & aktualisieren",
+                "Adopt setup & update",
+            )
+        } else if yes(data, "update_available") {
+            self.tr("Update verfügbar", "Update available")
+        } else if data["patch_update"]["state"] == "checking" {
+            self.tr(
+                "Fenix-Updates werden geprüft …",
+                "Checking for Fenix updates …",
+            )
+        } else if data["patch_update"]["state"] == "failed" {
+            self.tr("Updateprüfung fehlgeschlagen", "Update check failed")
+        } else {
+            s(data, "installed_version")
+        };
+        label(
+            format!("Fenix: {status}"),
+            15.0,
+            if attention {
+                Weight::Semibold
+            } else {
+                Weight::Normal
+            },
+            if attention {
                 self.edition.accent()
             } else {
                 MUTED
@@ -904,7 +947,9 @@ impl App {
         let fenix = self.data("fenix");
         let fenix_view: Element<'_, Message> = if self.fresh("fenix")
             && s(fenix, "runtime_path") == self.runtime()
-            && yes(fenix, "installed")
+            && (yes(fenix, "installed")
+                || fenix["state"] == "legacy"
+                || model::active(&fenix["job"]))
         {
             self.card(
                 "Fenix Linux-Patch",

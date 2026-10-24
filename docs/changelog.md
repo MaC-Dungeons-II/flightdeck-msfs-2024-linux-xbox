@@ -1,5 +1,20 @@
 # Changes and release status
 
+## 0.2.23 — 25 October 2026
+
+- Include existing local Fenix installations in automatic update discovery.
+  Previously they were skipped, while the UI could label the embedded available
+  version as though it were installed. Show verified installed versions and
+  available releases separately.
+- Adopt known local patches through the existing staged profile/runner
+  transaction, automatically before MSFS/Fenix launch or through **Adopt setup
+  & update**. Check known native modules and launch scripts before copying and
+  again before publication. Preserve aircraft, renderer/FCU preferences and a
+  restore point. Unknown customizations remain protected.
+- Show Fenix updates and pending adoption on the overview, in the Updates page
+  and with an update navigation indicator. Keep checks available during a game;
+  adoption and installation require an idle selected runtime.
+
 ## 0.2.22 — 25 October 2026
 
 - Integrate [Fenix patch 0.1.0](https://github.com/marselnenaj/fenix-a320-linux-patch/releases/tag/v0.1.0)

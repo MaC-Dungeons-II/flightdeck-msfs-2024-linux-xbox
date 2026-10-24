@@ -423,6 +423,10 @@ pub fn configure_prefix(prefix: &Path, renderer: DisplayRenderer) -> Result<(boo
         ],
     )?;
     let legacy = settings_file(&persisted, &[("fcuReadoutsType", "0")])?;
+    configure_autostart(prefix)?;
+    Ok((ready, ready && legacy))
+}
+pub fn configure_autostart(prefix: &Path) -> Result<()> {
     let mut candidates = Vec::new();
     for user in user_folders(prefix)? {
         let path = user.join("AppData/Roaming/Microsoft Flight Simulator 2024");
@@ -498,7 +502,7 @@ pub fn configure_prefix(prefix: &Path, renderer: DisplayRenderer) -> Result<(boo
         entry.set(key, value);
     }
     files::atomic(&path, &root.bytes()?)?;
-    Ok((ready, ready && legacy))
+    Ok(())
 }
 pub fn manager(prefix: &Path) -> Result<PathBuf> {
     let mut candidates = Vec::new();

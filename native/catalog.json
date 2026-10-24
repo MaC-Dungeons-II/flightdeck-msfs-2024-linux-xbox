@@ -687,5 +687,6 @@
   "Vorherige Spielsitzung wird beendet und lokale Spielstände werden gesichert …": "Ending the previous game session and backing up local saves …",
   "Download erneut versuchen": "Retry download",
   "Der Download wurde unterbrochen. Erneut versuchen verwendet bereits vollständig geladene Dateien nach erneuter Prüfung weiter.": "The download was interrupted. Retry rechecks and reuses files that have already finished downloading.",
-  "Der Spieldownload wurde nicht abgeschlossen. Bitte Kaufberechtigung, Speicherplatz und Verbindung prüfen.": "The game download did not complete. Check game ownership, disk space and your connection."
+  "Der Spieldownload wurde nicht abgeschlossen. Bitte Kaufberechtigung, Speicherplatz und Verbindung prüfen.": "The game download did not complete. Check game ownership, disk space and your connection.",
+  "Fenix-Einrichtung übernommen und Patch aktualisiert. Der vorherige Stand bleibt wiederherstellbar.": "Fenix setup adopted and patch updated. The previous state remains available for restoration."
 }

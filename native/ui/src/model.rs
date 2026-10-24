@@ -413,6 +413,10 @@ impl App {
                 body = json!({"runtime_path":root});
                 if fenix {
                     match *op {
+                        "migrate" => (
+                            "fenix/migrate",
+                            change && data["state"] == "legacy" && yes(data, "migration_required"),
+                        ),
                         "check-update" => (
                             "fenix/check-update",
                             enabled && yes(data, "can_check_updates"),

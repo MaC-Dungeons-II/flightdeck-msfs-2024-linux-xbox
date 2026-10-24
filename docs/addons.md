@@ -226,7 +226,7 @@ a game crash or **Stop**, with a bounded fallback for stuck processes. Since
 installation or livery download there before quitting MSFS. Other Wine profiles
 are excluded from that cleanup.
 
-Flightdeck 0.2.22 includes patch **0.1.0** as its verified fallback
+Flightdeck 0.2.23 includes patch **0.1.0** as its verified fallback
 and independently checks GitHub for compatible Fenix patch releases at startup
 and every 30 minutes. Failed checks retry after five minutes and do not prevent
 using the installed patch. **Updates** and **Mods → Fenix A320 → Manage & repair**
@@ -241,6 +241,13 @@ does not downgrade a newer independently installed patch. Preview installations
 prefer a stable release when one becomes available; stable installations follow
 stable releases. Releases requiring a new installer contract or different runner
 integration require a Flightdeck update first.
+
+Since 0.2.23, a known older local setup can be adopted automatically before
+launch or through **Adopt setup & update**. Flightdeck verifies its files,
+copies the profile and runner, and retains the previous installation for
+restoration. Existing aircraft, renderer and FCU preferences are retained.
+Unknown customized files stop adoption. The overview and update icon show
+pending adoption; an **available** version is not an installed-version claim.
 
 Patch 0.1.0 replaces the remaining owned Linux Python helpers with Rust.
 It requires Flightdeck **0.2.22 or later**; update the launcher first. Wine,

@@ -2,8 +2,8 @@
 
 [English](known-issues.md) · [Dokumentation](index.md)
 
-Stand: 25. Oktober 2026, für die stabile Version **0.2.22**.
-Siehe [Änderungsübersicht](changelog.md#0222--25-october-2026).
+Stand: 25. Oktober 2026, für die stabile Version **0.2.23**.
+Siehe [Änderungsübersicht](changelog.md#0223--25-october-2026).
 
 - **Bazzite-Installation:** Der Installer lehnt symbolische Links in Quell- und
   Zielpfaden ab, auch Fedora Atomics `/home`-Verknüpfung. Im Desktop-Modus mit

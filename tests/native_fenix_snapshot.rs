@@ -4,6 +4,41 @@ use flightdeck::{backend::Launcher, fenix, fenix_diagnostics as fd, files};
 use serde_json::json;
 
 #[test]
+fn preparing_a_release_does_not_claim_its_version_is_installed() {
+    use std::os::unix::fs::symlink;
+    let root = tempfile::tempdir().expect("runtime");
+    for name in [
+        "private",
+        "tools",
+        "local/msfs-prefix/drive_c/windows/system32",
+        "local/runner",
+    ] {
+        files::private_dir(&root.path().join(name)).expect("runtime directory");
+    }
+    symlink(root.path().join("local/runner"), root.path().join("runner")).expect("runner link");
+    let state = tempfile::tempdir().expect("state");
+    let app = Launcher::new(state.path().join("state"), None).expect("launcher");
+    app.lock().runtime = Some(root.path().to_owned());
+    for phase in ["preparing", "committing", "installed"] {
+        files::atomic_json(
+            &root.path().join(fenix::MARKER),
+            &json!({"state":phase,"version":"0.1.0"}),
+        )
+        .expect("transaction marker");
+        let snapshot = fenix::snapshot(&app);
+        assert_eq!(snapshot["available_version"], "0.1.0");
+        if phase == "installed" {
+            assert_eq!(snapshot["installed_version"], "0.1.0");
+        } else {
+            assert!(
+                snapshot["installed_version"].is_null(),
+                "{phase} is not installed"
+            );
+        }
+    }
+}
+
+#[test]
 fn snapshot_reloads_only_validated_evidence_for_the_selected_runtime() {
     let root = tempfile::tempdir().expect("runtime");
     files::private_dir(&root.path().join("private")).expect("private");

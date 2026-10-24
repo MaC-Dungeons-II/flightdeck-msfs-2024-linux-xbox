@@ -424,15 +424,15 @@ fn retry_due(state: &State, now: Instant) -> bool {
             .is_none_or(|at| now.saturating_duration_since(at) >= Duration::from_secs(seconds))
 }
 
+fn has_patch(root: &Path) -> bool {
+    files::exists(&root.join(fenix::MARKER))
+        || files::exists(&root.join(crate::fenix_legacy::MARKER))
+}
+
 pub fn check(app: &Arc<Launcher>, force: bool) -> Result<Value> {
     let mut s = app.lock();
     Launcher::open(&s)?;
-    if !force
-        && !s
-            .runtime
-            .as_ref()
-            .is_some_and(|root| files::exists(&root.join(fenix::MARKER)))
-    {
+    if !force && !s.runtime.as_ref().is_some_and(|root| has_patch(root)) {
         return Ok(json!({"ok":true}));
     }
     let mut current = string(&bundle::manifest(None)?, "version")?.to_string();
@@ -489,6 +489,16 @@ pub fn ensure(ctx: &Context) -> Result<bool> {
         return Ok(false);
     };
     if !files::exists(&root.join(fenix::MARKER)) {
+        if files::exists(&root.join(crate::fenix_legacy::MARKER)) {
+            let target = selected(ctx)?;
+            if crate::fenix_legacy::inspect(root, &target["bundle"]).is_ok() {
+                let payload =
+                    bundle::obtain(&ctx.launcher.state_dir.join("fenix-bundles"), None, ctx)?;
+                fenix::install(ctx, &payload)?;
+                ctx.interrupted()?;
+                return Ok(true);
+            }
+        }
         return Ok(false);
     }
     let state = runtime::value(&root.join(fenix::MARKER))?;
@@ -527,6 +537,21 @@ pub fn ensure(ctx: &Context) -> Result<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn automatic_discovery_includes_existing_local_installations() {
+        let temp = tempfile::tempdir().expect("runtime");
+        assert!(!has_patch(temp.path()));
+        files::private_dir(&temp.path().join("private")).expect("private metadata");
+        files::atomic_json(&temp.path().join(crate::fenix_legacy::MARKER), &json!({}))
+            .expect("legacy record");
+        assert!(
+            has_patch(temp.path()),
+            "local installations need automatic checks too"
+        );
+        fs::remove_file(temp.path().join(crate::fenix_legacy::MARKER)).expect("remove legacy");
+        files::atomic_json(&temp.path().join(fenix::MARKER), &json!({})).expect("managed record");
+        assert!(has_patch(temp.path()));
+    }
     #[test]
     fn failed_discovery_retries_after_five_minutes_and_success_after_thirty() {
         let at = Instant::now();

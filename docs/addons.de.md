@@ -243,7 +243,7 @@ Fenix-App, falls sie noch geöffnet ist; schließe Installationen oder
 Livery-Downloads dort ab, bevor du MSFS beendest. Andere Wine-Profile bleiben
 davon unberührt.
 
-Flightdeck 0.2.22 enthält Patch **0.1.0** als geprüfte Ausgangsversion
+Flightdeck 0.2.23 enthält Patch **0.1.0** als geprüfte Ausgangsversion
 und sucht beim Start sowie alle 30 Minuten eigenständig auf GitHub nach
 kompatiblen Fenix-Patches. Fehlgeschlagene Prüfungen werden nach fünf Minuten
 wiederholt; der installierte Patch bleibt nutzbar. Unter **Updates** und
@@ -260,6 +260,14 @@ einer Offline-Prüfung wird ein neuerer installierter Patch nicht zurückgestuft
 Preview-Installationen bevorzugen eine verfügbare stabile Version; stabile
 Installationen folgen stabilen Releases. Benötigt ein Patch eine neue
 Installer-Schnittstelle oder andere Runner, ist zuerst ein Flightdeck-Update nötig.
+
+Ab 0.2.23 lässt sich eine bekannte ältere lokale Einrichtung vor dem Start
+automatisch oder über **Einrichtung übernehmen & aktualisieren** übernehmen.
+Flightdeck prüft die Dateien, kopiert Profil und Runner und behält den vorherigen
+Stand zur Wiederherstellung. Flugzeug sowie vorhandene Renderer- und FCU-Wahl
+bleiben erhalten. Unbekannte angepasste Dateien stoppen die Übernahme. Übersicht
+und Update-Symbol zeigen die ausstehende Übernahme; eine **verfügbare** Version
+bestätigt keine installierte Version.
 
 Patch 0.1.0 ersetzt die restlichen eigenen Linux-Python-Helfer durch Rust.
 Er benötigt Flightdeck **ab 0.2.22**; zuerst den Launcher aktualisieren. Wine,

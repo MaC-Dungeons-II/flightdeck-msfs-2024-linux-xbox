@@ -31,7 +31,8 @@ pub(crate) fn fenix(data: &Value, status: &Value) -> AddonProgress {
     let ready = settings && yes(data, "configured");
     // Fenix can create the file for this setting only once the aircraft has
     // been loaded. Displays and auto-start do not wait for it.
-    let readouts_pending = ready && data["readouts"] == false;
+    let readouts_pending =
+        ready && data["readouts"] == false && !yes(data, "readouts_preference_retained");
     let supported =
         ["available", "installed"].contains(&s(data, "state")) || yes(data, "can_retry");
     let next = if ready {
@@ -91,7 +92,7 @@ pub(crate) fn fenix(data: &Value, status: &Value) -> AddonProgress {
         }
     } else if data["state"] == "legacy" {
         progress.title = "Vorhandene Fenix-Einrichtung";
-        progress.detail = "Dein lokaler Fenix-Patch bleibt aktiv. Eine erneute Installation über diesen Assistenten ist nicht erforderlich.";
+        progress.detail = "Übernimm die vorhandene Einrichtung, damit Flightdeck den Patch prüfen und automatisch aktualisieren kann. Flugzeug und Einstellungen bleiben erhalten.";
     } else if yes(data, "can_restore") {
         progress.title = "Einrichtung unterbrochen · Wiederherstellung verfügbar";
         progress.detail =

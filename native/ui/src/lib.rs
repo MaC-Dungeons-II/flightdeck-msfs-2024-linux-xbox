@@ -396,6 +396,15 @@ impl App {
         }
     }
 
+    fn has_update_notice(&self) -> bool {
+        ["launcher-update", "game-update"]
+            .iter()
+            .any(|key| self.fresh(key) && yes(self.data(key), "update_available"))
+            || self.fresh("fenix")
+                && s(self.data("fenix"), "runtime_path") == self.runtime()
+                && (yes(self.data("fenix"), "update_available")
+                    || yes(self.data("fenix"), "migration_required"))
+    }
     fn sidebar_rail(&self) -> Element<'_, Message> {
         let mut content = column![
             container(svg(MARK.clone()).width(38).height(38)).center_x(Length::Fill),
@@ -411,8 +420,22 @@ impl App {
             (Page::Diagnostics, "pulse"),
         ] {
             let active = page == self.page;
-            let color = if active { self.edition.accent() } else { MUTED };
-            let control = button(container(icon(name, 24.0, color)).center(Length::Fill))
+            let notice = page == Page::Updates && self.has_update_notice();
+            let color = if active || notice {
+                self.edition.accent()
+            } else {
+                MUTED
+            };
+            let mut symbol = stack![container(icon(name, 24.0, color)).center(Length::Fill)];
+            if notice {
+                symbol = symbol.push(
+                    container(label("●", 10.0, Weight::Semibold, color))
+                        .width(Length::Fill)
+                        .align_x(alignment::Horizontal::Right)
+                        .padding([3, 6]),
+                );
+            }
+            let control = button(symbol)
                 .width(60)
                 .height(50)
                 .padding(0)
@@ -485,12 +508,13 @@ impl App {
             (Page::Diagnostics, "pulse"),
         ] {
             let active = page == self.page;
-            let color = if active {
+            let notice = page == Page::Updates && self.has_update_notice();
+            let color = if active || notice {
                 accent
             } else {
                 iced::color!(0xb7c9dc)
             };
-            let item = row![
+            let mut item = row![
                 container(Space::new()).width(3).height(56).style(move |_| {
                     container::Style::default().background(if active {
                         accent
@@ -520,6 +544,11 @@ impl App {
                 .height(56)
                 .align_y(alignment::Vertical::Center)
             ];
+            if notice {
+                item = item
+                    .push(Space::new().width(Length::Fill))
+                    .push(container(label("●", 11.0, Weight::Semibold, accent)).padding([0, 12]));
+            }
             navigation = navigation.push(
                 button(item)
                     .on_press(Message::Navigate(page))

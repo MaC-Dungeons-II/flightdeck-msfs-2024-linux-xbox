@@ -21,19 +21,20 @@ Microsoft-Konto an, lade das lizenzierte Spiel herunter und starte es über die
 native Rust-Oberfläche. Windows, die Xbox-App und eine bestehende MSFS-Installation
 sind dafür nicht erforderlich.
 
-**Aktuelle stabile Version: [Flightdeck 0.2.22](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.22).**
+**Aktuelle stabile Version: [Flightdeck 0.2.23](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.23).**
 Launcher, Installer und Updater benötigen kein Python.
 
-**Neu in 0.2.22:** Enthält das erste reguläre **Fenix-Patch-Release 0.1.0**
-mit nativer Rust-Laufzeit. Zuerst Flightdeck aktualisieren, dann den Patch unter
-**Mods → Fenix A320** bei geschlossenem MSFS und Fenix anwenden lassen.
-Kompatible spätere Patches werden weiterhin eigenständig aktualisiert.
+**Neu in 0.2.23:** Fenix-Updates und nötige Übernahmen stehen direkt auf der
+Übersicht und werden am Update-Symbol angezeigt. Flightdeck prüft bekannte
+lokale Fenix-Einrichtungen und übernimmt sie mit einer Sicherung in die
+automatische Patch-Verwaltung. Installierte und verfügbare Patch-Version sind
+klar getrennt; Flugzeug und vorhandene Renderer-/FCU-Wahl bleiben erhalten.
 [Änderungsübersicht](changelog.md)
 
 ## Loslegen
 
 1. Lade **Flightdeck-Linux-x86_64.tar.gz** aus der
-   [0.2.22-Veröffentlichung](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.22),
+   [0.2.23-Veröffentlichung](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.23),
    entpacke es und öffne **Install Flightdeck.desktop**. Eventuell musst du den
    lokalen Starter im Dateimanager freigeben. Alternativ dort `./install.sh` ausführen.
 2. Wähle **MSFS installieren**, die Edition 2024 oder 2020 und einen Zielordner.

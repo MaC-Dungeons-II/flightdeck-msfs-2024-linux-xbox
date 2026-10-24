@@ -47,6 +47,26 @@ fn prefix(root: &Path) {
 }
 
 #[test]
+fn adopting_autostart_retains_existing_renderer_and_fcu_preferences_byte_for_byte() {
+    let temp = tempfile::tempdir().expect("fixture");
+    let root = temp.path().join("prefix");
+    prefix(&root);
+    let config = root.join(fenix_setup::CONFIG).join("fenixConfig.xml");
+    let persisted = root.join(fenix_setup::CONFIG).join("persistancy.xml");
+    let before = fs::read(&config).expect("CPU preference");
+    let fcu = fs::read(&persisted).expect("FCU preference");
+    let autostart =
+        root.join("drive_c/users/pilot/AppData/Roaming/Microsoft Flight Simulator 2024/exe.xml");
+    write(&autostart,b"<SimBase.Document><Launch.Addon><Name>Other companion</Name><Path>other.exe</Path></Launch.Addon></SimBase.Document>");
+    fenix_setup::configure_autostart(&root).expect("Fenix auto-start entry");
+    assert_eq!(fs::read(config).expect("retained CPU preference"), before);
+    assert_eq!(fs::read(persisted).expect("retained FCU preference"), fcu);
+    let xml = fs::read_to_string(autostart).expect("auto-start XML");
+    assert!(xml.contains("other.exe"));
+    assert!(xml.contains("FenixBootstrapper.exe"));
+}
+
+#[test]
 fn gpu_capability_is_complete_and_specific_to_each_variant() {
     assert_eq!(
         DisplayRenderer::from_manifest(&json!({})).expect("legacy"),

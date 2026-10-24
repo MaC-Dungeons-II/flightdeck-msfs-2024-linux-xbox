@@ -2,8 +2,8 @@
 
 [Deutsch](known-issues.de.md) · [Documentation](index.md)
 
-Status: 25 October 2026, covering the stable **0.2.22** release.
-See the [release changes](changelog.md#0222--25-october-2026).
+Status: 25 October 2026, covering the stable **0.2.23** release.
+See the [release changes](changelog.md#0223--25-october-2026).
 
 - **Bazzite installation:** The installer rejects symbolic links in its source
   and destination paths, including Fedora Atomic's `/home` alias. Install from
