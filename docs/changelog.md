@@ -1,5 +1,11 @@
 # Changes and release status
 
+Documentation follow-up, 24 October 2026: record the issue #4 reporter's MSFS
+2024 menu/scene startup with 0.2.20 and CachyOS 11.0-20261015 after a black
+loading screen. Video playback, the one-third-rate VSync limit and complete
+flights remain unverified. Refresh both known-issues guides to 0.2.20 and Fenix
+preview.11. This documentation update does not change the published binaries.
+
 ## 0.2.20 — 23 October 2026
 
 - Discover Fenix patch releases independently of Flightdeck releases, using the

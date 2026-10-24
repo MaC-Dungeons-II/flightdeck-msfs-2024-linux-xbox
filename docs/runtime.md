@@ -65,6 +65,16 @@ establish a complete flight. The isolated CachyOS 10 game test still exited
 with code 84 before authentication completed, despite passing the synthetic
 JSON, graphics and profile-return checks.
 
+With Flightdeck **0.2.20** and CachyOS **11.0-20261015**, the
+[issue #4 reporter](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4#issuecomment-6377721086)
+reaches Start after waiting through a black loading screen with music, then
+sees the rendered menu and a scene in the simulator. The earlier log from that
+runner reported missing H.264 decoding and unresolved dependencies for bundled
+media plugins. A current media diagnosis is still needed to establish whether
+the same failures persist. Waiting is a reported startup workaround; it does
+not repair video playback, qualify a complete flight or resolve the separate
+one-third-rate VSync report. See [known issues](known-issues.md).
+
 Fenix uses a separate overlay compiled for each exact supported Wine build.
 The additional builds are Experimental `experimental-11.0-20260924-x86_64`,
 CachyOS `cachyos-10.0-sunset-slr` and CachyOS `cachyos-11.0-20261005-slr`. The

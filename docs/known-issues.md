@@ -2,8 +2,8 @@
 
 [Deutsch](known-issues.de.md) · [Documentation](index.md)
 
-Status: 23 October 2026, covering the stable **0.2.18** release.
-See the [release changes](changelog.md#0218--23-october-2026).
+Status: 24 October 2026, covering the stable **0.2.20** release.
+See the [release changes](changelog.md#0220--23-october-2026).
 
 - **NVIDIA:** Normal MSFS 2024 rendering is confirmed by user testing. Smaller
   issues remain possible, including a missing or black startup video. This does
@@ -19,16 +19,25 @@ See the [release changes](changelog.md#0218--23-october-2026).
   `000-2000-0x80004001`, confirmed with Proton Experimental 11 in MSFS 2024.
   CachyOS 10 sunset still exits with code 84 before authentication completes;
   use the default Flightdeck environment or another tested runner.
-  [Issue #4](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4).
+  With **0.2.20 and CachyOS 11.0-20261015**, the reporter reaches Start after
+  waiting through the black loading screen with music; choosing Start opens
+  the rendered menu and the simulator renders a scene. This is a reported
+  startup workaround, not a video fix or complete-flight qualification.
+  [Issue #4 follow-up](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4#issuecomment-6377721086).
 - **VSync:** The one-third-refresh-rate limit exceeding 48 FPS on a 144 Hz
-  screen, also reported in issue #4, remains unverified.
-- **Fenix v3:** Patch preview.10 is experimental. Official installation, login
+  screen is still reported on **0.2.20**. The latest issue #4 screenshot shows
+  about 56 FPS with “VSync One-third rate”. The cause and a correction remain
+  unverified; successful startup with another runner does not resolve it.
+- **Fenix v3:** Patch preview.11 is experimental. Official installation, login
   and cockpit displays were checked on Xodus with Fenix 3.0.0.7454. One startup
   hit Wine's `create_view` assertion; six later starts, including five warm
   backend restarts, did not reproduce it. The cause, full-flight stability and
-  the earlier simulator display freeze remain unresolved. Other runners have
-  matching native module tests, but no real v3 cockpit qualification.
-  [Test sequence and limits](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.10/docs/fenix-v3.md).
+  the earlier simulator display freeze remain unresolved. Preview.11 fixes the
+  Gateway loader-name check; the Steam MSFS 2020 / CachyOS 11 / NVIDIA reporter
+  confirms working Gateway/EFB and GPU displays with **USE DISPLAY SAFE MODE
+  off**. Other runners have matching native module tests; this report does not
+  establish full-flight stability.
+  [Test sequence and limits](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.11/docs/fenix-v3.md).
 - **Fenix installation:** The message “application install hook failed” can
   leave FenixApp files present without completing setup. A reproduced ICU/.NET
   case is repairable; the generic warning alone does not identify the cause.

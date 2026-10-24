@@ -86,7 +86,10 @@ einem Dienst- oder Linux-Neustart noch nicht wiederaufnehmen.
 **Experimentell.** Cockpit-Zugriff und Flugzeugstart in MSFS 2024 wurden auf AMD
 getestet. **Die NVIDIA-Darstellung ist durch Nutzertests bestätigt**;
 kleinere Probleme und das Startvideo bleiben offen. Das bestätigt keine allgemeine
-Unterstützung aller GPUs und Treiber. Für MSFS 2020 sind Installation und
+Unterstützung aller GPUs und Treiber. Mit CachyOS 11.0-20261015 und 0.2.20
+erreicht ein Melder nach schwarzem Ladebildschirm das gerenderte Menü und eine
+Szene in MSFS 2024. Startvideo und die VSync-Begrenzung auf 48 FPS bleiben offen.
+[Gemeldeter Prüfumfang](known-issues.de.md). Für MSFS 2020 sind Installation und
 Lizenzprüfung implementiert; erfolgreicher Simulatorstart und vollständige Flüge
 bleiben unbestätigt.
 
@@ -95,7 +98,7 @@ VR-Headsets und geräteübergreifendes Spielen mit Cloud-Saves stehen noch aus.
 Marketplace-Sitzungsfehler und unvollständig geprüfte DLC-/Kauffunktionen sind
 separat dokumentiert. Vorhandene Dateien bestätigen weder Aktivierung noch
 funktionierende Flugzeugsysteme.
-Fenix preview.10 behält GPU-Anzeigen für die festgelegten Xodus- und
+Fenix preview.11 behält GPU-Anzeigen für die festgelegten Xodus- und
 Proton-11-Versionen mit CPU-Rückfall sowie die Direct2D-Speicherkorrektur bei.
 Fenix v3 bleibt experimentell; siehe den [Prüfumfang](addons.de.md#kompatibilität-und-wiederherstellung).
 [Bekannte Probleme](known-issues.de.md) · [Add-on-Umfang](addons.de.md) ·

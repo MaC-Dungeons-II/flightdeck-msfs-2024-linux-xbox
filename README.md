@@ -81,6 +81,9 @@ not yet supported. [Pause/resume limits](docs/download-pause.md)
 **Experimental.** MSFS 2024 cockpit access and takeoff have been tested on AMD.
 **NVIDIA rendering is confirmed by user testing**, with remaining minor issues
 such as missing startup video. This does not establish support for every GPU or driver.
+A user reports reaching the rendered MSFS 2024 menu and scene with CachyOS
+11.0-20261015 on 0.2.20 after waiting through a black loading screen. Startup
+video and the 48-FPS VSync limit remain open. [Reported scope](docs/known-issues.md).
 MSFS 2020 installation and license checks are implemented; successful simulator
 startup and complete-flight compatibility remain unconfirmed.
 

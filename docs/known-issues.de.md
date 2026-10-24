@@ -2,8 +2,8 @@
 
 [English](known-issues.md) · [Dokumentation](index.md)
 
-Stand: 23. Oktober 2026, für die stabile Version **0.2.18**.
-Siehe [Änderungsübersicht](changelog.md#0218--23-october-2026).
+Stand: 24. Oktober 2026, für die stabile Version **0.2.20**.
+Siehe [Änderungsübersicht](changelog.md#0220--23-october-2026).
 
 - **NVIDIA:** Die normale MSFS-2024-Darstellung ist durch Nutzertests bestätigt.
   Kleinere Probleme bleiben möglich, etwa ein fehlendes oder schwarzes Startvideo.
@@ -19,17 +19,28 @@ Siehe [Änderungsübersicht](changelog.md#0218--23-october-2026).
   `000-2000-0x80004001`, bestätigt mit Proton Experimental 11 im echten MSFS 2024.
   CachyOS 10 sunset endet weiterhin vor Abschluss der Anmeldung mit Code 84.
   Verwende die Flightdeck-Standardumgebung oder einen anderen geprüften Runner.
-  [Issue #4](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4).
+  Mit **0.2.20 und CachyOS 11.0-20261015** erreicht der Melder nach Warten
+  während des schwarzen Ladebildschirms mit Musik die Start-Schaltfläche.
+  Nach Start erscheinen das Menü und eine gerenderte Szene im Simulator.
+  Das ist eine gemeldete Starthilfe; das Video ist weiterhin defekt und ein
+  vollständiger Flug damit noch nicht bestätigt.
+  [Rückmeldung in Issue #4](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4#issuecomment-6377721086).
 - **VSync:** Die in Issue #4 gemeldete Überschreitung der 48-FPS-Grenze bei
-  einem Drittel der Bildwiederholrate eines 144-Hz-Monitors bleibt ungeprüft.
-- **Fenix v3:** Patch preview.10 ist experimentell. Offizielle Installation,
+  einem Drittel der Bildwiederholrate eines 144-Hz-Monitors besteht laut
+  Rückmeldung auch unter **0.2.20**. Der neueste Screenshot zeigt etwa 56 FPS
+  mit „VSync One-third rate“. Ursache und Behebung bleiben unbestätigt;
+  ein erfolgreicher Start mit einem anderen Runner behebt das nicht.
+- **Fenix v3:** Patch preview.11 ist experimentell. Offizielle Installation,
   Anmeldung und Cockpitanzeigen wurden mit Fenix 3.0.0.7454 unter Xodus geprüft.
   Ein Start scheiterte an Wines `create_view`-Assertion; sechs spätere Starts,
   davon fünf warme Neustarts der Fenix-Dienste, reproduzierten sie nicht. Ursache,
   Stabilität über vollständige Flüge und das frühere Einfrieren der Anzeigen
-  bleiben ungeklärt. Andere Runner bestehen passende native Modultests, sind
-  aber nicht im echten v3-Cockpit geprüft.
-  [Prüfablauf und Grenzen](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.10/docs/fenix-v3.md).
+  bleiben ungeklärt. Preview.11 korrigiert die Gateway-Prüfung des Loader-Namens.
+  Der Melder mit Steam MSFS 2020 / CachyOS 11 / NVIDIA bestätigt funktionierende
+  Gateway-/EFB-Verbindungen und GPU-Anzeigen mit **USE DISPLAY SAFE MODE aus**.
+  Andere Runner bestehen passende native Modultests; die Rückmeldung bestätigt
+  keine Stabilität über vollständige Flüge.
+  [Prüfablauf und Grenzen](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.11/docs/fenix-v3.md).
 - **Fenix-Installation:** Bei „application install hook failed“ können bereits
   FenixApp-Dateien vorhanden sein, obwohl die Einrichtung nicht abgeschlossen ist.
   Ein reproduzierter ICU-/.NET-Fall ist reparierbar; die allgemeine Meldung allein
