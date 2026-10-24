@@ -149,7 +149,12 @@ fn published_payload_updates_every_runner_and_prefix_without_changing_originals(
         );
         use std::os::unix::fs::PermissionsExt;
         assert_eq!(
-            runtime.metadata().unwrap().permissions().mode() & 0o777,
+            runtime
+                .metadata()
+                .expect("native runtime metadata")
+                .permissions()
+                .mode()
+                & 0o777,
             0o755
         );
         for (relative, hash) in lock["files"].as_object().expect("current files") {
