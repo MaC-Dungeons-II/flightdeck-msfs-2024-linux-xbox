@@ -226,7 +226,7 @@ a game crash or **Stop**, with a bounded fallback for stuck processes. Since
 installation or livery download there before quitting MSFS. Other Wine profiles
 are excluded from that cleanup.
 
-Flightdeck 0.2.20 includes patch **0.1.0-preview.11** as its verified fallback
+Flightdeck 0.2.22 includes patch **0.1.0** as its verified fallback
 and independently checks GitHub for compatible Fenix patch releases at startup
 and every 30 minutes. Failed checks retry after five minutes and do not prevent
 using the installed patch. **Updates** and **Mods → Fenix A320 → Manage & repair**
@@ -241,6 +241,11 @@ does not downgrade a newer independently installed patch. Preview installations
 prefer a stable release when one becomes available; stable installations follow
 stable releases. Releases requiring a new installer contract or different runner
 integration require a Flightdeck update first.
+
+Patch 0.1.0 replaces the remaining owned Linux Python helpers with Rust.
+It requires Flightdeck **0.2.22 or later**; update the launcher first. Wine,
+DXVK and the Windows ABI helpers remain native C/C++. Full-flight stability and
+the separate FenixSystem memory growth remain unresolved.
 
 Installing Flightdeck itself does not install the Fenix aircraft. The official
 Fenix app remains responsible for aircraft updates and licensing.
@@ -288,7 +293,7 @@ The earlier maintainer Xodus/MSFS 2024 test reached working cockpit displays
 and passed a fresh start plus five backend restarts. One earlier Wine
 `create_view` assertion remains unexplained, and full-flight v3 stability is
 unvalidated. The separate Fenix 2 System-memory growth remains open.
-[Gateway fix and scope](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.11/docs/gateway-loader-case.md).
+[Gateway fix and scope](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0/docs/gateway-loader-case.md).
 
 Earlier tested cockpit: Fenix 2.4.0.4720, MSFS 2024 1.8.16.0 and Hyprland. PFD/ND/ECAM,
 MCDU, clock, FCU and radio rendering were verified. Full-flight testing remains
@@ -296,8 +301,8 @@ outstanding. The Xodus GPU path was checked with PFD, ND, ECAM and a moving
 airspeed tape on AMD. NVIDIA support beyond the reported setup and GPU weather radar remain unvalidated; weather
 radar is unavailable in the CPU renderer. Earlier automatic CPU settings migrate
 to GPU on capable overlays, while a saved CPU preference survives updates.
-See the patch's [GPU scope and fallback instructions](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.11/docs/gpu-displays.md).
-The binary preview
+See the patch's [GPU scope and fallback instructions](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0/docs/gpu-displays.md).
+The binary patch
 requires x86_64 Linux and glibc 2.38+; Flightdeck's full native package still requires
 glibc 2.39+. Starting with 0.1.20, matched Fenix overlays are available for Proton
 Experimental 11.0 (20260924), CachyOS Proton 11.0 (20261005) and CachyOS Proton

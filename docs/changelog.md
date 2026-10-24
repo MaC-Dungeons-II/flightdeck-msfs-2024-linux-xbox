@@ -1,5 +1,17 @@
 # Changes and release status
 
+## 0.2.22 — 25 October 2026
+
+- Integrate [Fenix patch 0.1.0](https://github.com/marselnenaj/fenix-a320-linux-patch/releases/tag/v0.1.0)
+  as the verified fallback. Deploy its native Rust runtime with executable
+  permissions, alongside the existing Windows window/display helpers.
+- Support installer contract 2 for the new helper layout. Earlier launchers must
+  update to 0.2.22 before adopting this patch; compatible future patch releases
+  continue to update independently. Preserve all four pinned runner identities,
+  archive checks, aircraft, renderer preferences and restore points.
+- The Wine/DXVK fixes are unchanged from preview.11. This release does not
+  resolve FenixSystem memory growth or establish Fenix v3 full-flight stability.
+
 ## 0.2.21 — 24 October 2026
 
 Documentation follow-up: add a Bazzite/Fedora Atomic installation workaround

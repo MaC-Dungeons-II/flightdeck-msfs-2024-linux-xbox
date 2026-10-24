@@ -13,14 +13,14 @@ archive:
 ```json
 {
   "format": 1,
-  "installer_contract": 1,
-  "minimum_flightdeck_version": "0.2.20",
+  "installer_contract": 2,
+  "minimum_flightdeck_version": "0.2.22",
   "release": {
-    "version": "0.1.0-preview.11",
-    "url": "https://github.com/marselnenaj/fenix-a320-linux-patch/releases/download/v0.1.0-preview.11/fenix-a320-linux-patch-0.1.0-preview.11-linux-x86_64.zip",
-    "archive_root": "fenix-a320-linux-patch-0.1.0-preview.11",
+    "version": "0.1.0",
+    "url": "https://github.com/marselnenaj/fenix-a320-linux-patch/releases/download/v0.1.0/fenix-a320-linux-patch-0.1.0-linux-x86_64.zip",
+    "archive_root": "fenix-a320-linux-patch-0.1.0",
     "sha256": "<archive SHA-256>",
-    "size": 283879943
+    "size": 286218485
   },
   "bundle": "<the complete bundle.json object>"
 }
@@ -32,7 +32,10 @@ same published release as the immutable archive. It may be added to an existing
 release when generated from that release's exact manifest and unchanged ZIP;
 do not regenerate or replace the existing archives.
 
-Contract 1 accepts new native/helper hashes for the existing destinations. It
+Contract 2 introduces the native `fenix-runtime` helper and requires Flightdeck
+0.2.22 or later. Older launchers must update first. Contract 1 describes the
+previous helper layout. Compatible updates may replace hashes for the embedded
+destinations; a contract number alone never permits arbitrary new paths. Each update
 requires the embedded variant set, original runner identities, server protocol,
 renderer policy and geometry dependency to remain compatible. Existing upgrade
 snapshots must be preserved, including the preceding embedded patch. Changed
@@ -53,5 +56,5 @@ retained versions after restart and all four original runners. The explicitly
 enabled public metadata test uses no existing Wine profile:
 
 ```sh
-cargo test --locked --test native_fenix_updates public_preview_descriptor -- --ignored
+cargo test --locked --test native_fenix_updates public_stable_descriptor -- --ignored
 ```

@@ -142,6 +142,16 @@ fn published_payload_updates_every_runner_and_prefix_without_changing_originals(
         fenix_bundle::overlay(&prefix, &runner, &bundle, variant, &ctx)
             .expect("production overlay");
         fenix_bundle::verify_runner(&runner, &lock, true).expect("current runner");
+        let runtime = prefix.join("drive_c/windows/system32/fenix-runtime");
+        assert_eq!(
+            transaction::digest(&runtime).expect("native runtime hash"),
+            lock["integration"]["fenix-runtime"]
+        );
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            runtime.metadata().unwrap().permissions().mode() & 0o777,
+            0o755
+        );
         for (relative, hash) in lock["files"].as_object().expect("current files") {
             if relative.starts_with("files/lib/wine/x86_64-windows/")
                 || relative == flightdeck::fenix_setup::DXGI_FILE

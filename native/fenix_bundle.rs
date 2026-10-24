@@ -366,7 +366,11 @@ fn overlay_payload(
             )?;
         }
     }
-    for name in ["FenixWindowGuard.exe", "FenixMCDURefresh.exe"] {
+    for name in [
+        "FenixWindowGuard.exe",
+        "FenixMCDURefresh.exe",
+        "fenix-runtime",
+    ] {
         if let Some(hash) = lock["integration"][name].as_str() {
             let bytes = files::read(&bundle.join("integration").join(name), 32 * 1024 * 1024)?;
             require(
@@ -376,7 +380,11 @@ fn overlay_payload(
             write(
                 &contained(prefix, &format!("drive_c/windows/system32/{name}"))?,
                 &bytes,
-                0o644,
+                if name == "fenix-runtime" {
+                    0o755
+                } else {
+                    0o644
+                },
             )?;
         }
     }

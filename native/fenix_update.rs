@@ -270,7 +270,11 @@ pub fn compatible_manifest(lock: &Value) -> Result<()> {
                 == known["prefix_files"][crate::fenix_setup::GEOMETRY_PATH],
             UPGRADE,
         )?;
-        for helper in ["FenixWindowGuard.exe", "FenixMCDURefresh.exe"] {
+        for helper in [
+            "FenixWindowGuard.exe",
+            "FenixMCDURefresh.exe",
+            "fenix-runtime",
+        ] {
             require(
                 actual["prefix_files"][format!("drive_c/windows/system32/{helper}")]
                     == actual["integration"][helper],
@@ -309,7 +313,7 @@ pub fn descriptor(bytes: &[u8], metadata: &Value) -> Result<Value> {
     )?;
     let value = crate::strict_json::decode(bytes).map_err(|_| Error::Invalid(INVALID))?;
     require(
-        value["format"] == 1 && value["installer_contract"] == 1,
+        value["format"] == 1 && matches!(value["installer_contract"].as_u64(), Some(1 | 2)),
         UPGRADE,
     )?;
     require(

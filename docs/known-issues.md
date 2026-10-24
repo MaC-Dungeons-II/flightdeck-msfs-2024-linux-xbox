@@ -2,8 +2,8 @@
 
 [Deutsch](known-issues.de.md) · [Documentation](index.md)
 
-Status: 24 October 2026, covering the stable **0.2.21** release.
-See the [release changes](changelog.md#0221--24-october-2026).
+Status: 25 October 2026, covering the stable **0.2.22** release.
+See the [release changes](changelog.md#0222--25-october-2026).
 
 - **Bazzite installation:** The installer rejects symbolic links in its source
   and destination paths, including Fedora Atomic's `/home` alias. Install from
@@ -42,7 +42,7 @@ See the [release changes](changelog.md#0221--24-october-2026).
   screen is still reported on **0.2.20**. The latest issue #4 screenshot shows
   about 56 FPS with “VSync One-third rate”. The cause and a correction remain
   unverified; successful startup with another runner does not resolve it.
-- **Fenix v3:** Patch preview.11 is experimental. Official installation, login
+- **Fenix v3:** Patch 0.1.0 is experimental. Official installation, login
   and cockpit displays were checked on Xodus with Fenix 3.0.0.7454. One startup
   hit Wine's `create_view` assertion; six later starts, including five warm
   backend restarts, did not reproduce it. The cause, full-flight stability and
@@ -51,7 +51,7 @@ See the [release changes](changelog.md#0221--24-october-2026).
   confirms working Gateway/EFB and GPU displays with **USE DISPLAY SAFE MODE
   off**. Other runners have matching native module tests; this report does not
   establish full-flight stability.
-  [Test sequence and limits](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.11/docs/fenix-v3.md).
+  [Test sequence and limits](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0/docs/fenix-v3.md).
 - **Fenix installation:** The message “application install hook failed” can
   leave FenixApp files present without completing setup. A reproduced ICU/.NET
   case is repairable; the generic warning alone does not identify the cause.

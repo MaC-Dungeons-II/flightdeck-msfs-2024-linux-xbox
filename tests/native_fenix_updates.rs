@@ -29,9 +29,9 @@ fn future() -> Value {
         };
         target["previous_releases"][&version] = json!({"files":old["files"],"integration":old["integration"],"prefix_files":old["prefix_files"]});
     }
-    lock["version"] = json!("0.1.0-preview.12");
-    let v = "0.1.0-preview.12";
-    json!({"format":1,"installer_contract":1,"minimum_flightdeck_version":"0.2.20","bundle":lock,
+    lock["version"] = json!("0.1.1");
+    let v = "0.1.1";
+    json!({"format":1,"installer_contract":2,"minimum_flightdeck_version":"0.2.22","bundle":lock,
         "release":{"version":v,"url":format!("{}/releases/download/v{v}/fenix-a320-linux-patch-{v}-linux-x86_64.zip", update::PROJECT),"archive_root":format!("fenix-a320-linux-patch-{v}"),"sha256":"a".repeat(64),"size":100}})
 }
 fn metadata(value: &Value) -> (Vec<u8>, Value) {
@@ -177,12 +177,16 @@ fn independent_payload_survives_service_restart_and_keeps_versions_when_offline(
     {
         *value = json!(hash);
     }
-    for helper in ["FenixWindowGuard.exe", "FenixMCDURefresh.exe"] {
+    for helper in [
+        "FenixWindowGuard.exe",
+        "FenixMCDURefresh.exe",
+        "fenix-runtime",
+    ] {
         v["bundle"]["prefix_files"][format!("drive_c/windows/system32/{helper}")] = json!(hash);
     }
     let cache = t.path().join("cache");
     files::private_dir(&cache).unwrap();
-    let archive = cache.join("0.1.0-preview.12.zip");
+    let archive = cache.join(format!("{}.zip", v["release"]["version"].as_str().unwrap()));
     let mut zip = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
     let options = zip::write::SimpleFileOptions::default();
     let root = v["release"]["archive_root"].as_str().unwrap();
@@ -259,7 +263,7 @@ fn independent_payload_survives_service_restart_and_keeps_versions_when_offline(
 
 #[test]
 #[ignore = "explicit public GitHub metadata check; no Wine or existing profile is used"]
-fn public_preview_descriptor_matches_the_embedded_release() {
+fn public_stable_descriptor_matches_the_embedded_release() {
     let descriptor = update::discover("0.1.0-preview.10", &AtomicBool::new(false))
         .unwrap()
         .unwrap();

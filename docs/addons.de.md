@@ -243,7 +243,7 @@ Fenix-App, falls sie noch geöffnet ist; schließe Installationen oder
 Livery-Downloads dort ab, bevor du MSFS beendest. Andere Wine-Profile bleiben
 davon unberührt.
 
-Flightdeck 0.2.20 enthält Patch **0.1.0-preview.11** als geprüfte Ausgangsversion
+Flightdeck 0.2.22 enthält Patch **0.1.0** als geprüfte Ausgangsversion
 und sucht beim Start sowie alle 30 Minuten eigenständig auf GitHub nach
 kompatiblen Fenix-Patches. Fehlgeschlagene Prüfungen werden nach fünf Minuten
 wiederholt; der installierte Patch bleibt nutzbar. Unter **Updates** und
@@ -260,6 +260,11 @@ einer Offline-Prüfung wird ein neuerer installierter Patch nicht zurückgestuft
 Preview-Installationen bevorzugen eine verfügbare stabile Version; stabile
 Installationen folgen stabilen Releases. Benötigt ein Patch eine neue
 Installer-Schnittstelle oder andere Runner, ist zuerst ein Flightdeck-Update nötig.
+
+Patch 0.1.0 ersetzt die restlichen eigenen Linux-Python-Helfer durch Rust.
+Er benötigt Flightdeck **ab 0.2.22**; zuerst den Launcher aktualisieren. Wine,
+DXVK und die Windows-ABI-Helfer bleiben natives C/C++. Stabilität über ganze
+Flüge und das separate Speicherwachstum von FenixSystem bleiben ungeklärt.
 
 Die Flightdeck-Installation richtet das Fenix-Flugzeug nicht automatisch ein.
 Flugzeug-Updates und Lizenzierung übernimmt weiterhin die offizielle Fenix-App.
@@ -309,7 +314,7 @@ Der frühere lokale Xodus-/MSFS-2024-Test erreichte funktionierende Cockpitanzei
 und bestand einen neuen Start sowie fünf Backend-Neustarts. Eine frühere Wine-
 `create_view`-Assertion bleibt ungeklärt; vollständige v3-Flüge sind nicht validiert.
 Das separate System-Speicherwachstum von Fenix 2 bleibt offen.
-[Gateway-Fix und Geltungsbereich](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.11/docs/gateway-loader-case.md).
+[Gateway-Fix und Geltungsbereich](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0/docs/gateway-loader-case.md).
 
 Zuvor getestet wurden Fenix 2.4.0.4720 und MSFS 2024 1.8.16.0 auf Hyprland. Die
 Cockpitanzeigen inklusive MCDU, FCU, Funk und Uhr sind geprüft; ein vollständiger
@@ -318,7 +323,7 @@ ND, ECAM und bewegter Geschwindigkeitsanzeige geprüft. NVIDIA außerhalb des ge
 sind noch nicht geprüft; im CPU-Modus ist Wetterradar nicht verfügbar.
 Eine bisher automatisch gesetzte CPU-Konfiguration wechselt auf unterstützten
 Versionen zu GPU. Eine gespeicherte CPU-Präferenz bleibt bei Updates erhalten.
-[GPU-Prüfstand und CPU-Rückfall](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.11/docs/gpu-displays.md).
+[GPU-Prüfstand und CPU-Rückfall](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0/docs/gpu-displays.md).
 Das Fenix-Binärpaket benötigt x86_64 Linux und glibc 2.38+; für Flightdecks
 vollständiges natives Paket gilt weiterhin glibc 2.39+. Ab 0.1.20 gibt es passende
 Fenix-Patches für Proton Experimental 11.0 (20260924), CachyOS Proton 11.0
