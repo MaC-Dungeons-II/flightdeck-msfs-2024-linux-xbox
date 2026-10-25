@@ -1,5 +1,13 @@
 # Native package provenance
 
+Full releases starting with **0.2.25** additionally embed the separately loaded Wine GStreamer
+system-memory module described in [media provenance](../compat/media/README.md).
+Its exact original Wine/xgameruntime source archives are included under
+`media-sources/` in the matching Flightdeck source archive, alongside the
+adapted LGPL patch, license and reproducible build tooling. The runner is not
+modified; a verified small per-content game loader view selects the module.
+
+
 Flightdeck's full Linux installer contains six free compatibility components,
 their exact artifact manifest and an aggregate `THIRD-PARTY-NOTICES.txt`. It does
 not contain Microsoft game files, a Wine prefix, account data, Linux system

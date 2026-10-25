@@ -1,5 +1,20 @@
 # Changes and release status
 
+## 0.2.25 — 25 October 2026
+
+- Link the Discord community from the launcher diagnostics, English/German
+  project pages and documentation.
+- Integrate OnlyCrayZ-Labs’ Wine GStreamer system-memory negotiation fix for
+  the matching Xodus runner. Reuse a small verified game-only loader view;
+  preserve installed runners, prefixes and Fenix loader changes. Unknown Proton
+  builds retain their own modules. Ship pinned corresponding sources and LGPL
+  notices; require the matching payload in complete release packages.
+- Configure media using the actual selected runner, including alternate Proton
+  versions, and report media overlay selection in isolated decode probes.
+- Add concurrent task-queue, active shutdown, duplicate-handle, composite-port
+  and delayed-callback checks adapted from OnlyCrayZ-Labs.
+
+
 ## 0.2.24 — 25 October 2026
 
 - Reuse one private runner per unchanged Proton build/overlay. Carry the latest

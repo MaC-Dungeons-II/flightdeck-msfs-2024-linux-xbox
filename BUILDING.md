@@ -47,6 +47,25 @@ components; their own webview tests below remain relevant.
 
 ### Native packages
 
+Full releases embed a separately loaded LGPL Wine GStreamer module with the
+system-memory negotiation fix from OnlyCrayZ-Labs. Its source and ABI pins are
+in `compat/media.lock.json`; see [media provenance](compat/media/README.md).
+Build it before enabling `bundled-media`:
+
+```sh
+cargo build --locked -p flightdeck-tools
+target/debug/flightdeck-tools media-build --download \
+  --sources build/media-inputs --work build/media-work --output build/media --jobs 2
+cargo build --locked --bin flightdeck-rust --example runtime-lab --features bundled-media
+```
+
+Use Ubuntu 24.04 and the prerequisites/image in `compat/media/native-build.Dockerfile`.
+The output must match the pinned module hash. Build without the feature for
+launcher-only development. A full package rejects a binary missing the verified
+payload. `FLIGHTDECK_MEDIA_SYSTEM_MEMORY=0` opts out for comparisons.
+The media probe below reports `overlay: system_memory` for a matching runner.
+
+
 Before changing a Wine runner's media setup, test the actual video through the
 launcher's media configuration. Build the driver and tool, then use a new output
 directory (the video and runner are read only):
@@ -85,7 +104,7 @@ and its host-codec path as the default; selected runners remain experimental.
 Build the release with local checkout, Cargo-cache and toolchain paths remapped:
 
 ```sh
-cargo run --locked -p flightdeck-tools -- build-native
+cargo run --locked -p flightdeck-tools -- build-native --bundled-media
 mkdir -p build
 cargo metadata --locked --filter-platform x86_64-unknown-linux-gnu --format-version 1 > build/cargo-metadata.json
 cargo run --locked -p flightdeck-tools -- package \
@@ -95,7 +114,7 @@ cargo run --locked -p flightdeck-tools -- package \
   --native build/flightdeck-compat-0.1.16-linux-x86_64.tar.gz \
   --graphics build/graphics \
   --output build/native-package
-cargo run --locked -p flightdeck-tools -- source-release --output build/native-package/flightdeck-source-0.2.14.tar.gz
+cargo run --locked -p flightdeck-tools -- source-release --media-sources build/media-inputs --output build/native-package/flightdeck-source-VERSION.tar.gz
 ```
 
 Install the toolchain's `rust-docs` component if its standard-library notices
@@ -302,11 +321,13 @@ cargo run --locked -p flightdeck-tools -- driver run-native --suite store --stag
 # --suite gamesave selects local storage and Rust/C++ interchange tests.
 # --suite catalog selects only the three catalog/mapper tests.
 # --suite user selects authenticated-user lookup and handle lifetime tests.
+# --suite queue selects concurrent queue and termination/lifetime tests.
 ```
 
 The default `--suite all` builds and runs the core, synchronous bridge and
 asynchronous GameSave tests, the Rust/C++ save-format interchange test,
-plus seven Store tests and the user-lookup/cache test. Each test uses its own new
+plus seven Store tests, the user-lookup/cache test and the task-queue lifecycle
+checks adapted from OnlyCrayZ-Labs. Each test uses its own new
 Wine prefix. `--suite gamesave` selects storage and interchange tests; `--suite store`
 selects explicit product queries, Durable license handles, base-package update
 queries, purchase-dialog lifecycle and three catalog/mapper tests. The narrower

@@ -149,6 +149,10 @@ fn run(input: Value) -> Result<Value> {
                 input["prefer_software"] == true,
                 &mut env,
             )?;
+            let wine = root.join("runner/files/bin/wine").canonicalize()?;
+            let (media_wine, overlay) =
+                flightdeck::media_overlay::prepare(&root, &root.join("runner"), &wine, &mut env)?;
+            env.insert("WINE".into(), media_wine.into_os_string());
             let env: std::collections::BTreeMap<String, String> = env
                 .into_iter()
                 .map(|(key, value)| {
@@ -158,7 +162,7 @@ fn run(input: Value) -> Result<Value> {
                     )
                 })
                 .collect();
-            Ok(json!({"environment":env,"source":source,"h264":decoder}))
+            Ok(json!({"environment":env,"source":source,"h264":decoder,"overlay":overlay}))
         }
         "fenix" => fenix_fixture(&synthetic(&input)?, &path(&input, "bundle")?),
         "fenix-check" => {

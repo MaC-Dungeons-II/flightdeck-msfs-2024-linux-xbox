@@ -9,6 +9,7 @@ mod drivers;
 #[cfg(test)]
 mod entrypoint_tests;
 mod http;
+mod media;
 mod package;
 mod package_check;
 mod probes;
@@ -39,6 +40,8 @@ enum Command {
     SourceRelease {
         #[arg(long)]
         output: PathBuf,
+        #[arg(long)]
+        media_sources: Option<PathBuf>,
     },
     /// Build the release executable with checkout, Cargo and toolchain paths remapped.
     BuildNative {
@@ -47,9 +50,13 @@ enum Command {
         /// An installed Rust toolchain, for example 1.98.0.
         #[arg(long)]
         toolchain: Option<String>,
+        #[arg(long)]
+        bundled_media: bool,
     },
     /// Run the workspace tests with private process visibility, as in CI.
     NativeTests,
+    /// Build the pinned Wine system-memory video patch from its original sources.
+    MediaBuild(media::Arguments),
     /// Exercise the native service with synthetic profiles over loopback HTTP.
     HttpContract {
         #[arg(long)]
@@ -185,10 +192,22 @@ fn run(command: Command) -> util::Result<u8> {
         Command::Probe(command) => return probes::run(&root, command),
         Command::Driver(command) => return drivers::run(&root, command),
         Command::SourceCheck => source::check(&root),
-        Command::SourceRelease { output } => source::release(&root, &output),
-        Command::BuildNative { offline, toolchain } => {
-            build::native(&root, offline, toolchain.as_deref())
+        Command::SourceRelease {
+            output,
+            media_sources,
+        } => {
+            if let Some(folder) = media_sources {
+                source::release_with_media(&root, &output, Some(&folder))
+            } else {
+                source::release(&root, &output)
+            }
         }
+        Command::BuildNative {
+            offline,
+            toolchain,
+            bundled_media,
+        } => build::native(&root, offline, toolchain.as_deref(), bundled_media),
+        Command::MediaBuild(args) => media::build(&root, &args),
         Command::NativeTests => build::native_tests(&root),
         Command::HttpContract { binary } => contract::check(&binary),
         Command::Package {

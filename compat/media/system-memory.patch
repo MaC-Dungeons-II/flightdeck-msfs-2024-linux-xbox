@@ -1,0 +1,21 @@
+From: OnlyCrayZ-Labs contributors
+Source: https://github.com/OnlyCrayZ-Labs/wine/commit/46b092c5c56d7870660b1e050455c32d41fe241f
+License: LGPL-2.1-or-later, like dlls/winegstreamer/wg_parser.c
+Adapted for Flightdeck without changing the Unix-call ABI.
+
+--- a/dlls/winegstreamer/wg_parser.c
++++ b/dlls/winegstreamer/wg_parser.c
+@@ -1149,6 +1149,13 @@
+     }
+     else if (!strcmp(name, "video/x-raw"))
+     {
++        /* OnlyCrayZ-Labs system-memory negotiation fix, 2026-10-22.
++         * The CPU post-processing chain cannot consume CUDA memory. */
++        if (!(element = create_element("capsfilter", "base"))
++                || !append_element(parser->container, element, &first, &last))
++            return false;
++        gst_util_set_object_arg(G_OBJECT(element), "caps", "video/x-raw");
++
+         /* Hack?: Flatten down the colorimetry to default values, without
+          * actually modifying the video at all.
+          *

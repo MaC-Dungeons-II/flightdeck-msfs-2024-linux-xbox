@@ -2,7 +2,7 @@
 
 [Overview and quick start](../README.md) · [Deutsch](readme.de.md) · [Discord community](https://discord.gg/fAhHR2DkqN)
 
-This documentation covers the current stable release, **0.2.24**. The
+This documentation covers the current stable release, **0.2.25**. The
 [changelog](changelog.md) records its changes and earlier releases.
 Hardware reports describe the tested setup, not universal compatibility.
 

@@ -57,6 +57,7 @@ pub mod loader;
 pub mod log_reader;
 pub mod maintenance;
 pub mod media;
+pub mod media_overlay;
 pub mod mods;
 pub mod native_probe;
 mod neural_assets;

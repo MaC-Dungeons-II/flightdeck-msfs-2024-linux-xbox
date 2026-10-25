@@ -1,6 +1,6 @@
 [package]
 name = "flightdeck-linux"
-version = "0.2.24"
+version = "0.2.25"
 edition = "2024"
 rust-version = "1.98"
 license = "MIT"
@@ -11,6 +11,9 @@ include = ["Cargo.toml", "Cargo.lock", "LICENSE", "native/**", "tests/*.rs", "te
 [lib]
 name = "flightdeck"
 path = "native/lib.rs"
+
+[features]
+bundled-media = []
 
 [[bin]]
 name = "flightdeck-rust"

@@ -37,6 +37,18 @@ also contain transitive dependencies and must receive a separate binary-release
 review. Upstream Cargo.lock is preserved for reproducibility, not presented as a
 complete binary license audit.
 
+## Wine GStreamer system-memory module and queue tests
+
+The separately loaded Wine media module includes OnlyCrayZ-Labs’ 2026
+system-memory caps negotiation fix under LGPL-2.1-or-later. Exact upstream
+revisions, source hashes and the adapted patch are recorded in `media.lock.json`
+and [the media build/provenance instructions](media/README.md). Full binary
+releases embed the module as data and supply its original source archives inside
+the matching Flightdeck source release, with the patch and build instructions.
+The module is rebuilt independently of the existing runner; no complete Proton
+runner is distributed. Taskqueue lifecycle test scenarios adapted from
+OnlyCrayZ-Labs/xgameruntime retain LGPL attribution in their test source.
+
 ## Bundled NVIDIA renderer corrections
 
 Full installers include the matched DXVK and VKD3D libraries pinned in

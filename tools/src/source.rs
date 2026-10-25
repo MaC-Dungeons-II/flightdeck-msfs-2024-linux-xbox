@@ -493,6 +493,15 @@ pub fn archive(
     files: &BTreeMap<String, String>,
     timestamp: u64,
 ) -> Result<()> {
+    archive_extra(root, output, files, timestamp, BTreeMap::new())
+}
+fn archive_extra(
+    root: &Path,
+    output: &Path,
+    files: &BTreeMap<String, String>,
+    timestamp: u64,
+    extra: BTreeMap<String, Vec<u8>>,
+) -> Result<()> {
     let output = std::path::absolute(output)?;
     require(
         fs::symlink_metadata(&output).is_err(),
@@ -514,7 +523,13 @@ pub fn archive(
         )?;
         contents.insert(name.clone(), data);
     }
-    contents.insert("SOURCE-MANIFEST.json".into(), pretty(&manifest(files)));
+    let mut recorded = files.clone();
+    for (name, data) in extra {
+        require(!contents.contains_key(&name), "Duplicate source input")?;
+        recorded.insert(name.clone(), digest(&data));
+        contents.insert(name, data);
+    }
+    contents.insert("SOURCE-MANIFEST.json".into(), pretty(&manifest(&recorded)));
     fs::create_dir_all(output.parent().expect("archive directory"))?;
     let stream = fs::File::create_new(&output)?;
     let compressed = flate2::GzBuilder::new()
@@ -544,6 +559,9 @@ pub fn archive(
 }
 
 pub fn release(root: &Path, output: &Path) -> Result<()> {
+    release_with_media(root, output, None)
+}
+pub fn release_with_media(root: &Path, output: &Path, media_sources: Option<&Path>) -> Result<()> {
     let timestamp = std::env::var("SOURCE_DATE_EPOCH")
         .ok()
         .map(|value| {
@@ -553,7 +571,15 @@ pub fn release(root: &Path, output: &Path) -> Result<()> {
         })
         .transpose()?
         .unwrap_or(0);
-    archive(root, output, &inspect(root)?, timestamp)
+    let extra = media_sources
+        .map(|folder| crate::media::source_files(root, folder))
+        .transpose()?
+        .unwrap_or_default();
+    if extra.is_empty() {
+        archive(root, output, &inspect(root)?, timestamp)
+    } else {
+        archive_extra(root, output, &inspect(root)?, timestamp, extra)
+    }
 }
 
 #[cfg(test)]

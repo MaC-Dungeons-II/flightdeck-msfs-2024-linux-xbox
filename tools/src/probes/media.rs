@@ -127,7 +127,7 @@ pub fn run(site: &Site, args: &Arguments) -> Result<u8> {
     let decoded = verdict(&log, args.width, args.height, args.frames);
     let passed = code == Some(0) && decoded;
     let report = json!({"scope":"Media Foundation NV12 decode and rewind; no game/account or GPU presentation",
-        "source":prepared["source"],"h264":prepared["h264"],"width":args.width,"height":args.height,
+        "source":prepared["source"],"h264":prepared["h264"],"overlay":prepared["overlay"],"width":args.width,"height":args.height,
         "frames_per_pass":args.frames,"passes":2,"exit_code":code,"decoding_passed":decoded,
         "end_of_stream":log.contains("flightdeck-media-probe: reached end of stream"),
         "shutdown_completed":log.contains("flightdeck-media-probe: closed"),"passed":passed});

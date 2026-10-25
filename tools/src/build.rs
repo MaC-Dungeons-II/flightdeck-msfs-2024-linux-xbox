@@ -32,7 +32,15 @@ pub fn remapped(existing: Vec<String>, root: &Path, cargo_home: &Path, sysroot: 
     flags.join("\x1f")
 }
 
-pub fn native(root: &Path, offline: bool, toolchain: Option<&str>) -> Result<()> {
+pub fn native(
+    root: &Path,
+    offline: bool,
+    toolchain: Option<&str>,
+    bundled_media: bool,
+) -> Result<()> {
+    if bundled_media {
+        crate::media::verify_bundle(root, &root.join("build/media"))?;
+    }
     let selector: Vec<String> = toolchain
         .map(|name| format!("+{name}"))
         .into_iter()
@@ -63,6 +71,7 @@ pub fn native(root: &Path, offline: bool, toolchain: Option<&str>) -> Result<()>
     build
         .args(&selector)
         .args(["build", "--locked", "--release"])
+        .args(bundled_media.then_some("--features=bundled-media"))
         .args(offline.then_some("--offline"))
         .current_dir(root)
         .env_remove("RUSTFLAGS")

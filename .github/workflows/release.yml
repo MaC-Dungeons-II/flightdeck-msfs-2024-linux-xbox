@@ -57,7 +57,7 @@ jobs:
         run: |
           rustup toolchain install 1.98.0 --profile minimal --component rustfmt --component clippy --component rust-docs
           sudo apt-get update
-          sudo apt-get install -y build-essential binutils woff2 pkg-config liblzma-dev libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev
+          sudo apt-get install -y build-essential binutils woff2 pkg-config liblzma-dev libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev flex bison gcc-mingw-w64-x86-64 autoconf automake libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good
       - name: Build the maintainer tooling
         run: |
           cargo build --locked -p flightdeck-tools
@@ -78,7 +78,11 @@ jobs:
         run: build/flightdeck-tools release prepare --cache build/release-inputs --output build/release-previous
       - name: Build and assemble the complete native package
         run: |
-          build/flightdeck-tools build-native --toolchain 1.98.0
+          cc -O2 tests/graphics/media-caps.c -o build/media-caps $(pkg-config --cflags --libs gstreamer-1.0)
+          build/media-caps
+          build/flightdeck-tools media-build --download --sources build/media-inputs --work build/media-work --output build/media --jobs 2
+          cargo test --locked --features bundled-media --lib media_overlay
+          build/flightdeck-tools build-native --toolchain 1.98.0 --bundled-media
           cargo metadata --locked --filter-platform x86_64-unknown-linux-gnu --format-version 1 > build/cargo-metadata.json
           build/flightdeck-tools package \
             --binary target/release/flightdeck-rust \
@@ -87,7 +91,7 @@ jobs:
             --native build/release-inputs/native.tar.gz \
             --graphics build/release-previous/flightdeck-linux/resources/graphics \
             --output build/release-assets
-          build/flightdeck-tools source-release --output "build/release-assets/flightdeck-source-${RELEASE_VERSION}.tar.gz"
+          build/flightdeck-tools source-release --media-sources build/media-inputs --output "build/release-assets/flightdeck-source-${RELEASE_VERSION}.tar.gz"
           build/flightdeck-tools release unpack --archive build/release-assets/Flightdeck-Linux-x86_64.tar.gz --output build/release-current
       - name: Test actual installation, service handoff and rollback against the pinned previous release
         run: |

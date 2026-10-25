@@ -311,7 +311,21 @@ fn payload(root: &Path, inputs: &Inputs<'_>) -> Result<(Members, Value)> {
         ]),
         "cargo tree",
     )?;
-    let (notice, inventory) = notices(root, inputs.cargo_metadata, &tree)?;
+    let (mut notice, inventory) = notices(root, inputs.cargo_metadata, &tree)?;
+    if !inputs.launcher_only {
+        let media: Value = serde_json::from_str(&output(
+            Command::new(&binary).args(["--native-probe", "media-bundle"]),
+            "The media payload",
+        )?)?;
+        let lock = crate::media::lock(root)?;
+        require(
+            media["bundled"] == true
+                && media["sha256"] == lock["files"]["winegstreamer.so"]["sha256"],
+            "Full releases require the verified bundled-media feature",
+        )?;
+        notice.extend_from_slice(b"\nWine GStreamer system-memory compatibility module\nWine contributors; OnlyCrayZ-Labs contributors (2026 system-memory negotiation fix).\nThis separately loaded module is LGPL-2.1-or-later. Its exact original Wine and xgameruntime sources, patch and build instructions are supplied in media-sources/ and compat/media/ of the matching Flightdeck source archive.\n");
+        notice.extend(fs::read(root.join("compat/LICENSES/LGPL-2.1.txt"))?);
+    }
     let mut values = Members::new();
     values.insert("bin/flightdeck".into(), raw);
     values.insert("THIRD-PARTY-NOTICES.txt".into(), notice);

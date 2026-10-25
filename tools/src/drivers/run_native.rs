@@ -17,7 +17,7 @@ use std::{
     process::Command,
 };
 
-pub const SUITES: [&str; 5] = ["user", "gamesave", "store", "catalog", "all"];
+pub const SUITES: [&str; 6] = ["user", "gamesave", "store", "catalog", "queue", "all"];
 const USER: &str = "user-lookup";
 const GAMESAVE: [&str; 4] = ["core", "bridge", "async", "save-interchange"];
 const STORE: [&str; 5] = [
@@ -48,6 +48,9 @@ const REMOVED: [&str; 10] = [
 ];
 fn names(suite: &str) -> Vec<&'static str> {
     let mut names = Vec::new();
+    if matches!(suite, "queue" | "all") {
+        names.push("taskqueue");
+    }
     if matches!(suite, "user" | "all") {
         names.push(USER);
     }
@@ -75,7 +78,9 @@ fn plan(name: &str, root: &Path, stage: &Path, binary: &Path) -> Plan {
     let user = stage.join("wine-src/dlls/xgameruntime/GDKComponent/System");
     let tests = root.join("tests/compat");
     let mut parts = Vec::new();
-    if STORE.contains(&name) {
+    if name == "taskqueue" {
+        parts.extend(QUEUE);
+    } else if STORE.contains(&name) {
         parts.extend([
             "StoreQueries.cpp",
             "StoreContext.cpp",
@@ -140,6 +145,22 @@ fn plan(name: &str, root: &Path, stage: &Path, binary: &Path) -> Plan {
         compile.extend(["-lbcrypt", "-lole32", "-luuid"].map(OsString::from));
     }
     let mut hashed = selected;
+    if name == "taskqueue" {
+        hashed.extend(
+            [
+                "XTaskQueue.h",
+                "ThreadPool.h",
+                "WaitTimer.h",
+                "AtomicVector.h",
+                "LocklessQueue.h",
+                "referenced_ptr.h",
+                "SpinLock.h",
+                "StaticArray.h",
+            ]
+            .map(|n| sources.join(n)),
+        );
+        hashed.push(runtime.join("include/compat.h"));
+    }
     if name == USER {
         hashed.extend(
             [
@@ -319,10 +340,16 @@ mod tests {
         assert_eq!(names("store").len(), 8);
         assert_eq!(names("store")[5..], names("catalog"));
         let all = names("all");
-        assert_eq!(all.len(), 13);
+        assert_eq!(all.len(), 14);
         assert_eq!(
-            (all[0], all[1], all[5], all[12]),
-            ("user-lookup", "core", "explicit-products", "catalog-coins")
+            (all[0], all[1], all[2], all[6], all[13]),
+            (
+                "taskqueue",
+                "user-lookup",
+                "core",
+                "explicit-products",
+                "catalog-coins"
+            )
         );
     }
 

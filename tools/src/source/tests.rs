@@ -433,6 +433,38 @@ fn existing_archive_and_outside_destinations_remain_untouched() {
 }
 
 #[test]
+fn corresponding_source_archives_are_recorded_as_exact_manifest_members() {
+    let tree = Tree::new();
+    let output = tree.root().join("build/with-media.tar.gz");
+    let extra = BTreeMap::from([
+        (
+            "media-sources/wine-source.tar.gz".into(),
+            b"pinned wine".to_vec(),
+        ),
+        (
+            "media-sources/xgameruntime-source.tar.gz".into(),
+            b"pinned gdk".to_vec(),
+        ),
+    ]);
+    archive_extra(
+        tree.root(),
+        &output,
+        &inspect(tree.root()).expect("inspect"),
+        0,
+        extra.clone(),
+    )
+    .expect("archive");
+    let entries = members(&output);
+    let manifest: Value =
+        serde_json::from_slice(&entries["flightdeck-linux/SOURCE-MANIFEST.json"].0)
+            .expect("manifest");
+    for (name, bytes) in extra {
+        assert_eq!(entries[&format!("flightdeck-linux/{name}")].0, bytes);
+        assert_eq!(manifest["files"][name], digest(&bytes));
+    }
+}
+
+#[test]
 fn the_checkout_itself_passes_the_inspection() {
     let files = inspect(&crate::util::root()).expect("current sources");
     assert!(files.contains_key("tools/src/source.rs"));
