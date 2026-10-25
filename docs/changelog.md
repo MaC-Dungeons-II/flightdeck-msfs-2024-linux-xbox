@@ -1,6 +1,6 @@
 # Changes and release status
 
-## Unreleased
+## 0.2.24 — 25 October 2026
 
 - Reuse one private runner per unchanged Proton build/overlay. Carry the latest
   profile forward, keep the last rollback profile, and automatically reclaim
