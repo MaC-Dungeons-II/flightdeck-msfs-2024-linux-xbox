@@ -11,6 +11,9 @@ English, including the compact icon navigation and without a configured game.
   Wine system-memory media negotiation fix and taskqueue lifecycle test scenarios,
   integrated in Flightdeck 0.2.25. Exact reviewed revisions and adaptation details
   are in [media provenance](../compat/media/README.md).
+- **[gut-engel](https://github.com/gut-engel)**: keep the Microsoft sign-in
+  window open on NVIDIA/Wayland systems
+  ([contribution](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/commit/ac74d8855901768640442c31b8a2215585e5ca49)).
 - **Flightdeck community and testers**: system and GPU reports, reproductions,
   bug reports, ideas and support. Join the [community](https://discord.gg/fAhHR2DkqN).
 

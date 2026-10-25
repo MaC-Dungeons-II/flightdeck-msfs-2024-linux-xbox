@@ -32,6 +32,12 @@ const GROUPS: &[Group] = &[
                 url: "https://github.com/OnlyCrayZ-Labs/MSFS2024-Linux",
             },
             Credit {
+                name: "gut-engel",
+                de: "Korrektur für das Microsoft-Anmeldefenster unter NVIDIA/Wayland.",
+                en: "Fix for the Microsoft sign-in window on NVIDIA/Wayland.",
+                url: "https://github.com/gut-engel",
+            },
+            Credit {
                 name: "Flightdeck Community",
                 de: "Tests auf unterschiedlichen Systemen, Fehlerberichte, Ideen und gegenseitige Unterstützung. Danke an alle Mitwirkenden!",
                 en: "Testing across systems, bug reports, ideas and support for each other. Thank you to everyone contributing!",

@@ -4,8 +4,9 @@
 
 - Add a dedicated Credits page in German and English, reachable from the sidebar
   and compact icon rail without a game installation or service connection. Name
-  OnlyCrayZ-Labs’ media fix and taskqueue test contributions, Flightdeck
-  collaborators, upstream projects, the UI stack, font and artwork.
+  OnlyCrayZ-Labs’ media fix and taskqueue test contributions, gut-engel’s
+  NVIDIA/Wayland sign-in correction, upstream projects, the UI stack, font
+  and artwork.
 - Open installed launcher, Rust, compatibility and graphics license documents
   from Credits. Link the complete dependency inventory and corresponding source
   releases for the running version.
