@@ -19,6 +19,8 @@ fn preparing_a_release_does_not_claim_its_version_is_installed() {
     let state = tempfile::tempdir().expect("state");
     let app = Launcher::new(state.path().join("state"), None).expect("launcher");
     app.lock().runtime = Some(root.path().to_owned());
+    let available =
+        flightdeck::fenix_bundle::manifest(None).expect("embedded manifest")["version"].clone();
     for phase in ["preparing", "committing", "installed"] {
         files::atomic_json(
             &root.path().join(fenix::MARKER),
@@ -26,7 +28,7 @@ fn preparing_a_release_does_not_claim_its_version_is_installed() {
         )
         .expect("transaction marker");
         let snapshot = fenix::snapshot(&app);
-        assert_eq!(snapshot["available_version"], "0.1.0");
+        assert_eq!(snapshot["available_version"], available);
         if phase == "installed" {
             assert_eq!(snapshot["installed_version"], "0.1.0");
         } else {

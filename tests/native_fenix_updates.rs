@@ -29,8 +29,9 @@ fn future() -> Value {
         };
         target["previous_releases"][&version] = json!({"files":old["files"],"integration":old["integration"],"prefix_files":old["prefix_files"]});
     }
-    lock["version"] = json!("0.1.1");
-    let v = "0.1.1";
+    let (base, patch) = version.split('-').next().unwrap().rsplit_once('.').unwrap();
+    let v = format!("{base}.{}", patch.parse::<u64>().unwrap() + 1);
+    lock["version"] = json!(v);
     json!({"format":1,"installer_contract":2,"minimum_flightdeck_version":"0.2.22","bundle":lock,
         "release":{"version":v,"url":format!("{}/releases/download/v{v}/fenix-a320-linux-patch-{v}-linux-x86_64.zip", update::PROJECT),"archive_root":format!("fenix-a320-linux-patch-{v}"),"sha256":"a".repeat(64),"size":100}})
 }

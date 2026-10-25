@@ -246,6 +246,21 @@ pub fn geometry(wine: &StagedWine<'_>, cache: &Path, payload: &Path, ctx: &Conte
     let _ = fs::remove_dir_all(&work);
     result
 }
+fn ui_font(prefix: &Path, runner: &Path, name: &str) -> Result<()> {
+    let target = bundle::contained(prefix, &format!("drive_c/windows/Fonts/{name}"))?;
+    if target.is_symlink() || !files::exists(&target) {
+        let fallback = runner.join("files/share/wine/fonts").join(name);
+        // Preserve readable linked fonts; replace broken links from the runner.
+        // Read the resolved source and atomically replace only the profile entry.
+        let source = if target.is_file() { &target } else { &fallback };
+        let bytes = files::read_public(&source.canonicalize()?, 32 * 1024 * 1024)?;
+        bundle::write(&target, &bytes, 0o644)?;
+    }
+    // Fonts are public resources, including existing hard-linked files.
+    files::read_public(&target, 32 * 1024 * 1024)?;
+    Ok(())
+}
+
 pub fn ui_fonts(wine: &Wine<'_>) -> Result<()> {
     let registry = String::from_utf8_lossy(&files::read(
         &wine.prefix.join("system.reg"),
@@ -266,16 +281,7 @@ pub fn ui_fonts(wine: &Wine<'_>) -> Result<()> {
         {
             continue;
         }
-        let target = bundle::contained(&wine.prefix, &format!("drive_c/windows/Fonts/{name}"))?;
-        if !files::exists(&target) {
-            let source = wine.runner.join("files/share/wine/fonts").join(name);
-            bundle::write(
-                &target,
-                &files::read_public(&source, 32 * 1024 * 1024)?,
-                0o644,
-            )?;
-        }
-        files::open_at(rustix::fs::CWD, &target, false, false)?;
+        ui_font(&wine.prefix, &wine.runner, name)?;
         wine.run(
             &[
                 "reg",
@@ -518,4 +524,92 @@ pub fn manager(prefix: &Path) -> Result<PathBuf> {
         "Install the official Fenix Installer first.",
     )?;
     Ok(candidates.remove(0))
+}
+
+#[cfg(test)]
+mod font_tests {
+    use super::*;
+    use std::os::unix::fs::symlink;
+
+    fn put(path: &Path, bytes: &[u8]) {
+        fs::create_dir_all(path.parent().expect("parent")).expect("directory");
+        fs::write(path, bytes).expect("font fixture");
+    }
+
+    #[test]
+    fn readable_and_dangling_font_links_become_private_copies() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let prefix = temp.path().join("prefix");
+        let runner = temp.path().join("runner");
+        let fonts = prefix.join("drive_c/windows/Fonts");
+        fs::create_dir_all(&fonts).expect("fonts");
+        let shared = temp.path().join("shared.ttf");
+        put(&shared, b"custom shared Tahoma");
+        symlink(&shared, fonts.join("tahoma.ttf")).expect("font link");
+        symlink("missing.ttf", fonts.join("tahomabd.ttf")).expect("broken font link");
+        put(
+            &runner.join("files/share/wine/fonts/tahomabd.ttf"),
+            b"runner bold",
+        );
+        for name in ["tahoma.ttf", "tahomabd.ttf"] {
+            ui_font(&prefix, &runner, name).expect("repair linked font");
+            assert!(!fonts.join(name).is_symlink());
+        }
+        assert_eq!(
+            fs::read(fonts.join("tahoma.ttf")).expect("font"),
+            b"custom shared Tahoma"
+        );
+        assert_eq!(
+            fs::read(fonts.join("tahomabd.ttf")).expect("bold"),
+            b"runner bold"
+        );
+        assert_eq!(
+            fs::read(&shared).expect("shared source"),
+            b"custom shared Tahoma"
+        );
+    }
+
+    #[test]
+    fn runner_font_links_and_existing_hardlinks_are_valid_public_fonts() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let prefix = temp.path().join("prefix");
+        let runner = temp.path().join("runner");
+        fs::create_dir(&prefix).expect("prefix");
+        let source = runner.join("files/share/wine/fonts/tahoma.ttf");
+        fs::create_dir_all(source.parent().expect("parent")).expect("source directory");
+        let shared = temp.path().join("system font.ttf");
+        put(&shared, b"system Tahoma");
+        symlink(&shared, &source).expect("runner font link");
+        ui_font(&prefix, &runner, "tahoma.ttf").expect("copy runner font");
+        let target = prefix.join("drive_c/windows/Fonts/tahoma.ttf");
+        assert!(!target.is_symlink());
+        assert!(source.is_symlink());
+        fs::hard_link(&target, target.with_file_name("custom.ttf")).expect("hard link");
+        ui_font(&prefix, &runner, "tahoma.ttf").expect("preserve existing font");
+        assert_eq!(fs::read(target).expect("font"), b"system Tahoma");
+    }
+
+    #[test]
+    fn font_parent_escape_and_non_file_sources_remain_rejected() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let prefix = temp.path().join("prefix");
+        let runner = temp.path().join("runner");
+        let fonts = prefix.join("drive_c/windows/Fonts");
+        fs::create_dir_all(fonts.parent().expect("parent")).expect("windows");
+        let outside = temp.path().join("outside");
+        fs::create_dir(&outside).expect("outside");
+        symlink(&outside, &fonts).expect("escaped font directory");
+        assert!(ui_font(&prefix, &runner, "tahoma.ttf").is_err());
+        assert!(
+            fs::read_dir(&outside)
+                .expect("outside contents")
+                .next()
+                .is_none()
+        );
+        fs::remove_file(&fonts).expect("unlink escaped directory");
+        fs::create_dir_all(runner.join("files/share/wine/fonts/tahoma.ttf"))
+            .expect("invalid source");
+        assert!(ui_font(&prefix, &runner, "tahoma.ttf").is_err());
+        assert!(!files::exists(&fonts.join("tahoma.ttf")));
+    }
 }

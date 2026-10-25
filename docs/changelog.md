@@ -1,5 +1,16 @@
 # Changes and release status
 
+## 0.2.28 — 25 October 2026
+
+- Materialize readable Tahoma font symlinks as private files during Fenix setup
+  and registration. Repair broken profile links from the runner, accept linked
+  runner fonts and existing hard-linked fonts, and keep shared sources unchanged.
+  Preserve the font-directory containment check and bounded regular-file reads.
+- Integrate Fenix patch 0.1.1 as the verified fallback, with exact 0.1.0 upgrade
+  snapshots for all four supported runners.
+- Extend the explicit fresh-patch test with linked fonts, real Wine registration
+  and shared-source hash checks before the complete patch setup.
+
 ## 0.2.27 — 25 October 2026
 
 - Copy new private Wine profiles and runners without restoring foreign ownership,

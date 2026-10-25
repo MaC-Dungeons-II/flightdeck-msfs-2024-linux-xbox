@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 //! Explicit account-free patch setup using a pinned runner and a new runtime.
-use flightdeck::{backend::Launcher, bootstrap, fenix, files, resources};
+use flightdeck::{backend::Launcher, bootstrap, fenix, fenix_setup, files, resources, wine::Wine};
 use serde_json::json;
 use std::{
     fs,
@@ -70,6 +70,60 @@ fn fresh_fenix_patch_setup() {
         &AtomicBool::new(false),
     )
     .expect("fresh Wine prefix");
+    let prefix = root.join("local/msfs-prefix");
+    let cancel = AtomicBool::new(false);
+    let mut font_wine = Wine::new(
+        &prefix,
+        &runner,
+        &root.join("private/font-probe.log"),
+        &cancel,
+    )
+    .expect("font probe Wine");
+    font_wine.without_fenix();
+    font_wine
+        .stop_staged()
+        .expect("stop before editing the new registry");
+    let fonts = prefix.join("drive_c/windows/Fonts");
+    assert!(!fonts.is_symlink());
+    fs::create_dir_all(&fonts).expect("new font directory");
+    let shared = runner.join("files/share/wine/fonts/tahoma.ttf");
+    let shared_hash =
+        files::digest(fs::File::open(&shared).expect("source font")).expect("source font hash");
+    for name in ["tahoma.ttf", "tahomabd.ttf"] {
+        let target = fonts.join(name);
+        if files::exists(&target) {
+            fs::remove_file(&target).expect("replace only the new test font");
+        }
+    }
+    std::os::unix::fs::symlink(&shared, fonts.join("tahoma.ttf")).expect("shared font link");
+    std::os::unix::fs::symlink("missing.ttf", fonts.join("tahomabd.ttf"))
+        .expect("broken font link");
+    let registry = fs::read_to_string(prefix.join("system.reg")).expect("new registry");
+    let registry = registry
+        .lines()
+        .filter(|line| {
+            !line.starts_with("\"Tahoma (TrueType)\"")
+                && !line.starts_with("\"Tahoma Bold (TrueType)\"")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    fs::write(prefix.join("system.reg"), registry).expect("remove test font registrations");
+    fenix_setup::ui_fonts(&font_wine).expect("materialize fonts and register with real Wine");
+    font_wine.stop_staged().expect("stop font probe");
+    for name in ["tahoma.ttf", "tahomabd.ttf"] {
+        assert!(
+            fonts
+                .join(name)
+                .symlink_metadata()
+                .expect("font metadata")
+                .is_file()
+        );
+    }
+    assert_eq!(
+        files::digest(fs::File::open(&shared).expect("source font")).expect("hash"),
+        shared_hash
+    );
     resources::install_scripts(&root.join("tools")).expect("original launchers");
     let app = Launcher::new(root.join("private/patch-probe-state"), None).expect("isolated state");
     app.lock().runtime = Some(root.clone());
@@ -79,7 +133,8 @@ fn fresh_fenix_patch_setup() {
         .unwrap_or_default();
     let report = json!({"passed":result.is_ok(),"error":result.as_ref().err().map(ToString::to_string),
         "patch_state":marker["state"],"version":marker["version"],
-        "previous_prefix_exists":marker["previous_prefix"].as_str().is_some_and(|p|root.join(p).is_dir())});
+        "previous_prefix_exists":marker["previous_prefix"].as_str().is_some_and(|p|root.join(p).is_dir()),
+        "linked_fonts_materialized":true,"shared_fonts_unchanged":true});
     fs::write(
         root.join("private/patch-probe-result.json"),
         serde_json::to_vec_pretty(&report).expect("report"),

@@ -61,6 +61,11 @@ See the [release changes](changelog.md#0223--25-october-2026).
   [Issue #7](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/7)
   needs a reporter retest; its diagnostic export does not identify the filesystem
   or the underlying copy error.
+- **Fenix fonts:** Flightdeck 0.2.28 and standalone Fenix patch 0.1.1 handle
+  Tahoma symlinks in Wine profiles and runners. Earlier installers can stop
+  with “Expected a regular file: tahoma.ttf”. In the standalone installer, use
+  **Restore original profile**, then retry with 0.1.1. Flightdeck users need
+  the launcher update as well as the patch update.
 - **Fenix installation:** The message “application install hook failed” can
   leave FenixApp files present without completing setup. A reproduced ICU/.NET
   case is repairable; the generic warning alone does not identify the cause.
