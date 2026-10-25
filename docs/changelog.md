@@ -1,5 +1,16 @@
 # Changes and release status
 
+## 0.2.27 — 25 October 2026
+
+- Copy new private Wine profiles and runners without restoring foreign ownership,
+  POSIX ACLs or extended attributes. Preserve contents, executable files,
+  symbolic links, hard-link topology and timestamps. GNU cp archive mode could
+  copy all files but still fail on unsupported permission metadata, leaving
+  Fenix setup in its preparing stage (issue #7).
+- Translate the profile/runner copy failure in the English launcher.
+- Add a native copy regression test and explicit account-free tests for a full
+  profile/runner copy on a chosen filesystem and fresh Fenix patch setup.
+
 ## 0.2.26 — 25 October 2026
 
 - Add a dedicated Credits page in German and English, reachable from the sidebar

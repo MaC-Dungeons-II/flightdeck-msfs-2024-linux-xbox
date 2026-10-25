@@ -253,7 +253,18 @@ pub fn copy_tree(source: &Path, destination: &Path, cancel: &AtomicBool) -> Resu
     require(
         run(
             Command::new("cp")
-                .args(["-a", "--reflink=auto", "--"])
+                // These are new, private clones owned by the invoking user.
+                // Archive mode also restores POSIX ACLs, ownership and xattrs;
+                // fixed-permission filesystems can reject those after copying
+                // every byte. Normal recursive copying keeps executable bits
+                // (subject to umask); preserve link topology and times as well.
+                .args([
+                    "-R",
+                    "-P",
+                    "--preserve=links,timestamps",
+                    "--reflink=auto",
+                    "--",
+                ])
                 .arg(source)
                 .arg(destination)
                 .stdin(Stdio::null())

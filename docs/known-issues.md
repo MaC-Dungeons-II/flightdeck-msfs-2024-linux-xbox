@@ -52,6 +52,15 @@ See the [release changes](changelog.md#0223--25-october-2026).
   off**. Other runners have matching native module tests; this report does not
   establish full-flight stability.
   [Test sequence and limits](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0/docs/fenix-v3.md).
+- **Fenix profile/runner copy:** Version 0.2.27 fixes an archive-metadata failure
+  reproduced on a fixed-permission NTFS mount: all files were copied, but restoring
+  Linux permissions caused setup to stop in its preparing stage. The new copy
+  passed full file/hash and link comparisons and a fresh Fenix patch setup.
+  A missing `previous_prefix` directory during this stage is expected: the
+  original profile moves to that restore point only when setup commits.
+  [Issue #7](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/7)
+  needs a reporter retest; its diagnostic export does not identify the filesystem
+  or the underlying copy error.
 - **Fenix installation:** The message “application install hook failed” can
   leave FenixApp files present without completing setup. A reproduced ICU/.NET
   case is repairable; the generic warning alone does not identify the cause.
