@@ -342,9 +342,11 @@ fn launch_labels_stay_single_line_centered_and_clean_across_state_transitions() 
 #[test]
 #[ignore = "writes evidence for session recovery with unavailable cloud transport"]
 fn capture_recovery_without_transport() -> Result<(), Box<dyn std::error::Error>> {
-    let directory = std::path::PathBuf::from(
-        std::env::var_os("FLIGHTDECK_UI_RENDER_CAPTURE").expect("explicit capture output"),
-    );
+    let directory = std::env::var_os("FLIGHTDECK_UI_RENDER_CAPTURE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../build/native-ui")
+        });
     std::fs::create_dir_all(&directory)?;
     for (language, code) in [(Language::De, "de"), (Language::En, "en")] {
         for width in [750, 1280] {
