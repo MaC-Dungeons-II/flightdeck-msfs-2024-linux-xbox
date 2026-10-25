@@ -141,6 +141,7 @@ impl Disclosure {
 
 #[derive(Debug, Clone, Copy)]
 pub enum HelpLink {
+    Discord,
     FenixInstaller,
     FenixProject,
     Gsx,
@@ -150,6 +151,7 @@ pub enum HelpLink {
 impl HelpLink {
     fn url(self) -> &'static str {
         match self {
+            Self::Discord => "https://discord.gg/fAhHR2DkqN",
             Self::FenixInstaller => "https://fenixsim.com/dashboard/",
             Self::FenixProject => "https://github.com/marselnenaj/fenix-a320-linux-patch",
             Self::Gsx => "https://www.fsdreamteam.com/products_gsxpro.html",

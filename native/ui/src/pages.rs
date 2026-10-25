@@ -1305,6 +1305,10 @@ impl App {
             self.heading(self.t("Einblick ohne private Rohlogs").to_string()),
             self.paragraph(self.t("Dieser Bericht enthält die vom lokalen Dienst freigegebenen Status- und Prüfdaten. Er enthält keine Anmeldetokens oder privaten Spielprotokolle.").to_string()),
             self.card("Problem melden",report_card),
+            self.card("Community", column![
+                self.paragraph(self.tr("Fragen stellen, Erfahrungen teilen und gemeinsam an Flightdeck arbeiten.", "Ask questions, share experiences and work on Flightdeck together.")),
+                self.help_link("Discord-Community", HelpLink::Discord)
+            ].spacing(12)),
             self.card("Store prüfen", store_view),
             diagnostics
         ]

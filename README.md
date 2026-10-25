@@ -10,6 +10,7 @@
   <a href="docs/index.md">Documentation</a> &nbsp;·&nbsp;
   <a href="docs/known-issues.md">Known issues</a> &nbsp;·&nbsp;
   <a href="docs/changelog.md">Changes</a> &nbsp;·&nbsp;
+  <a href="https://discord.gg/fAhHR2DkqN">Discord</a> &nbsp;·&nbsp;
   <a href="docs/readme.de.md">Deutsch</a>
 </p>
 
@@ -20,20 +21,23 @@ of MSFS 2024 or 2020** through Wine/Proton. Sign in with your Microsoft account,
 download the licensed game and start it from the native Rust desktop application.
 Windows, the Xbox app and a previous MSFS installation are not required.
 
-**Current stable release: [Flightdeck 0.2.23](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.23).**
+**Current stable release: [Flightdeck 0.2.24](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.24).**
 The launcher, installer and updater need no Python.
 
-**New in 0.2.23:** Fenix updates and pending setup adoption appear on the
-overview and update icon. Flightdeck verifies known local Fenix installations
-and adopts them into automatic patch management with a restore point. Installed
-and available patch versions are labelled separately; aircraft and existing
-renderer/FCU preferences are retained.
+**New in 0.2.24:** Reuse Proton builds, safely clean up obsolete generated
+profiles and recover interrupted environment switches. Session recovery stays
+available when runner files are missing. Fenix installation, media selection
+and Bazzite desktop startup receive targeted fixes.
 See the [changelog](docs/changelog.md).
+
+Join the [Flightdeck Discord community](https://discord.gg/fAhHR2DkqN) to ask
+questions, share your Linux setup and help develop Flightdeck. For reproducible
+bugs, use [GitHub Issues](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues).
 
 ## Get started
 
 1. Download **Flightdeck-Linux-x86_64.tar.gz** from the
-   [0.2.23 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.23),
+   [0.2.24 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.24),
    extract it and open **Install Flightdeck.desktop**. Your file manager may ask
    you to trust this local launcher. Alternatively, run `./install.sh` there.
 2. Choose **Install MSFS**, select 2024 or 2020 and a destination, then
