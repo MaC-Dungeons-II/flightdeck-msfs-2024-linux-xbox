@@ -2,7 +2,7 @@
 
 [Overview and quick start](../README.md) · [Deutsch](readme.de.md) · [Discord community](https://discord.gg/fAhHR2DkqN)
 
-This documentation covers the current stable release, **0.2.25**. The
+This documentation covers the current stable release, **0.2.26**. The
 [changelog](changelog.md) records its changes and earlier releases.
 Hardware reports describe the tested setup, not universal compatibility.
 
@@ -33,6 +33,8 @@ Hardware reports describe the tested setup, not universal compatibility.
 - [Native desktop](native-ui.md): UI behavior, interaction checks and validation.
 - [Binary package provenance](binary-release.md): pinned inputs, notices and
   corresponding-source obligations.
+- [Credits and acknowledgements](credits.md): contributors, upstream projects,
+  artwork and complete per-release dependency/license records.
 - [Third-party notices](../compat/THIRD_PARTY_NOTICES.md), [license](../LICENSE)
   and [artwork provenance](artwork.md).
 - [Release history](changelog.md): version-specific changes.

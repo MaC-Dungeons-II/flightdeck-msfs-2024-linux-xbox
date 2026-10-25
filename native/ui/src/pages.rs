@@ -526,6 +526,7 @@ impl App {
             Page::Saves => self.saves_page(),
             Page::Mods => self.mods_page(),
             Page::Diagnostics => self.diagnostics_page(),
+            Page::Credits => self.credits_page(),
             Page::Overview => Column::new().into(),
         }
     }

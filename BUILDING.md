@@ -2,7 +2,7 @@
 
 ## Rust application and native desktop
 
-The launcher, all six desktop screens, installer, updater and runtime helpers
+The launcher, all desktop screens, installer, updater and runtime helpers
 use Rust. The desktop is an iced 0.14 window with a software renderer, Wayland
 and X11 support. It embeds the existing artwork, Manrope font and icons. It does
 not need Chromium, JavaScript, Node or Python. Wine/Store ABI components retain

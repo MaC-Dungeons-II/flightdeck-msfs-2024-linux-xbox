@@ -1,7 +1,7 @@
-# Native desktop and add-on management (0.2.14)
+# Native desktop and add-on management
 
-All six Flightdeck views now use Rust and iced 0.14: overview, setup, updates,
-saves, mods and diagnostics. The previous artwork, Manrope font, icons, colors
+The six main Flightdeck views and the Credits page use Rust and iced 0.14:
+overview, setup, updates, saves, mods, diagnostics and credits. The previous artwork, Manrope font, icons, colors
 and navigation remain. Layout and native controls are reproduced directly;
 this is not a webview and does not promise identical browser text rasterization.
 German and English work at the supported minimum of 960 × 700 and larger sizes.
@@ -26,6 +26,15 @@ only shared artwork, font and icon assets. The old web implementation is availab
 in Git history (`v0.2.2:ui/`); it is no longer duplicated in the working tree.
 Maintainer build and test tools are Rust as well (`tools/`). The
 Windows add-ons themselves still require their own .NET/Wine components.
+
+## Credits
+
+The bottom of the sidebar opens **Credits**, with an info button in the compact
+icon rail. It works without a game installation or local-service connection.
+German and English credits name collaborators and the upstream compatibility,
+rendering, media, UI and artwork projects, including OnlyCrayZ-Labs’ specific
+contributions. Local license documents and version-specific dependency/source
+links provide the complete records. See [credits](credits.md).
 
 ## Compact add-on controls in 0.2.7
 

@@ -87,6 +87,7 @@ impl App {
                     keys.push("mods");
                 }
             }
+            Page::Credits => {}
             Page::Diagnostics => {
                 keys.push("store-check");
                 if heavy || !self.snapshot.contains_key("diagnostics") {
@@ -999,7 +1000,15 @@ async fn open_draft(uri: String) -> Result<Option<String>, String> {
 }
 
 async fn open_help(link: HelpLink) -> Result<Option<String>, String> {
-    open_url(link.url().to_string()).await
+    let local = link
+        .document()
+        .and_then(|name| credits::installed_document(&std::env::current_exe().ok()?, name));
+    open_url(
+        local
+            .map(|path| path.to_string_lossy().into_owned())
+            .unwrap_or_else(|| link.url().to_string()),
+    )
+    .await
 }
 
 async fn open_url(url: String) -> Result<Option<String>, String> {

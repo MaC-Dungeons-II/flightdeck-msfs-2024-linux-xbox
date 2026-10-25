@@ -2,6 +2,7 @@
 mod addons;
 mod client;
 mod controller;
+mod credits;
 mod model;
 mod pages;
 pub mod platform;
@@ -109,6 +110,7 @@ pub enum Page {
     Saves,
     Mods,
     Diagnostics,
+    Credits,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -142,6 +144,13 @@ impl Disclosure {
 #[derive(Debug, Clone, Copy)]
 pub enum HelpLink {
     Discord,
+    Project(&'static str),
+    LauncherLicenses,
+    RustLicenses,
+    RuntimeLicenses,
+    GraphicsLicenses,
+    DependencyInventory,
+    ReleaseSources,
     FenixInstaller,
     FenixProject,
     Gsx,
@@ -149,9 +158,44 @@ pub enum HelpLink {
     Install,
 }
 impl HelpLink {
+    fn document(self) -> Option<&'static str> {
+        match self {
+            Self::LauncherLicenses => Some("THIRD-PARTY-NOTICES.txt"),
+            Self::RustLicenses => Some("RUST-STANDARD-LIBRARY-NOTICES.html"),
+            Self::RuntimeLicenses => Some("resources/native/THIRD-PARTY-NOTICES.txt"),
+            Self::GraphicsLicenses => Some("resources/graphics/LICENSE"),
+            _ => None,
+        }
+    }
     fn url(self) -> &'static str {
         match self {
             Self::Discord => "https://discord.gg/fAhHR2DkqN",
+            Self::Project(url) => url,
+            Self::LauncherLicenses => concat!(
+                "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/download/v",
+                env!("FLIGHTDECK_UI_VERSION"),
+                "/THIRD-PARTY-NOTICES.txt"
+            ),
+            Self::RustLicenses => "https://rust-lang.org/policies/licenses/",
+            Self::RuntimeLicenses => concat!(
+                "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/blob/v",
+                env!("FLIGHTDECK_UI_VERSION"),
+                "/compat/THIRD_PARTY_NOTICES.md"
+            ),
+            Self::GraphicsLicenses => concat!(
+                "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/blob/v",
+                env!("FLIGHTDECK_UI_VERSION"),
+                "/docs/nvidia-renderer.md"
+            ),
+            Self::DependencyInventory => concat!(
+                "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/download/v",
+                env!("FLIGHTDECK_UI_VERSION"),
+                "/launcher-dependencies.json"
+            ),
+            Self::ReleaseSources => concat!(
+                "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v",
+                env!("FLIGHTDECK_UI_VERSION")
+            ),
             Self::FenixInstaller => "https://fenixsim.com/dashboard/",
             Self::FenixProject => "https://github.com/marselnenaj/fenix-a320-linux-patch",
             Self::Gsx => "https://www.fsdreamteam.com/products_gsxpro.html",
@@ -287,6 +331,7 @@ impl App {
             Page::Saves => self.tr("Spielstände", "Saves"),
             Page::Mods => "Mods",
             Page::Diagnostics => self.tr("Diagnose", "Diagnostics"),
+            Page::Credits => "Credits",
         }
     }
 
@@ -467,7 +512,7 @@ impl App {
         }
         content = content
             .push(Space::new().height(Length::Fill))
-            .push(container(icon("monitor", 24.0, MUTED)).center_x(Length::Fill));
+            .push(self.credits_navigation(true));
         container(content)
             .padding([28, 8])
             .width(76)
@@ -600,21 +645,8 @@ impl App {
                 left: 0.0
             }),
             separator(),
-            container(
-                row![
-                    icon("monitor", 24.0, MUTED),
-                    label(
-                        self.tr("Lokal auf deinem Rechner", "Local on your computer"),
-                        12.0,
-                        Weight::Normal,
-                        MUTED
-                    )
-                ]
-                .spacing(18)
-                .align_y(alignment::Vertical::Center)
-            )
-            .padding(Padding {
-                top: 23.0,
+            container(self.credits_navigation(false)).padding(Padding {
+                top: 12.0,
                 right: 0.0,
                 bottom: 0.0,
                 left: 0.0

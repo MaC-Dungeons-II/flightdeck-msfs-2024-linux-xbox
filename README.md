@@ -21,23 +21,25 @@ of MSFS 2024 or 2020** through Wine/Proton. Sign in with your Microsoft account,
 download the licensed game and start it from the native Rust desktop application.
 Windows, the Xbox app and a previous MSFS installation are not required.
 
-**Current stable release: [Flightdeck 0.2.25](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.25).**
+**Current stable release: [Flightdeck 0.2.26](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.26).**
 The launcher, installer and updater need no Python.
 
-**New in 0.2.25:** Join Discord directly from the launcher. Integrate
-OnlyCrayZ-Labs’ Wine video-memory negotiation fix for the matching default
-runner, preserve Fenix loader changes and use the actual selected Proton build
-for codec configuration. NVIDIA gameplay validation remains pending.
+**New in 0.2.26:** A dedicated Credits page names the people and projects
+behind Flightdeck, including OnlyCrayZ-Labs’ contributions. Open complete
+license texts and the matching library inventory directly from the launcher.
 See the [changelog](docs/changelog.md).
 
 Join the [Flightdeck Discord community](https://discord.gg/fAhHR2DkqN) to ask
 questions, share your Linux setup and help develop Flightdeck. For reproducible
 bugs, use [GitHub Issues](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues).
 
+[Credits and acknowledgements](docs/credits.md) name the collaborators and
+projects behind Flightdeck. The launcher also has a **Credits** page.
+
 ## Get started
 
 1. Download **Flightdeck-Linux-x86_64.tar.gz** from the
-   [0.2.25 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.25),
+   [0.2.26 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.26),
    extract it and open **Install Flightdeck.desktop**. Your file manager may ask
    you to trust this local launcher. Alternatively, run `./install.sh` there.
 2. Choose **Install MSFS**, select 2024 or 2020 and a destination, then

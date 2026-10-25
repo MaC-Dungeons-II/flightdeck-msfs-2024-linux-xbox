@@ -27,6 +27,7 @@ fn measure_page_switches() {
                 Page::Saves,
                 Page::Mods,
                 Page::Diagnostics,
+                Page::Credits,
             ] {
                 let start = Instant::now();
                 let _ = app.update(Message::Navigate(page));

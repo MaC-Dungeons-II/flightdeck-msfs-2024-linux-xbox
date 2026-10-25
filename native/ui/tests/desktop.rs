@@ -1,4 +1,6 @@
-use flightdeck_ui::{Action, App, Disclosure, Edition, Language, Message, Page, settings, theme};
+use flightdeck_ui::{
+    Action, App, Disclosure, Edition, HelpLink, Language, Message, Page, settings, theme,
+};
 use iced::{Size, Task};
 use serde_json::json;
 use std::time::Duration;
@@ -464,6 +466,7 @@ fn every_screen_is_a_real_native_view_in_both_languages() -> Result<(), Box<dyn 
             (Page::Saves, "Deine Spielstände", "Your saves"),
             (Page::Mods, "Fenix A320", "Fenix A320"),
             (Page::Diagnostics, "Problem melden", "Report a problem"),
+            (Page::Credits, "OnlyCrayZ-Labs ↗", "OnlyCrayZ-Labs ↗"),
         ] {
             let mut app = fixture();
             app.language = language;
@@ -660,6 +663,7 @@ fn capture_all_native_screens() -> Result<(), Box<dyn std::error::Error>> {
             (Page::Saves, "saves"),
             (Page::Mods, "mods"),
             (Page::Diagnostics, "diagnostics"),
+            (Page::Credits, "credits"),
         ] {
             for (width, height) in [(750, 900), (960, 700), (1536, 1024)] {
                 let application = iced::application(
@@ -1007,6 +1011,88 @@ fn session_recovery_remains_visible_when_broken_runner_disables_cloud_transport(
             ui.into_messages().next(),
             Some(Message::Action(Action::Automatic("retry")))
         ));
+    }
+    Ok(())
+}
+
+#[test]
+fn credits_are_reachable_offline_in_sidebar_and_rail_and_name_onlycrayz()
+-> Result<(), Box<dyn std::error::Error>> {
+    for language in [Language::De, Language::En] {
+        for width in [750.0, 960.0, 1536.0] {
+            let mut app = fixture();
+            app.online = false;
+            app.language = language;
+            let size = Size::new(width, 700.0);
+            let mut ui = iced_test::Simulator::with_size(settings(), size, app.view());
+            let bounds = ui
+                .click(iced_test::selector::id("credits-navigation"))?
+                .bounds();
+            assert!(
+                bounds.y >= 0.0 && bounds.y + bounds.height <= size.height,
+                "credits navigation outside viewport: {bounds:?}"
+            );
+            let message = ui.into_messages().next().expect("credits navigation");
+            assert!(matches!(message, Message::Navigate(Page::Credits)));
+            let _ = app.update(message);
+            assert_eq!(app.page, Page::Credits);
+            let mut ui = iced_test::Simulator::with_size(settings(), size, app.view());
+            ui.find(if language == Language::De {
+                "Wine-Media-Fix für Systemspeicher und Testfälle für den Taskqueue-Lebenszyklus."
+            } else {
+                "Wine system-memory media fix and taskqueue lifecycle test scenarios."
+            })?;
+            ui.click("OnlyCrayZ-Labs ↗")?;
+            assert!(matches!(
+                ui.into_messages().next(),
+                Some(Message::OpenHelp(HelpLink::Project(
+                    "https://github.com/OnlyCrayZ-Labs/MSFS2024-Linux"
+                )))
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn credits_scroll_to_complete_license_and_dependency_links()
+-> Result<(), Box<dyn std::error::Error>> {
+    for language in [Language::De, Language::En] {
+        for width in [750.0, 1280.0] {
+            let mut app = fixture();
+            app.language = language;
+            app.page = Page::Credits;
+            let mut ui =
+                iced_test::Simulator::with_size(settings(), Size::new(width, 700.0), app.view());
+            ui.point_at(iced::Point::new(width - 100.0, 500.0));
+            ui.simulate([iced::Event::Mouse(iced::mouse::Event::WheelScrolled {
+                delta: iced::mouse::ScrollDelta::Pixels {
+                    x: 0.0,
+                    y: -10000.0,
+                },
+            })]);
+            ui.find(if language == Language::De {
+                "Alle Bibliotheken & Lizenzen"
+            } else {
+                "All libraries & licenses"
+            })?;
+            if let Ok(directory) = std::env::var("FLIGHTDECK_CREDITS_CAPTURE") {
+                let directory = std::path::Path::new(&directory);
+                std::fs::create_dir_all(directory)?;
+                ui.snapshot(&theme())?.matches_image(
+                    directory.join(format!("credits-licenses-{}-{width}.png", language.code())),
+                )?;
+            }
+            ui.click(if language == Language::De {
+                "Bibliotheken mit Versionen ↗"
+            } else {
+                "Libraries and versions ↗"
+            })?;
+            assert!(matches!(
+                ui.into_messages().next(),
+                Some(Message::OpenHelp(HelpLink::DependencyInventory))
+            ));
+        }
     }
     Ok(())
 }

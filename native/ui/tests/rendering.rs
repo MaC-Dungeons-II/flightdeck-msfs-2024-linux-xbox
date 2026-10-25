@@ -178,6 +178,7 @@ fn cached_page_and_size_changes_match_a_fresh_full_render() {
         (Page::Setup, 750.0, 900.0, 1.5),
         (Page::Overview, 1061.0, 1125.0, 1.0),
         (Page::Mods, 960.0, 700.0, 2.0),
+        (Page::Credits, 750.0, 900.0, 1.5),
         (Page::Overview, 1280.0, 900.0, 1.0),
     ] {
         app.page = page;
