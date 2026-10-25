@@ -219,6 +219,14 @@ recognized exception types and an explicitly observed CLR code, never raw
 exception messages; `<runtime>/private/fenix-app.log` remains local.
 [Verification and limits](native-ui.md#fenix-install-hook-warning).
 
+The launcher also checks persisted `DOTNET_STARTUP_HOOKS` in the Wine profile's
+user and machine environment. A missing absolute `C:\…` hook can reintroduce
+exit 82/`FileNotFoundException` after the Unix environment was filtered. Only
+demonstrably missing paths are removed; existing hooks and relative, expanded
+or external-drive entries are retained. Original values are saved locally in
+`<prefix>/.flightdeck-fenix-environment.json` before changing the registry.
+This fixes that reproduced failure, not every missing-assembly exception.
+
 After setup, Fenix starts automatically with MSFS; you do not need to start it
 separately. Flightdeck closes the session's Fenix companions after normal exit,
 a game crash or **Stop**, with a bounded fallback for stuck processes. Since

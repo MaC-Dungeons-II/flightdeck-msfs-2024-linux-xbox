@@ -620,7 +620,8 @@ impl App {
                 let cloud = &status["cloud"];
                 let ready = (idle || (*op == "cancel-auto" && self.stopped()))
                     && configured
-                    && yes(cloud, "enabled")
+                    && (yes(cloud, "enabled")
+                        || *op == "retry" && cloud["error_code"] == "unsafe_session")
                     && !s(cloud, "request_id").is_empty();
                 body = json!({"request_id":cloud["request_id"]});
                 match *op {

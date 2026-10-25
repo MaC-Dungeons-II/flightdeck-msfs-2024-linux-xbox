@@ -342,11 +342,14 @@ fn overlay_payload(
             files::sha256(&bytes) == hash,
             "Fenix patch checksum mismatch.",
         )?;
-        write(
-            &contained(runner, &name)?,
-            &bytes,
-            if name.contains("/bin/") { 0o755 } else { 0o644 },
-        )?;
+        let destination = contained(runner, &name)?;
+        if !destination.is_file() || tx::digest(&destination)? != hash {
+            write(
+                &destination,
+                &bytes,
+                if name.contains("/bin/") { 0o755 } else { 0o644 },
+            )?;
+        }
         if name.starts_with("files/lib/wine/x86_64-windows/")
             || name == crate::fenix_setup::DXGI_FILE
         {

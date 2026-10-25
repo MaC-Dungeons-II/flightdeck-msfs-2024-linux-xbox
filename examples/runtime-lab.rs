@@ -142,7 +142,7 @@ fn run(input: Value) -> Result<Value> {
                 .into_iter()
                 .map(|(key, value)| (key.into(), value.into()))
                 .collect();
-            let (source, decoder) = flightdeck::media::configure(
+            let (source, decoder) = flightdeck::media::configure_verified(
                 &root,
                 &root.join("runner"),
                 input["runner_media"] == true,
@@ -209,6 +209,7 @@ fn main() -> std::process::ExitCode {
         if args.first().is_some_and(|v| v == "--native-probe") {
             return match args.get(1).map(String::as_str) {
                 Some("graphics") => native_probe::graphics(),
+                Some("media") => Ok(native_probe::media()),
                 Some("vr") => Ok(native_probe::vr()),
                 Some("nvidia-directory") => native_probe::nvidia_directory(),
                 _ => Err(Error::Invalid("Unknown native probe.")),

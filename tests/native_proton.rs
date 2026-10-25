@@ -407,3 +407,182 @@ fn runner_escapes_and_ambiguous_selection_are_rejected() {
     assert!(proton::inspect(path.to_str().unwrap()).is_err());
     assert!(proton::validate_selection(&json!({"schema":true})).is_err());
 }
+
+fn select(app: &std::sync::Arc<Launcher>, root: &Path, candidate: Option<&Path>) -> Value {
+    proton::start(app, &json!({"runtime_path":root,"mode":if candidate.is_some(){"proton"}else{"default"},"path":candidate})).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        let job = app.job("proton");
+        if job["state"] == "complete" {
+            return job;
+        }
+        assert_ne!(job["state"], "failed", "{job}");
+        assert!(std::time::Instant::now() < deadline, "{job}");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
+#[test]
+fn alternating_builds_reuse_runners_keep_latest_addons_and_bound_profile_backups() {
+    let temp = tempfile::tempdir().unwrap();
+    let (root, app) = fixture(temp.path());
+    let a = temp.path().join("proton-a");
+    let b = temp.path().join("proton-b");
+    runner(&a, "synthetic-a");
+    runner(&b, "synthetic-b");
+    let mut identities = std::collections::BTreeMap::new();
+    for (number, candidate) in [
+        Some(a.as_path()),
+        Some(b.as_path()),
+        Some(a.as_path()),
+        None,
+        Some(b.as_path()),
+        Some(a.as_path()),
+        None,
+        Some(b.as_path()),
+        None,
+        Some(a.as_path()),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let job = select(&app, &root, candidate);
+        let active = root.join("runner").canonicalize().unwrap();
+        let id = fenix::identity(&active).unwrap();
+        if let Some(old) = identities.insert(candidate.map(Path::to_path_buf), id.clone()) {
+            assert_eq!(old, id, "runner copied again");
+        }
+        for old in 0..number {
+            assert!(
+                root.join(format!("local/msfs-prefix/addon-{old}"))
+                    .is_file()
+            );
+        }
+        write(
+            &root.join(format!("local/msfs-prefix/addon-{number}")),
+            b"latest user installation",
+        );
+        assert_ne!(job["cleanup"]["skipped"], true, "cycle {number}: {job}");
+        let profiles: Vec<_> = fs::read_dir(root.join("local/proton-tests"))
+            .unwrap()
+            .flat_map(|e| {
+                ["previous-prefix", "next-prefix"].map(|n| e.as_ref().unwrap().path().join(n))
+            })
+            .filter(|p| p.exists())
+            .collect();
+        assert_eq!(profiles.len(), 1, "{profiles:?}");
+        assert!(root.join("local/msfs-prefix").is_dir());
+    }
+    assert_eq!(
+        fs::read_dir(root.join("local/proton-tests"))
+            .unwrap()
+            .count(),
+        3
+    );
+    // A build changed in place gets a separate copy, including changes outside
+    // inspect()'s small launch-file list.
+    write(&a.join("files/new-codec.so"), b"new codec build");
+    select(&app, &root, Some(&a));
+    assert_eq!(
+        fs::read_dir(root.join("local/proton-tests"))
+            .unwrap()
+            .count(),
+        4
+    );
+}
+
+#[test]
+fn legacy_cleanup_removes_only_unreferenced_recognized_slots_and_never_follows_links() {
+    let temp = tempfile::tempdir().unwrap();
+    let (root, app) = fixture(temp.path());
+    let mut slots = Vec::new();
+    for number in 0..6 {
+        let work = root.join(format!("local/proton-tests/{number:032x}"));
+        runner(&work.join("runner"), "synthetic-old");
+        write(&work.join("previous-prefix/addon"), b"old user profile");
+        files::atomic_json(&work.join("provenance.json"),&json!({"source":temp.path().join("source"),"version":"synthetic-old","files":proton::inspect(work.join("runner").to_str().unwrap()).unwrap()["hashes"]})).unwrap();
+        slots.push(work);
+    }
+    files::atomic_json(
+        &root.join("private/retained.json"),
+        &json!({"restore":slots[1].join("previous-prefix")}),
+    )
+    .unwrap();
+    write(
+        &slots[2].join("unexpected-personal-data"),
+        b"preserve unknown entries",
+    );
+    let external = temp.path().join("outside");
+    write(&external.join("keep"), b"external data");
+    symlink(&external, slots[0].join("previous-prefix/external-link")).unwrap();
+    // A changed runner invalidates legacy provenance; preserve the whole slot.
+    write(&slots[3].join("runner/files/bin/wine"), b"changed runner");
+    // A second configured simulator uses this runner, even while idle.
+    let other = temp.path().join("other-runtime");
+    files::private_dir(&other.join("private")).unwrap();
+    symlink(slots[4].join("runner"), other.join("runner")).unwrap();
+    app.lock().known.insert("msfs2020".into(), other);
+    symlink(
+        slots[5].join("previous-prefix"),
+        root.join("local/msfs-prefix/linked-community-package"),
+    )
+    .unwrap();
+    let provenance = slots[0].join("provenance.json");
+    let record: Value = files::json(&provenance, 65536).unwrap();
+    files::atomic_json(&provenance, &record).unwrap();
+    let candidate = temp.path().join("new");
+    runner(&candidate, "synthetic-new");
+    select(&app, &root, Some(&candidate));
+    assert!(!slots[0].exists());
+    assert!(external.join("keep").is_file());
+    assert!(slots[4].join("runner/files/bin/wine").is_file());
+    assert!(!slots[4].join("previous-prefix").exists());
+    assert!(slots[5].join("previous-prefix/addon").is_file());
+    for slot in &slots[1..4] {
+        assert!(slot.join("previous-prefix/addon").is_file());
+    }
+}
+
+#[test]
+fn deleted_old_trial_runner_does_not_prevent_return_to_default_or_lose_current_addons() {
+    let temp = tempfile::tempdir().unwrap();
+    let (root, app) = fixture(temp.path());
+    let candidate = temp.path().join("alternative");
+    runner(&candidate, "synthetic-selected");
+    select(&app, &root, Some(&candidate));
+    write(&root.join("local/msfs-prefix/addon"), b"new addon");
+    fs::remove_dir_all(root.join("local/proton-tests")).unwrap();
+    assert!(proton::check(&root).is_err());
+    select(&app, &root, None);
+    proton::check(&root).unwrap();
+    assert!(proton::selection(&root).unwrap().is_none());
+    assert_eq!(
+        fs::read(root.join("local/msfs-prefix/addon")).unwrap(),
+        b"new addon"
+    );
+}
+
+#[test]
+fn user_modified_backup_is_retained_when_later_switches_make_it_obsolete() {
+    let temp = tempfile::tempdir().unwrap();
+    let (root, app) = fixture(temp.path());
+    let a = temp.path().join("a");
+    let b = temp.path().join("b");
+    runner(&a, "synthetic-a");
+    runner(&b, "synthetic-b");
+    select(&app, &root, Some(&a));
+    let backup = root.join(
+        proton::selection(&root).unwrap().unwrap()["base_prefix"]
+            .as_str()
+            .unwrap(),
+    );
+    write(
+        &backup.join("user-added-after-backup"),
+        b"keep this newer personal data",
+    );
+    select(&app, &root, Some(&b));
+    assert_eq!(
+        fs::read(backup.join("user-added-after-backup")).unwrap(),
+        b"keep this newer personal data"
+    );
+}

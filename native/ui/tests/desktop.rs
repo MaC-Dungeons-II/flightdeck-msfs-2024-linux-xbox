@@ -984,3 +984,29 @@ fn fenced_session_names_the_surviving_process_in_the_launch_note()
     }
     Ok(())
 }
+
+#[test]
+fn session_recovery_remains_visible_when_broken_runner_disables_cloud_transport()
+-> Result<(), Box<dyn std::error::Error>> {
+    for language in [Language::De, Language::En] {
+        let mut app = fixture();
+        app.language = language;
+        app.snapshot.get_mut("status").expect("status")["runtime"]["ready"] = json!(false);
+        app.snapshot.get_mut("status").expect("status")["game"]["can_start"] = json!(false);
+        app.snapshot.get_mut("status").expect("status")["cloud"] = json!({"enabled":false,"state":"attention","error_code":"unsafe_session","request_id":"recovery-only","can_retry":true});
+        assert!(app.request(&Action::Launch).is_none());
+        assert!(app.request(&Action::Automatic("retry")).is_some());
+        let mut ui =
+            iced_test::Simulator::with_size(settings(), Size::new(960.0, 900.0), app.view());
+        ui.click(if language == Language::De {
+            "Sitzung prüfen"
+        } else {
+            "Check session"
+        })?;
+        assert!(matches!(
+            ui.into_messages().next(),
+            Some(Message::Action(Action::Automatic("retry")))
+        ));
+    }
+    Ok(())
+}

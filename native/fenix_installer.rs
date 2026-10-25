@@ -13,6 +13,7 @@ use std::{
 /// Explorer or a shortcut, which may not inherit the Unix launch environment.
 /// This registry belongs to this Wine profile, never the Linux host.
 pub fn prepare(wine: &Wine<'_>) -> Result<()> {
+    crate::fenix_environment::prepare(wine)?;
     for (name, value) in crate::wine::DOTNET_COMPATIBILITY {
         if wine.cancel.load(std::sync::atomic::Ordering::Acquire) {
             return Err(Error::Cancelled);
@@ -566,7 +567,7 @@ mod tests {
         let runner = temp.path().join("runner");
         files::private_dir(&runner.join("files/bin")).expect("runner");
         let executable = runner.join("files/bin/wine");
-        files::atomic(&executable, b"#!/bin/sh\nprintf '%s\\n' \"$*\"\n[ \"$DOTNET_SYSTEM_GLOBALIZATION_USENLS\" = 1 ] && [ \"$DOTNET_ReadyToRun\" = 0 ]\n").expect("fixture executable");
+        files::atomic(&executable, b"#!/bin/sh\nif [ \"$1\" = reg ] && [ \"$2\" = query ]; then exit 1; fi\nprintf '%s\\n' \"$*\"\n[ \"$DOTNET_SYSTEM_GLOBALIZATION_USENLS\" = 1 ] && [ \"$DOTNET_ReadyToRun\" = 0 ]\n").expect("fixture executable");
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700))
             .expect("mode");
         let log = temp.path().join("repair.log");

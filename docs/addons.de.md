@@ -235,6 +235,15 @@ beobachteten CLR-Code, keine rohen Fehlermeldungen;
 `<Runtime-Ordner>/private/fenix-app.log` bleibt lokal.
 [Prüfumfang](native-ui.md#fenix-install-hook-warning).
 
+Flightdeck prüft außerdem gespeicherte `DOTNET_STARTUP_HOOKS` in der Benutzer-
+und Systemumgebung des Wine-Profils. Ein fehlender absoluter `C:\…`-Hook kann
+Exitcode 82/`FileNotFoundException` trotz gefilterter Linux-Umgebung erneut
+verursachen. Entfernt werden nur nachweislich fehlende Pfade. Vorhandene Hooks,
+relative Einträge, Variablen und andere Laufwerke bleiben erhalten. Vor der
+Registry-Änderung wird der ursprüngliche Wert lokal in
+`<Wine-Profil>/.flightdeck-fenix-environment.json` gesichert. Das behebt den
+reproduzierten Fall; andere fehlende Assemblies können weitere Ursachen haben.
+
 Nach der Einrichtung startet Fenix automatisch mit MSFS. Du musst es nicht
 separat öffnen. Beim normalen Spielende, einem Absturz oder **Stoppen** beendet
 Flightdeck die Fenix-Begleitprozesse dieser Sitzung; hängende Prozesse werden

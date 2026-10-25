@@ -89,6 +89,9 @@ pub fn configure(
         runner_libraries(runner, env)?;
         let plugins: Vec<_> = libraries(runner)
             .into_iter()
+            // MSFS and this probe are 64-bit. Scanning 32-bit plugins only
+            // creates ELFCLASS32 failures in the 64-bit registry.
+            .filter(|path| path.file_name().is_none_or(|n| n != "i386-linux-gnu"))
             .map(|path| path.join("gstreamer-1.0"))
             .filter(|path| path.is_dir())
             .collect();
@@ -157,4 +160,144 @@ pub fn configure(
         "default"
     };
     Ok((source, decoder))
+}
+
+/// Prefer the runner's complete stack. If its H.264 plugin cannot load, use a
+/// separately verified host stack, including the host library search path.
+/// Explicit media choices are left to the user.
+pub fn configure_verified(
+    root: &Path,
+    runner: &Path,
+    selected: bool,
+    nvidia: bool,
+    env: &mut Environment,
+) -> Result<(&'static str, &'static str)> {
+    let cancel = std::sync::atomic::AtomicBool::new(false);
+    configure_checked(
+        root,
+        runner,
+        selected,
+        nvidia,
+        env,
+        |env| {
+            let result = (|| -> Result<bool> {
+                let mut command = std::process::Command::new(std::env::current_exe()?);
+                command
+                    .args(["--native-probe", "media"])
+                    .env_clear()
+                    .envs(env);
+                let bytes = crate::process::output(
+                    &mut command,
+                    std::time::Duration::from_secs(5),
+                    4096,
+                    &cancel,
+                )?;
+                let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+                Ok(value["schema"] == 1 && value["h264"] == true)
+            })();
+            result.unwrap_or(false)
+        },
+        |env| {
+            let mut command = std::process::Command::new(crate::runtime::wine(runner));
+            command.arg("--version").env_clear().envs(env);
+            crate::process::output(
+                &mut command,
+                std::time::Duration::from_secs(5),
+                4096,
+                &cancel,
+            )
+            .is_ok()
+        },
+    )
+}
+
+fn configure_checked(
+    root: &Path,
+    runner: &Path,
+    selected: bool,
+    nvidia: bool,
+    env: &mut Environment,
+    h264: impl Fn(&Environment) -> bool,
+    wine: impl Fn(&Environment) -> bool,
+) -> Result<(&'static str, &'static str)> {
+    let original = env.clone();
+    let explicit = [
+        "GST_PLUGIN_SYSTEM_PATH_1_0",
+        "GST_PLUGIN_SYSTEM_PATH",
+        "GST_PLUGIN_PATH_1_0",
+        "GST_PLUGIN_PATH",
+        "GST_PLUGIN_FEATURE_RANK",
+    ]
+    .iter()
+    .any(|key| original.contains_key(OsStr::new(key)));
+    let configured = configure(root, runner, selected, nvidia, env)?;
+    if configured.0 != "runner" || explicit || h264(env) {
+        return Ok(configured);
+    }
+    let mut host = original;
+    let host_configured = configure(root, runner, false, nvidia, &mut host)?;
+    if h264(&host) && wine(&host) {
+        *env = host;
+        eprintln!(
+            "flightdeck-media: bundled H.264 decoder unavailable; verified host codec stack selected"
+        );
+        Ok(host_configured)
+    } else {
+        Ok(configured)
+    }
+}
+
+#[cfg(test)]
+mod fallback_tests {
+    use super::*;
+    #[test]
+    fn broken_bundled_decoder_falls_back_only_to_a_verified_complete_host_environment() {
+        let temp = tempfile::tempdir().expect("runtime");
+        let root = temp.path();
+        let runner = root.join("runner");
+        let libs = runner.join("files/lib/x86_64-linux-gnu");
+        files::private_dir(&libs.join("gstreamer-1.0")).expect("plugins");
+        files::atomic(&libs.join("libavcodec.so.62"), b"codec").expect("codec");
+        files::private_dir(&runner.join("files/lib/i386-linux-gnu/gstreamer-1.0"))
+            .expect("32-bit plugins");
+        for host_ready in [true, false] {
+            let mut env = Environment::from([("LD_LIBRARY_PATH".into(), "/host/libraries".into())]);
+            let result = configure_checked(
+                root,
+                &runner,
+                true,
+                false,
+                &mut env,
+                |env| host_ready && !env.contains_key(OsStr::new("GST_PLUGIN_SYSTEM_PATH_1_0")),
+                |_| true,
+            )
+            .expect("media");
+            assert_eq!(result.0, if host_ready { "host" } else { "runner" });
+            if host_ready {
+                assert_eq!(env[OsStr::new("LD_LIBRARY_PATH")], "/host/libraries");
+            } else {
+                assert!(
+                    !env[OsStr::new("GST_PLUGIN_SYSTEM_PATH_1_0")]
+                        .to_string_lossy()
+                        .contains("i386")
+                );
+            }
+        }
+        let mut explicit =
+            Environment::from([("GST_PLUGIN_SYSTEM_PATH_1_0".into(), "/user/plugins".into())]);
+        configure_checked(
+            root,
+            &runner,
+            true,
+            false,
+            &mut explicit,
+            |_| panic!("explicit choices must not be probed"),
+            |_| false,
+        )
+        .expect("explicit");
+        assert_eq!(
+            explicit[OsStr::new("GST_PLUGIN_SYSTEM_PATH_1_0")],
+            "/user/plugins"
+        );
+    }
 }

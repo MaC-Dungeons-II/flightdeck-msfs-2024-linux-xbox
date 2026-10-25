@@ -688,5 +688,8 @@
   "Download erneut versuchen": "Retry download",
   "Der Download wurde unterbrochen. Erneut versuchen verwendet bereits vollständig geladene Dateien nach erneuter Prüfung weiter.": "The download was interrupted. Retry rechecks and reuses files that have already finished downloading.",
   "Der Spieldownload wurde nicht abgeschlossen. Bitte Kaufberechtigung, Speicherplatz und Verbindung prüfen.": "The game download did not complete. Check game ownership, disk space and your connection.",
-  "Fenix-Einrichtung übernommen und Patch aktualisiert. Der vorherige Stand bleibt wiederherstellbar.": "Fenix setup adopted and patch updated. The previous state remains available for restoration."
+  "Fenix-Einrichtung übernommen und Patch aktualisiert. Der vorherige Stand bleibt wiederherstellbar.": "Fenix setup adopted and patch updated. The previous state remains available for restoration.",
+  "Die Sicherung der Fenix-Umgebung konnte nicht geprüft werden.": "The Fenix environment backup could not be verified.",
+  "Die bisherigen Proton-Profile werden noch benötigt. Beende laufende Windows-Anwendungen und prüfe die Sitzung, bevor du erneut wechselst.": "Previous Proton profiles are still needed. Close running Windows applications and check the session before switching again.",
+  "Die gespeicherte Proton-Kopie wurde verändert. Sie wurde nicht überschrieben.": "The saved Proton copy has changed. It was not overwritten."
 }

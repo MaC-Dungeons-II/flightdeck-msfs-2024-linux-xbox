@@ -99,6 +99,11 @@ interface](native-ui.md) for build and Fenix installer changes.
 
 ## Bazzite and symbolic-link errors
 
+The native launcher accepts root-managed system aliases such as `/home` to
+`/var/home`, including when reopening a pinned taskbar entry. User-controlled
+links in the settings directory remain rejected. The shell installer's path
+checks below still require resolving aliases during installation.
+
 Start the installation in **Desktop Mode**. Download the full
 **Flightdeck-Linux-x86_64.tar.gz** package linked above and **extract the entire
 archive**, rather than opening its desktop launcher inside the archive viewer.

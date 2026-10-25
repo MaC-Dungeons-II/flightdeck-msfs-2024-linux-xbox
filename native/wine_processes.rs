@@ -277,6 +277,84 @@ pub fn idle(prefix: &Path) -> Result<()> {
         "Close MSFS, Fenix and all installers for this profile first.",
     )
 }
+
+/// A cached runner may be used with a prefix outside this runtime. Do not
+/// reclaim it merely because the runtime's current prefix is idle.
+pub(crate) fn path_in_use(path: &Path) -> Result<bool> {
+    let path = path.canonicalize()?;
+    for (count, entry) in std::fs::read_dir("/proc")?.enumerate() {
+        require(
+            count < 131072,
+            "Too many processes to inspect this Windows profile.",
+        )?;
+        let entry = entry?;
+        if !entry
+            .file_name()
+            .to_str()
+            .is_some_and(|n| n.bytes().all(|b| b.is_ascii_digit()))
+        {
+            continue;
+        }
+        let proc = entry.path();
+        if !proc.metadata().is_ok_and(|m| m.uid() == files::uid()) {
+            continue;
+        }
+        let Some(pid) = entry
+            .file_name()
+            .to_str()
+            .and_then(|s| s.parse::<i32>().ok())
+            .and_then(Pid::from_raw)
+        else {
+            continue;
+        };
+        let handle = match pidfd_open(pid, PidfdFlags::empty()) {
+            Ok(handle) => handle,
+            Err(rustix::io::Errno::SRCH) => continue,
+            Err(error) => return Err(error.into()),
+        };
+        if !alive(&handle) {
+            continue;
+        }
+        if std::fs::read_link(proc.join("exe")).is_ok_and(|p| p.starts_with(&path))
+            && alive(&handle)
+        {
+            return Ok(true);
+        }
+        let bytes = match std::fs::read(proc.join("environ")) {
+            Ok(bytes) => bytes,
+            Err(error)
+                if error.kind() == std::io::ErrorKind::NotFound
+                    || error.raw_os_error() == Some(3)
+                    || !alive(&handle) =>
+            {
+                continue;
+            }
+            Err(error) => return Err(error.into()),
+        };
+        for item in bytes.split(|b| *b == 0) {
+            let Some((key, value)) = item
+                .iter()
+                .position(|b| *b == b'=')
+                .map(|i| (&item[..i], &item[i + 1..]))
+            else {
+                continue;
+            };
+            if [
+                b"WINEPREFIX".as_slice(),
+                b"WINE",
+                b"WINELOADER",
+                b"WINESERVER",
+            ]
+            .contains(&key)
+                && Path::new(<std::ffi::OsStr as std::os::unix::ffi::OsStrExt>::from_bytes(value))
+                    .starts_with(&path)
+            {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
 pub fn status(prefix: &Path) -> (bool, bool) {
     Processes::new(prefix)
         .map(|v| (v.any(Some(FENIX)), v.any(Some(GAMES))))

@@ -33,21 +33,41 @@ The selector includes **Flightdeck (Xodus, default)** and preselects the active
 environment when available. Choose the default entry to return from another
 Proton build; the separate recovery button remains available as well.
 
-Starting with 0.1.20, switching copies the **current** Windows profile and the
-chosen runner into `local/proton-tests/`. Aircraft, installed add-ons, sign-ins
-and settings carry forward, including changes made under another Proton build.
-Returning to Flightdeck also carries the current profile forward. Earlier
-profiles remain in their `previous-prefix` backup directories; they are not
-silently restored over newer add-on installations. The game files and
-Flightdeck-managed saves remain in place. Store/account helpers retain the
-original Flightdeck runner.
+Switching carries the **current** Windows profile forward, including new
+aircraft, add-ons, sign-ins and settings. Returning to Flightdeck does the same.
+Each unchanged Proton build now has one reusable private runner copy under
+`local/proton-tests/`; selecting the already active build is a no-op. Updating
+that build's files, or changing its Fenix overlay, creates a separate cache
+entry. The base game and Flightdeck-managed saves remain in place, and
+Store/account helpers retain the original Flightdeck runner.
+
+Preparation still stages the current profile so a failed preparation cannot
+damage the active one. After a successful switch, Flightdeck keeps the last
+profile backup and reclaims older, unreferenced generated profiles. It also
+audits recognized copies from earlier releases when idle at startup. Fenix
+restore points and references from other configured simulators remain
+protected. Changed profiles, unknown files, mounted subdirectories and an
+incomplete process/reference audit defer cleanup. Deletion uses a private
+quarantine and never follows package-directory links. Never delete
+`proton-tests` wholesale: active runners or restore points may still be inside.
 
 Preparation verifies the selected files, updates Wine and installs that runner's
 graphics libraries for both architectures. Steam updates cannot modify the
 private runner copy; select the updated build again to adopt it. Failure or
 cancellation during preparation leaves the active profile untouched. A journal
 blocks launch after an interrupted commit; **Return to Flightdeck environment**
-recovers it. Close MSFS and all profile applications before switching.
+recovers it. Filesystems such as `ntfs3` that reject atomic directory exchange
+use three journaled, identity-checked renames instead. An interruption after any
+rename can be resumed without discarding either profile. **Check session**
+remains available when missing runner files disable the cloud transport; then
+use **Return to Flightdeck environment** to repair the runner selection.
+Close MSFS and all profile applications before switching.
+
+For bundled media stacks, Flightdeck checks whether the H.264 decoder loads in
+a separate process. If it fails, a working host decoder and the runner's ability
+to start with that environment must both be verified before using the host
+stack. Explicit GStreamer plugin/rank settings are preserved. This checks
+loading dependencies, not every video or GPU configuration.
 
 The Xbox user bridge also needs working WinRT JSON parsing. Some stock Proton
 builds expose its factories but return `E_NOTIMPL` from `Parse` or `GetObject`,

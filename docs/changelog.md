@@ -1,5 +1,26 @@
 # Changes and release status
 
+## Unreleased
+
+- Reuse one private runner per unchanged Proton build/overlay. Carry the latest
+  profile forward, keep the last rollback profile, and automatically reclaim
+  obsolete generated profiles and recognized legacy copies while idle. Protect
+  active runners, other configured runtimes, Fenix restore references, modified
+  backups, unknown content and running processes. Quarantine deletions without
+  following links; defer cleanup when the audit is incomplete.
+- Resume Proton profile switches on filesystems without `RENAME_EXCHANGE`,
+  including ntfs3, using the durable journal and checked directory identities.
+  Return to the default environment even if an old trial runner was deleted.
+  Keep session recovery available when cloud transport prerequisites are broken.
+- Remove missing persisted absolute .NET startup-hook paths before Fenix install
+  and repair, retaining original values locally. Official FenixApp 1.0.359
+  reproduced exit 82/FileNotFoundException before the fix and exit 0 after it.
+- Verify bundled H.264 decoder loading in an isolated child; use a separately
+  verified host codec environment when the bundled stack fails. Retain explicit
+  media settings and keep 32-bit plugins out of the 64-bit registry.
+- Accept root-managed system directory aliases when launching the desktop app,
+  including Bazzite's `/home` alias. User-controlled state links remain rejected.
+
 ## 0.2.23 — 25 October 2026
 
 - Include existing local Fenix installations in automatic update discovery.

@@ -28,7 +28,7 @@ struct Arguments {
     language: Option<String>,
     #[arg(long)]
     refresh_components: bool,
-    #[arg(long, hide=true, value_parser=["host","graphics","vr","nvidia-directory","hip"])]
+    #[arg(long, hide=true, value_parser=["host","graphics","vr","nvidia-directory","hip","media"])]
     native_probe: Option<String>,
     #[command(subcommand)]
     command: Option<Command>,
@@ -289,6 +289,7 @@ fn main() -> ExitCode {
     if let Some(probe) = arguments.native_probe.as_deref() {
         let result = match probe {
             "host" => Ok(flightdeck::native_probe::host()),
+            "media" => Ok(flightdeck::native_probe::media()),
             "graphics" => flightdeck::native_probe::graphics(),
             "vr" => Ok(flightdeck::native_probe::vr()),
             "hip" => std::env::var_os("FLIGHTDECK_HIP_LIBRARY")

@@ -311,7 +311,7 @@ pub fn run(root: &Path, arguments: &[OsString]) -> Result<u8> {
     // Keep the optional compute preload out of the supervisor, broker and
     // companion helpers. Only the game's Wine command receives this overlay.
     let mut game_env = env.clone();
-    let (media_source, media_decoder) = crate::media::configure(
+    let (media_source, media_decoder) = crate::media::configure_verified(
         &root,
         &root.join("runner"),
         portable,

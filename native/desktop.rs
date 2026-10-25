@@ -21,6 +21,7 @@ pub fn state_directory(path: &Path) -> Result<PathBuf> {
     } else {
         std::env::current_dir()?.join(path)
     };
+    let path = state_path(&path)?;
     for component in path.ancestors() {
         require(
             !component.is_symlink(),
@@ -29,6 +30,49 @@ pub fn state_directory(path: &Path) -> Result<PathBuf> {
     }
     files::private_dir(&path)?;
     Ok(path.canonicalize()?)
+}
+
+// Fedora Atomic uses root-managed aliases such as /home -> /var/home.
+// Resolve those aliases while retaining the no-symlink rule for user-controlled
+// ancestors and the settings directory itself.
+fn state_path(path: &Path) -> Result<PathBuf> {
+    use std::{collections::VecDeque, path::Component};
+    let invalid = "Der Einstellungsordner muss ein echter Ordner deines Benutzerkontos sein.";
+    let mut pending: VecDeque<_> = path
+        .components()
+        .map(|c| c.as_os_str().to_os_string())
+        .collect();
+    let mut resolved = PathBuf::new();
+    let mut links = 0;
+    while let Some(part) = pending.pop_front() {
+        require(
+            !matches!(
+                Path::new(&part).components().next(),
+                Some(Component::ParentDir)
+            ),
+            invalid,
+        )?;
+        let parent = resolved.clone();
+        resolved.push(&part);
+        if resolved.is_symlink() {
+            links += 1;
+            let owner = resolved.symlink_metadata()?;
+            let directory = parent.metadata()?;
+            require(
+                !pending.is_empty()
+                    && links <= 16
+                    && owner.uid() == 0
+                    && directory.uid() == 0
+                    && directory.mode() & 0o022 == 0,
+                invalid,
+            )?;
+            // The alias and its containing directory are controlled by root.
+            // Resolve its target (including normal ../run system aliases), then
+            // continue checking every user-controlled suffix component.
+            resolved = resolved.canonicalize()?;
+        }
+    }
+    Ok(resolved)
 }
 pub fn process_start(pid: u32) -> Option<u64> {
     if pid == 0 {
@@ -455,6 +499,28 @@ pub fn installed_handoff(
 mod session_tests {
     use super::*;
     use std::ffi::OsStr;
+
+    #[test]
+    fn system_directory_aliases_are_resolved_but_user_links_and_linked_state_are_rejected() {
+        if Path::new("/var/run").is_symlink()
+            && Path::new("/var/run")
+                .symlink_metadata()
+                .is_ok_and(|m| m.uid() == 0)
+        {
+            assert_eq!(
+                state_path(Path::new("/var/run/flightdeck-state-test")).expect("system alias"),
+                PathBuf::from("/run/flightdeck-state-test")
+            );
+        }
+        let temp = tempfile::tempdir().expect("state");
+        let real = temp.path().join("real");
+        files::private_dir(&real).expect("real");
+        let link = temp.path().join("link");
+        std::os::unix::fs::symlink(&real, &link).expect("alias");
+        assert!(state_directory(&link).is_err());
+        assert!(state_directory(&link.join("state")).is_err());
+        assert!(state_directory(&real.join("state")).is_ok());
+    }
 
     #[test]
     fn desktop_session_needs_a_reconnectable_display_not_an_inherited_socket() {

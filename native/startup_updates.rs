@@ -94,6 +94,7 @@ pub fn check(app: &Arc<Launcher>) -> Result<Value> {
         },
     );
     drop(s);
+    crate::proton_storage::on_startup(app)?;
     let app = Arc::clone(app);
     std::thread::spawn(move || {
         let result =
