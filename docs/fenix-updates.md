@@ -47,7 +47,8 @@ Flightdeck 0.2.23 also checks existing local setups automatically. A known local
 runner and known launch scripts can be adopted into a managed copy before launch
 or through the explicit adoption action. The original profile, runner link and
 scripts are backed up; renderer and FCU preferences are retained. Unknown
-customizations are not overwritten. Available and installed versions are
+customizations are not overwritten. An explicit restoration pauses automatic
+adoption until the user explicitly adopts the setup again. Available and installed versions are
 separate UI facts; an embedded release alone is not installation evidence.
 
 Checks run without taking the runtime lease. Installation takes the existing

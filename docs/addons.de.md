@@ -265,7 +265,7 @@ Ab 0.2.23 lässt sich eine bekannte ältere lokale Einrichtung vor dem Start
 automatisch oder über **Einrichtung übernehmen & aktualisieren** übernehmen.
 Flightdeck prüft die Dateien, kopiert Profil und Runner und behält den vorherigen
 Stand zur Wiederherstellung. Flugzeug sowie vorhandene Renderer- und FCU-Wahl
-bleiben erhalten. Unbekannte angepasste Dateien stoppen die Übernahme. Übersicht
+bleiben erhalten. Unbekannte angepasste Dateien stoppen die Übernahme. Nach einer Wiederherstellung ist die automatische Übernahme pausiert; mit der Übernahme-Schaltfläche kannst du sie erneut aktivieren. Übersicht
 und Update-Symbol zeigen die ausstehende Übernahme; eine **verfügbare** Version
 bestätigt keine installierte Version.
 

@@ -10,7 +10,9 @@
   transaction, automatically before MSFS/Fenix launch or through **Adopt setup
   & update**. Check known native modules and launch scripts before copying and
   again before publication. Preserve aircraft, renderer/FCU preferences and a
-  restore point. Unknown customizations remain protected.
+  restore point. Unknown customizations remain protected. Restoring the local
+  profile pauses automatic adoption until an explicit adoption succeeds, so the
+  next launch preserves the user's rollback.
 - Show Fenix updates and pending adoption on the overview, in the Updates page
   and with an update navigation indicator. Keep checks available during a game;
   adoption and installation require an idle selected runtime.

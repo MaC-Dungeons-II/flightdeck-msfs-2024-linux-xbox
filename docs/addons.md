@@ -246,7 +246,7 @@ Since 0.2.23, a known older local setup can be adopted automatically before
 launch or through **Adopt setup & update**. Flightdeck verifies its files,
 copies the profile and runner, and retains the previous installation for
 restoration. Existing aircraft, renderer and FCU preferences are retained.
-Unknown customized files stop adoption. The overview and update icon show
+Unknown customized files stop adoption. Restoring the previous local profile pauses automatic adoption; use the adoption action explicitly to enable it again. The overview and update icon show
 pending adoption; an **available** version is not an installed-version claim.
 
 Patch 0.1.0 replaces the remaining owned Linux Python helpers with Rust.

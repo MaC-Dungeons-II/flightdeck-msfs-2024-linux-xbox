@@ -238,6 +238,7 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
             retry(root, &state, ctx)?;
         } else if state["state"] == "installed" && state["version"] == current["version"] {
             verify_installed(root, &state)?;
+            crate::resources::ensure_helper(root)?;
             crate::framework_maintenance::ensure(ctx)?;
             ctx.progress("This patch version is already installed.");
             return Ok(());
@@ -467,6 +468,9 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     }
     state["state"] = json!("installed");
     files::atomic_json(&marker, &state)?;
+    if legacy.is_some() {
+        crate::fenix_legacy::resume_automatic(root)?;
+    }
     Ok(())
 }
 pub fn update_script_manifest(root: &Path) -> Result<()> {
@@ -563,6 +567,9 @@ pub fn restore(ctx: &Context) -> Result<()> {
     }
     state["state"] = json!("restored");
     files::atomic_json(&backup.join("restored.json"), &state)?;
+    if files::exists(&root.join(crate::fenix_legacy::MARKER)) {
+        crate::fenix_legacy::pause_automatic(root)?;
+    }
     fs::remove_file(marker)?;
     files::directory(&root.join("private"), false)?.sync_all()?;
     Ok(())
@@ -984,6 +991,8 @@ pub fn snapshot(app: &Launcher) -> Value {
             } else if root.join(crate::fenix_legacy::MARKER).exists() {
                 value["state"] = json!("legacy");
                 value["migration_required"] = json!(true);
+                value["automatic_adoption_paused"] =
+                    json!(!crate::fenix_legacy::automatic_allowed(&root));
                 value["message"] = json!(
                     "The local Fenix patch is not managed yet. Flightdeck can verify and update a known installation while retaining its aircraft, settings and previous profile."
                 );

@@ -49,6 +49,12 @@ impl App {
             )));
         }
         if yes(data, "migration_required") {
+            if yes(data, "automatic_adoption_paused") {
+                manage=manage.push(self.paragraph(self.tr(
+                    "Nach der Wiederherstellung ist die automatische Übernahme pausiert. Du kannst sie hier erneut starten.",
+                    "Automatic adoption is paused after restoration. You can start it again here.",
+                )));
+            }
             manage = manage.push(self.paragraph(self.tr(
                 "Vorhandene Einrichtung übernehmen und auf den aktuellen Patch aktualisieren. Flightdeck prüft die Dateien und sichert den bisherigen Stand.",
                 "Adopt the existing setup and update to the current patch. Flightdeck verifies the files and backs up the previous state.",

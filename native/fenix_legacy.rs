@@ -15,6 +15,27 @@ use std::{
 };
 
 pub const MARKER: &str = "private/fenix-compat.json";
+const AUTOMATIC: &str = "private/fenix-adoption.json";
+
+/// An explicit profile restoration must not be undone by the next launch.
+pub fn automatic_allowed(root: &Path) -> bool {
+    !files::exists(&root.join(AUTOMATIC))
+        || runtime::value(&root.join(AUTOMATIC))
+            .is_ok_and(|v| v["schema"] == 1 && v["automatic"] == true)
+}
+pub fn pause_automatic(root: &Path) -> Result<()> {
+    files::atomic_json(
+        &root.join(AUTOMATIC),
+        &serde_json::json!({"schema":1,"automatic":false}),
+    )
+}
+pub fn resume_automatic(root: &Path) -> Result<()> {
+    if files::exists(&root.join(AUTOMATIC)) {
+        std::fs::remove_file(root.join(AUTOMATIC))?;
+        files::directory(&root.join("private"), false)?.sync_all()?;
+    }
+    Ok(())
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Plan {
@@ -233,6 +254,23 @@ mod tests {
             persisted
         );
         assert!(!temp.path().join(fenix::MARKER).exists());
+    }
+
+    #[test]
+    fn restoring_a_local_profile_pauses_automatic_adoption_until_an_explicit_success() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let lock = fixture(temp.path());
+        assert!(automatic_allowed(temp.path()));
+        pause_automatic(temp.path()).expect("record explicit restoration");
+        assert!(!automatic_allowed(temp.path()));
+        inspect(temp.path(), &lock).expect("explicit adoption is still available");
+        resume_automatic(temp.path()).expect("explicit successful adoption");
+        assert!(automatic_allowed(temp.path()));
+        put(&temp.path().join(AUTOMATIC), b"invalid state");
+        assert!(
+            !automatic_allowed(temp.path()),
+            "an unreadable preference cannot restart automatic adoption"
+        );
     }
 
     #[test]

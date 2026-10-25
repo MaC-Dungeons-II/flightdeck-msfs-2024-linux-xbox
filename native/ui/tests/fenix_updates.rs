@@ -16,6 +16,10 @@ fn fixture(language: Language, state: &str) -> App {
         if state == "legacy-overview" {
             app.page = Page::Overview;
         }
+        if state == "legacy-paused" {
+            app.snapshot.get_mut("fenix").expect("Fenix")["automatic_adoption_paused"] =
+                json!(true);
+        }
     }
     app
 }
@@ -98,6 +102,12 @@ fn local_installations_show_the_available_version_and_an_idle_migration_action()
                 .path,
             "fenix/migrate"
         );
+        app.snapshot.get_mut("fenix").expect("Fenix")["automatic_adoption_paused"] = json!(true);
+        let mut paused =
+            iced_test::Simulator::with_size(settings(), Size::new(750.0, 1300.0), app.view());
+        paused.find(if language==Language::De {"Nach der Wiederherstellung ist die automatische Übernahme pausiert. Du kannst sie hier erneut starten."}else{"Automatic adoption is paused after restoration. You can start it again here."})?;
+        drop(paused);
+        assert!(app.request(&Action::Fenix("migrate")).is_some());
         app.page = Page::Overview;
         let mut overview =
             iced_test::Simulator::with_size(settings(), Size::new(750.0, 1300.0), app.view());
@@ -156,6 +166,7 @@ fn capture_fenix_update_states() -> Result<(), Box<dyn std::error::Error>> {
             "requires-launcher",
             "legacy",
             "legacy-overview",
+            "legacy-paused",
         ] {
             for width in [750, 1280] {
                 let app = iced::application(

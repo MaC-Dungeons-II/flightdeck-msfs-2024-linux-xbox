@@ -489,7 +489,9 @@ pub fn ensure(ctx: &Context) -> Result<bool> {
         return Ok(false);
     };
     if !files::exists(&root.join(fenix::MARKER)) {
-        if files::exists(&root.join(crate::fenix_legacy::MARKER)) {
+        if files::exists(&root.join(crate::fenix_legacy::MARKER))
+            && crate::fenix_legacy::automatic_allowed(root)
+        {
             let target = selected(ctx)?;
             if crate::fenix_legacy::inspect(root, &target["bundle"]).is_ok() {
                 let payload =
