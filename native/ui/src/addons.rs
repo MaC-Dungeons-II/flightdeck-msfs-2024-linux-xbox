@@ -29,6 +29,29 @@ fn fenix_hook_failure(data: &Value) -> Option<&str> {
 impl App {
     pub(crate) fn fenix_update_controls<'a>(&'a self, data: &'a Value) -> Element<'a, Message> {
         let mut manage = column![].spacing(14);
+        if !model::active(&data["job"]) && ["preparing", "committing"].contains(&s(data, "state")) {
+            manage = manage.push(self.paragraph(if yes(data, "can_retry") {
+                self.tr(
+                    "Die Fenix-Einrichtung wurde unterbrochen. Du kannst sie erneut starten; dein bisheriges Profil und deine Einstellungen bleiben erhalten.",
+                    "Fenix setup was interrupted. You can retry; your existing profile and settings are retained.",
+                )
+            } else {
+                self.tr(
+                    "Die Fenix-Einrichtung wurde unterbrochen und muss unter Mods wiederhergestellt werden.",
+                    "Fenix setup was interrupted and needs recovery under Mods.",
+                )
+            }));
+            if yes(data, "can_retry") {
+                manage = manage.push(
+                    self.control(
+                        self.tr("Fenix-Einrichtung erneut versuchen", "Retry Fenix setup"),
+                        self.request(&Fenix("install"))
+                            .map(|_| Message::Action(Fenix("install"))),
+                        true,
+                    ),
+                );
+            }
+        }
         let installed = s(data, "installed_version");
         if !installed.is_empty() {
             manage = manage.push(self.paragraph(format!(

@@ -242,6 +242,59 @@ fn fenix_retry_requires_the_untouched_original_and_script_backups() {
     assert!(!fenix::retryable(&root, &state));
 }
 #[test]
+fn fenix_upgrade_retry_requires_an_untouched_prepublication_installation() {
+    let temp = tempfile::tempdir().unwrap();
+    let (root, _) = fixture(temp.path());
+    let old_work = "local/fenix-patch-20261024T120000-01234567";
+    let work = "local/fenix-patch-20261025T120000-89abcdef";
+    let backup = "private/fenix-patch-backup-20261025T120000-89abcdef";
+    files::private_dir(&root.join(backup)).unwrap();
+    files::private_dir(&root.join(work).join("prefix")).unwrap();
+    files::private_dir(&root.join(old_work).join("runner")).unwrap();
+    fenix::replace_link(&root.join("runner"), &root.join(old_work).join("runner")).unwrap();
+    let previous = json!({"state":"installed","version":"0.1.0","work":old_work,"variant":null,
+        "backup":"private/fenix-patch-backup-20261024T120000-01234567",
+        "previous_prefix":"local/msfs-prefix.before-fenix-20261024T120000-01234567",
+        "previous_runner":"/original/runner","original_prefix_id":[46,1234]});
+    files::atomic_json(&root.join(backup).join("previous-patch.json"), &previous).unwrap();
+    for name in ["launch-msfs.sh", "xodus-wine-launch"] {
+        write(&root.join("tools").join(name), b"installed patch script");
+        write(&root.join(backup).join(name), b"installed patch script");
+    }
+    let mut state = previous.clone();
+    state["state"] = json!("preparing");
+    state["version"] = json!("0.1.1");
+    state["work"] = json!(work);
+    state["upgrade_backup"] = json!(backup);
+    state["upgrade_previous_prefix"] =
+        json!("local/msfs-prefix.before-fenix-update-20261025T120000-89abcdef");
+    // The original pre-Fenix profile identity is unrelated to this update.
+    assert_ne!(
+        fenix::identity(&root.join("local/msfs-prefix")).unwrap(),
+        state["original_prefix_id"]
+    );
+    assert!(fenix::retryable(&root, &state));
+    for (key, value) in [
+        ("state", json!("committing")),
+        (
+            "upgrade_backup",
+            json!("private/fenix-patch-backup-20261025T120000-01234567"),
+        ),
+        ("previous_runner", json!("/changed/runner")),
+        ("work", json!("local/../tools")),
+    ] {
+        let mut changed = state.clone();
+        changed[key] = value;
+        assert!(!fenix::retryable(&root, &changed), "{key}");
+    }
+    let published = root.join(state["upgrade_previous_prefix"].as_str().unwrap());
+    files::private_dir(&published).unwrap();
+    assert!(!fenix::retryable(&root, &state));
+    fs::remove_dir(published).unwrap();
+    write(&root.join("tools/launch-msfs.sh"), b"custom script");
+    assert!(!fenix::retryable(&root, &state));
+}
+#[test]
 fn fenix_restore_keeps_the_newer_profile_and_restores_original_scripts() {
     let temp = tempfile::tempdir().unwrap();
     let (root, app) = fixture(temp.path());

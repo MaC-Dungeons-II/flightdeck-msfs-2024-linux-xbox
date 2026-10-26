@@ -66,6 +66,12 @@ See the [release changes](changelog.md#0223--25-october-2026).
   with “Expected a regular file: tahoma.ttf”. In the standalone installer, use
   **Restore original profile**, then retry with 0.1.1. Flightdeck users need
   the launcher update as well as the patch update.
+- **Interrupted Fenix patch updates:** Flightdeck 0.2.29 keeps setup failures
+  visible under **Updates** and offers **Retry Fenix setup** for an unchanged
+  preparation stage, including after restarting the launcher. Close MSFS and
+  Fenix first. The retry verifies the preceding patch and retains its aircraft,
+  settings and restore chain; it reuses the verified download. Changed files or
+  a transaction already publishing its profile require recovery under **Mods**.
 - **Fenix installation:** The message “application install hook failed” can
   leave FenixApp files present without completing setup. A reproduced ICU/.NET
   case is repairable; the generic warning alone does not identify the cause.

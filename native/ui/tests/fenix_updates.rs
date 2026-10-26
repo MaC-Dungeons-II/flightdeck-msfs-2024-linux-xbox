@@ -21,6 +21,12 @@ fn fixture(language: Language, state: &str) -> App {
                 json!(true);
         }
     }
+    if ["setup-failed", "setup-interrupted"].contains(&state) {
+        app.snapshot.insert("fenix", json!({"runtime_path":"/synthetic/msfs2024",
+            "state":"preparing","installed":false,"version":"0.1.1","can_change":true,"can_retry":true,
+            "job":if state == "setup-failed" { json!({"state":"failed","operation":"install",
+                "error":if language == Language::De {"Windows-Einrichtung fehlgeschlagen. Siehe privates Fenix-Einrichtungsprotokoll."}else{"Windows setup failed. See the private Fenix setup log."}}) } else { json!(null) }}));
+    }
     app
 }
 
@@ -152,6 +158,50 @@ fn failed_or_incompatible_checks_do_not_claim_the_patch_is_current()
     }
     Ok(())
 }
+#[test]
+fn failed_and_interrupted_setup_remains_visible_and_can_retry_after_restart()
+-> Result<(), Box<dyn std::error::Error>> {
+    for language in [Language::De, Language::En] {
+        for failed_job in [true, false] {
+            let mut app = fixture(language, "available");
+            app.snapshot.insert("fenix", json!({"runtime_path":"/synthetic/msfs2024",
+                "state":"preparing","installed":false,"version":"0.1.1","can_change":true,"can_retry":true,
+                "job":if failed_job { json!({"state":"failed","operation":"install","error":"Visible setup failure"}) } else { json!(null) }}));
+            let title = if language == Language::De {
+                "Fenix-Einrichtung erneut versuchen"
+            } else {
+                "Retry Fenix setup"
+            };
+            let mut ui =
+                iced_test::Simulator::with_size(settings(), Size::new(750.0, 1500.0), app.view());
+            if failed_job {
+                ui.find("Visible setup failure")?;
+            }
+            ui.click(title)?;
+            assert!(matches!(
+                ui.into_messages().next(),
+                Some(Message::Action(Action::Fenix("install")))
+            ));
+            app.page = Page::Overview;
+            let mut overview =
+                iced_test::Simulator::with_size(settings(), Size::new(750.0, 1300.0), app.view());
+            overview.find(match (language, failed_job) {
+                (Language::De, true) => "Fenix: Einrichtung fehlgeschlagen – siehe Updates",
+                (Language::De, false) => "Fenix: Einrichtung unterbrochen – siehe Updates",
+                (_, true) => "Fenix: Setup failed – see Updates",
+                (_, false) => "Fenix: Setup interrupted – see Updates",
+            })?;
+            drop(overview);
+            app.snapshot.get_mut("fenix").expect("Fenix")["can_change"] = json!(false);
+            assert!(app.request(&Action::Fenix("install")).is_none());
+            app.snapshot.get_mut("fenix").expect("Fenix")["can_change"] = json!(true);
+            app.snapshot.get_mut("fenix").expect("Fenix")["runtime_path"] =
+                json!("/another/runtime");
+            assert!(app.request(&Action::Fenix("install")).is_none());
+        }
+    }
+    Ok(())
+}
 
 #[test]
 #[ignore = "writes independent Fenix update states with the production software renderer"]
@@ -167,6 +217,8 @@ fn capture_fenix_update_states() -> Result<(), Box<dyn std::error::Error>> {
             "legacy",
             "legacy-overview",
             "legacy-paused",
+            "setup-failed",
+            "setup-interrupted",
         ] {
             for width in [750, 1280] {
                 let app = iced::application(

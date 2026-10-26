@@ -96,11 +96,11 @@ fn matches(pattern: &str, value: &Value) -> bool {
 }
 pub fn retryable(root: &Path, state: &Value) -> bool {
     (|| -> Result<bool> {
-        if state["state"] != "preparing"
-            || state.get("upgrade_backup").is_some()
-            || state["migrated"] == true
-        {
+        if state["state"] != "preparing" || state["migrated"] == true {
             return Ok(false);
+        }
+        if state.get("upgrade_backup").is_some() {
+            return retry_upgrade(root, state).map(|_| true);
         }
         for (key, pattern) in [
             ("work", r"^local/fenix-patch-[0-9]{8}T[0-9]{6}-[0-9a-f]{8}$"),
@@ -142,16 +142,90 @@ pub fn retryable(root: &Path, state: &Value) -> bool {
     })()
     .unwrap_or(false)
 }
+// Preparation never publishes the copied prefix or launch scripts. Recover an
+// update by reinstating its verified installed marker, not the pre-Fenix profile.
+fn retry_upgrade(root: &Path, state: &Value) -> Result<Value> {
+    let work_name = string(state, "work")?;
+    require(
+        matches(
+            r"^local/fenix-patch-[0-9]{8}T[0-9]{6}-[0-9a-f]{8}$",
+            &state["work"],
+        ),
+        "Invalid Fenix update staging path.",
+    )?;
+    let stamp = work_name.trim_start_matches("local/fenix-patch-");
+    require(
+        state["upgrade_backup"] == format!("private/fenix-patch-backup-{stamp}")
+            && state["upgrade_previous_prefix"]
+                == format!("local/msfs-prefix.before-fenix-update-{stamp}")
+            && !files::exists(&root.join(string(state, "upgrade_previous_prefix")?)),
+        "The Fenix update has already started publishing its profile.",
+    )?;
+    let work = bundle::contained(root, work_name)?;
+    let backup = bundle::contained(root, string(state, "upgrade_backup")?)?;
+    files::directory(&work, false)?;
+    files::directory(&backup, false)?;
+    let previous = runtime::value(&backup.join("previous-patch.json"))?;
+    require(
+        previous["state"] == "installed"
+            && previous["work"] != state["work"]
+            && previous["variant"] == state["variant"]
+            && crate::fenix_update::version(string(&previous, "version")?)?
+                < crate::fenix_update::version(string(state, "version")?)?,
+        "Invalid previous Fenix installation.",
+    )?;
+    for key in [
+        "backup",
+        "previous_prefix",
+        "previous_runner",
+        "original_prefix_id",
+    ] {
+        require(
+            previous.get(key).is_some() && previous[key] == state[key],
+            "The previous Fenix restore point changed.",
+        )?;
+    }
+    let runner = bundle::contained(root, string(&previous, "work")?)?.join("runner");
+    require(
+        root.join("runner").canonicalize()? == runner,
+        "The active Fenix runner changed.",
+    )?;
+    let prefix_id = identity(&root.join("local/msfs-prefix"))?;
+    if files::exists(&work.join("prefix")) {
+        require(
+            identity(&work.join("prefix"))? != prefix_id,
+            "The staging profile is active.",
+        )?;
+    }
+    for name in bundle::LAUNCH_FILES {
+        require(
+            tx::digest(&root.join("tools").join(name))? == tx::digest(&backup.join(name))?,
+            "The active Fenix launch scripts changed.",
+        )?;
+    }
+    Ok(previous)
+}
 fn retry(root: &Path, state: &Value, ctx: &Context) -> Result<()> {
     require(
         retryable(root, state),
         "A previous patch transaction exists. Restore it before reinstalling.",
     )?;
     ctx.progress(
-        "Retrying interrupted Fenix preparation automatically; the original profile is retained …",
+        "Retrying interrupted Fenix preparation; the current profile and settings are retained …",
     );
     let work = bundle::contained(root, string(state, "work")?)?;
-    let backup = bundle::contained(root, string(state, "backup")?)?;
+    let upgrading = state.get("upgrade_backup").is_some();
+    let backup = bundle::contained(
+        root,
+        string(
+            state,
+            if upgrading {
+                "upgrade_backup"
+            } else {
+                "backup"
+            },
+        )?,
+    )?;
     if work.join("prefix").exists() {
         let staged = StagedWine::new(
             root,
@@ -167,8 +241,15 @@ fn retry(root: &Path, state: &Value, ctx: &Context) -> Result<()> {
         retryable(root, state),
         "The original profile changed; automatic retry was stopped.",
     )?;
-    files::atomic_json(&backup.join("interrupted.json"), state)?;
-    fs::remove_file(root.join(MARKER))?;
+    if upgrading {
+        let previous = retry_upgrade(root, state)?;
+        verify_installed(root, &previous)?;
+        files::atomic_json(&backup.join("interrupted.json"), state)?;
+        files::atomic_json(&root.join(MARKER), &previous)?;
+    } else {
+        files::atomic_json(&backup.join("interrupted.json"), state)?;
+        fs::remove_file(root.join(MARKER))?;
+    }
     files::directory(&root.join("private"), false)?.sync_all()?;
     Ok(())
 }
@@ -236,7 +317,11 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
         let state = runtime::value(&marker)?;
         if retryable(root, &state) {
             retry(root, &state, ctx)?;
-        } else if state["state"] == "installed" && state["version"] == current["version"] {
+        }
+    }
+    if files::exists(&marker) {
+        let state = runtime::value(&marker)?;
+        if state["state"] == "installed" && state["version"] == current["version"] {
             verify_installed(root, &state)?;
             crate::resources::ensure_helper(root)?;
             crate::framework_maintenance::ensure(ctx)?;
@@ -374,6 +459,7 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     files::atomic_json(&marker, &state)?;
     let staged = work.join("prefix");
     let runner = work.join("runner");
+    ctx.update(json!({"phase":"copy_profile","transfer":null}));
     ctx.progress(if upgrade.is_some() {
         "Updating the Fenix patch; installed aircraft and settings are retained …"
     } else {
@@ -395,6 +481,8 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     }
     symlink("../drive_c", &drive)?;
     process::copy_tree(&original_runner, &runner, &ctx.cancel)?;
+    ctx.update(json!({"phase":"prepare_windows","transfer":null}));
+    ctx.progress("Checking Windows dependencies in the copied Fenix profile …");
     let mut wine = StagedWine::new(root, &staged, &runner, &backup.join("setup.log"), ctx)?;
     let setup_result = (|| {
         framework_repair::prepare(

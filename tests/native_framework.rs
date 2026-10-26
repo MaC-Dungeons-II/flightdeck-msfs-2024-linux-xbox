@@ -41,6 +41,7 @@ struct Fake {
     succeed: usize,
     listing: String,
     broken_probes: usize,
+    unreachable_server: bool,
 }
 impl Fake {
     fn new(prefix: &Path) -> Self {
@@ -51,6 +52,7 @@ impl Fake {
             succeed: 1,
             listing: String::new(),
             broken_probes: 0,
+            unreachable_server: false,
         }
     }
 }
@@ -60,6 +62,9 @@ impl SetupWine for Fake {
     }
     fn run(&mut self, args: &[String], _installer: bool, _timeout: Duration) -> Result<()> {
         self.calls.push(args.to_vec());
+        if self.unreachable_server && args[0] == "wineboot" {
+            return Err(Error::Invalid("fixture unreachable wineserver"));
+        }
         if args[0].ends_with("NDP48-x86-x64-AllOS-ENU.exe")
             && !args.iter().any(|v| v == "/uninstall")
         {
@@ -81,6 +86,7 @@ impl SetupWine for Fake {
     }
     fn stop(&mut self) -> Result<()> {
         self.calls.push(vec!["stop".into()]);
+        self.unreachable_server = false;
         Ok(())
     }
     fn list(&mut self) -> Result<String> {
@@ -109,6 +115,31 @@ fn healthy_framework_executes_both_compilers_without_download() {
         2
     );
     assert_eq!(fake.attempts, 0);
+}
+#[test]
+fn failed_clr_connection_is_reset_before_reboot_without_reinstalling_dotnet() {
+    let temp = tempfile::tempdir().unwrap();
+    framework_files(temp.path(), true, true, 528049);
+    let mut fake = Fake::new(temp.path());
+    fake.broken_probes = 1;
+    fake.unreachable_server = true;
+    framework_repair::prepare(
+        &mut fake,
+        |_, _, _| panic!("healthy CLR must not download"),
+        |_| {},
+    )
+    .unwrap();
+    let stop = fake.calls.iter().position(|v| v[0] == "stop").unwrap();
+    let reboot = fake.calls.iter().position(|v| v[0] == "wineboot").unwrap();
+    assert!(stop < reboot);
+    assert_eq!(fake.attempts, 0);
+    assert_eq!(
+        fake.calls
+            .iter()
+            .filter(|v| v[0].ends_with("csc.exe"))
+            .count(),
+        3
+    );
 }
 #[test]
 fn missing_architecture_triggers_repair_and_restores_win10() {

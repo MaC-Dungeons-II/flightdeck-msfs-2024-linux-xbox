@@ -143,4 +143,139 @@ fn fresh_fenix_patch_setup() {
     assert!(result.is_ok(), "{report}");
     assert_eq!(marker["state"], "installed");
     assert_eq!(report["previous_prefix_exists"], true);
+    if let Some(previous) = std::env::var_os("FLIGHTDECK_TEST_PATCH_PREVIOUS_ARCHIVE") {
+        interrupted_upgrade(&ctx, &payload, &PathBuf::from(previous), marker);
+    }
+}
+
+// Seed the preceding public release in the fresh, account-free prefix. Its
+// Windows modules are byte-identical; only the native font helper changed.
+fn interrupted_upgrade(
+    ctx: &flightdeck::backend::Context,
+    payload: &std::path::Path,
+    archive: &std::path::Path,
+    mut previous: serde_json::Value,
+) {
+    use flightdeck::{fenix_bundle as bundle, process, transaction as tx};
+    let root = ctx.root().expect("test root");
+    let mut zip =
+        zip::ZipArchive::new(fs::File::open(archive).expect("old public ZIP")).expect("ZIP");
+    let manifest_name = (0..zip.len())
+        .find_map(|i| {
+            let entry = zip.by_index(i).expect("entry");
+            entry
+                .name()
+                .ends_with("/bundle.json")
+                .then(|| entry.name().to_owned())
+        })
+        .expect("old manifest");
+    let old: serde_json::Value =
+        serde_json::from_reader(zip.by_name(&manifest_name).expect("old manifest")).expect("JSON");
+    let old_lock =
+        bundle::select_variant(old.clone(), previous["variant"].as_str()).expect("old variant");
+    let current = bundle::manifest(previous["variant"].as_str()).expect("current manifest");
+    let pinned = &current["previous_releases"][old["version"].as_str().expect("old version")];
+    assert_eq!(pinned["files"], old_lock["files"]);
+    assert_eq!(pinned["prefix_files"], old_lock["prefix_files"]);
+    assert_eq!(pinned["integration"], old_lock["integration"]);
+    let helper_name = format!(
+        "{}integration/fenix-runtime",
+        manifest_name.strip_suffix("bundle.json").expect("ZIP root")
+    );
+    let mut helper = Vec::new();
+    std::io::Read::read_to_end(
+        &mut zip.by_name(&helper_name).expect("old helper"),
+        &mut helper,
+    )
+    .expect("helper bytes");
+    assert_eq!(
+        files::sha256(&helper),
+        old_lock["integration"]["fenix-runtime"]
+    );
+    bundle::write(
+        &root.join("local/msfs-prefix/drive_c/windows/system32/fenix-runtime"),
+        &helper,
+        0o755,
+    )
+    .expect("old native helper");
+    previous["version"] = old["version"].clone();
+    previous["bundle_manifest"] = old;
+    previous["bundle_release"] = serde_json::Value::Null;
+    // A reboot may renumber st_dev for the original pre-Fenix restore point.
+    previous["original_prefix_id"][0] = json!(999999);
+    files::atomic_json(&root.join(fenix::MARKER), &previous).expect("old installed marker");
+    fenix::verify_installed(root, &previous).expect("verified preceding public patch");
+    let prefix = root.join("local/msfs-prefix");
+    let active_id = fenix::identity(&prefix).expect("active identity");
+    let aircraft = "installed-aircraft-and-settings-sentinel";
+    fs::write(
+        prefix.join(aircraft),
+        b"licensed aircraft and user preferences retained",
+    )
+    .expect("synthetic user data");
+    let work = "local/fenix-patch-20261026T010000-12345678";
+    let backup = "private/fenix-patch-backup-20261026T010000-12345678";
+    files::private_dir(&root.join(work)).expect("work");
+    files::private_dir(&root.join(backup)).expect("backup");
+    process::copy_tree(&prefix, &root.join(work).join("prefix"), &ctx.cancel)
+        .expect("interrupted staging copy");
+    for name in bundle::LAUNCH_FILES {
+        fs::copy(root.join("tools").join(name), root.join(backup).join(name))
+            .expect("script backup");
+    }
+    files::atomic_json(&root.join(backup).join("previous-patch.json"), &previous)
+        .expect("previous state");
+    let mut pending = previous.clone();
+    pending["state"] = json!("preparing");
+    pending["version"] = current["version"].clone();
+    pending["bundle_manifest"] = bundle::manifest(None).expect("target manifest");
+    pending["work"] = json!(work);
+    pending["upgrade_backup"] = json!(backup);
+    pending["upgrade_previous_prefix"] =
+        json!("local/msfs-prefix.before-fenix-update-20261026T010000-12345678");
+    files::atomic_json(&root.join(fenix::MARKER), &pending).expect("interrupted update");
+    assert!(fenix::retryable(root, &pending));
+    // Full validation must reject changed installed modules before rewriting the
+    // marker, even though the inexpensive UI eligibility check passes.
+    let runner = root.join("runner").canonicalize().expect("runner");
+    let module = runner.join("files/lib/wine/x86_64-windows/kernel32.dll");
+    let saved = fs::read(&module).expect("original kernel32");
+    files::atomic(&module, b"modified module").expect("synthetic modification");
+    assert!(fenix::install(ctx, payload).is_err());
+    assert_eq!(
+        files::json::<serde_json::Value>(&root.join(fenix::MARKER), 1024 * 1024)
+            .expect("unchanged pending marker"),
+        pending
+    );
+    assert_eq!(
+        fenix::identity(&prefix).expect("untouched active profile"),
+        active_id
+    );
+    files::atomic(&module, &saved).expect("restore test module");
+    fenix::install(ctx, payload).expect("recover and update through production transaction");
+    let installed = files::json::<serde_json::Value>(&root.join(fenix::MARKER), 1024 * 1024)
+        .expect("new installed marker");
+    assert_eq!(installed["state"], "installed");
+    assert_eq!(installed["version"], current["version"]);
+    fenix::verify_installed(root, &installed).expect("verified updated patch");
+    assert_eq!(
+        fs::read(prefix.join(aircraft)).expect("retained aircraft/settings"),
+        b"licensed aircraft and user preferences retained"
+    );
+    assert_eq!(
+        fenix::identity(
+            &root.join(
+                installed["upgrade_previous_prefix"]
+                    .as_str()
+                    .expect("rollback")
+            )
+        )
+        .expect("retained old prefix"),
+        active_id
+    );
+    assert_eq!(
+        tx::digest(&prefix.join("drive_c/windows/system32/fenix-runtime")).expect("new helper"),
+        current["integration"]["fenix-runtime"]
+    );
+    files::atomic_json(&root.join("private/upgrade-recovery-result.json"), &json!({"passed":true,"from":previous["version"],"to":installed["version"],"changed_module_rejected":true,"old_profile_retained":true,"aircraft_and_settings_retained":true})).expect("report");
 }

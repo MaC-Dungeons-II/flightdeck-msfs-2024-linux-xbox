@@ -105,6 +105,9 @@ pub fn prepare(
         return Ok(());
     }
     progress("Checking and completing pending Microsoft .NET setup …");
+    // A failed CLR probe can leave an unreachable staging wineserver behind.
+    // Stop/wait before asking Wine to reboot through that same connection.
+    wine.stop()?;
     restart(wine)?;
     if framework::status(wine.prefix()).ready {
         settings(wine)?;

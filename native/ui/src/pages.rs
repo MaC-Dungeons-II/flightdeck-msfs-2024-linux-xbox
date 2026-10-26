@@ -624,12 +624,33 @@ impl App {
         let data = self.data("fenix");
         if !self.fresh("fenix")
             || s(data, "runtime_path") != self.runtime()
-            || !(yes(data, "installed") || data["state"] == "legacy")
+            || !(yes(data, "installed")
+                || data["state"] == "legacy"
+                || ["preparing", "committing"].contains(&s(data, "state"))
+                || model::active(&data["job"])
+                || data["job"]["state"] == "failed")
         {
             return Space::new().height(0).into();
         }
-        let attention = yes(data, "update_available") || yes(data, "migration_required");
-        let status = if yes(data, "migration_required") {
+        let failed = data["job"]["state"] == "failed";
+        let interrupted = ["preparing", "committing"].contains(&s(data, "state"));
+        let attention = failed
+            || interrupted
+            || yes(data, "update_available")
+            || yes(data, "migration_required");
+        let status = if model::active(&data["job"]) {
+            self.tr("Einrichtung läuft …", "Setup in progress …")
+        } else if failed {
+            self.tr(
+                "Einrichtung fehlgeschlagen – siehe Updates",
+                "Setup failed – see Updates",
+            )
+        } else if interrupted {
+            self.tr(
+                "Einrichtung unterbrochen – siehe Updates",
+                "Setup interrupted – see Updates",
+            )
+        } else if yes(data, "migration_required") {
             self.tr(
                 "Einrichtung übernehmen & aktualisieren",
                 "Adopt setup & update",
@@ -950,7 +971,9 @@ impl App {
             && s(fenix, "runtime_path") == self.runtime()
             && (yes(fenix, "installed")
                 || fenix["state"] == "legacy"
-                || model::active(&fenix["job"]))
+                || ["preparing", "committing"].contains(&s(fenix, "state"))
+                || model::active(&fenix["job"])
+                || fenix["job"]["state"] == "failed")
         {
             self.card(
                 "Fenix Linux-Patch",

@@ -1,5 +1,19 @@
 # Changes and release status
 
+## 0.2.29 — 26 October 2026
+
+- Recover interrupted Fenix update preparation by validating the preceding
+  installation and reinstating its marker before a fresh staged update. Retain
+  installed aircraft, settings and the original restore chain. Refuse recovery
+  after publication starts, or when runners, patch modules or scripts changed.
+- Keep failed and interrupted Fenix setup visible in Updates and on the overview,
+  including after a service restart. Offer an idle, runtime-bound retry action.
+  Clear completed download progress when profile preparation starts.
+- Stop and wait for the staging Wine server before rebooting after a failed .NET
+  health check; avoid aborting through the same unreachable server connection.
+- Add recovery and UI regressions, plus an explicit real-Wine update probe using
+  public old/new payloads, retained user data and rejection of changed modules.
+
 ## 0.2.28 — 25 October 2026
 
 - Materialize readable Tahoma font symlinks as private files during Fenix setup

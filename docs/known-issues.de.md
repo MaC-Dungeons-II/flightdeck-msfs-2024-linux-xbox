@@ -55,6 +55,13 @@ Siehe [Änderungsübersicht](changelog.md#0223--25-october-2026).
   Andere Runner bestehen passende native Modultests; die Rückmeldung bestätigt
   keine Stabilität über vollständige Flüge.
   [Prüfablauf und Grenzen](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0/docs/fenix-v3.md).
+- **Unterbrochene Fenix-Patch-Updates:** Flightdeck 0.2.29 zeigt Einrichtungsfehler
+  unter **Updates** und bietet für eine unveränderte Vorbereitung
+  **Fenix-Einrichtung erneut versuchen** an, auch nach einem Launcher-Neustart.
+  MSFS und Fenix vorher schließen. Flightdeck prüft den bisherigen Patch und
+  erhält Flugzeuge, Einstellungen und Wiederherstellungspunkte; der geprüfte
+  Download wird wiederverwendet. Geänderte Dateien oder eine bereits begonnene
+  Aktivierung erfordern eine Wiederherstellung unter **Mods**.
 - **Fenix-Installation:** Bei „application install hook failed“ können bereits
   FenixApp-Dateien vorhanden sein, obwohl die Einrichtung nicht abgeschlossen ist.
   Ein reproduzierter ICU-/.NET-Fall ist reparierbar; die allgemeine Meldung allein
