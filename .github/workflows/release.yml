@@ -56,6 +56,11 @@ jobs:
       - name: Install pinned toolchain and native build prerequisites
         run: |
           rustup toolchain install 1.98.0 --profile minimal --component rustfmt --component clippy --component rust-docs
+          # The hosted runner's Azure mirror can stall large MinGW downloads.
+          # Use Ubuntu's signed archive directly for this disposable build VM.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
           sudo apt-get update
           sudo apt-get install -y build-essential binutils bubblewrap woff2 pkg-config liblzma-dev libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev flex bison gcc-mingw-w64-x86-64 autoconf automake libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good
       - name: Build the maintainer tooling
