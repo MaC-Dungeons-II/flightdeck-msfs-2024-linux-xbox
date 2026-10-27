@@ -72,9 +72,19 @@ static FARPROC base_proc(const char *name) {
     return GetProcAddress(base_module, name);
 }
 extern IXNetworkingImpl *x_networking_impl;
+static bool TraceQueryApi();
+static HRESULT QueryApiRoute(const GUID *clsid, REFIID iid, void **out);
 extern "C" HRESULT WINAPI QueryApiImpl(const GUID *clsid, REFIID iid, void **out) {
     if (!clsid || !out) return E_POINTER;
     *out = nullptr;
+    HRESULT hr = QueryApiRoute(clsid, iid, out);
+    if (TraceQueryApi())
+        std::fprintf(stderr, "xodus-queryapi: clsid=%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x iid=%08lx result=%08lx\n",
+            clsid->Data1, clsid->Data2, clsid->Data3, clsid->Data4[0], clsid->Data4[1], clsid->Data4[2], clsid->Data4[3],
+            clsid->Data4[4], clsid->Data4[5], clsid->Data4[6], clsid->Data4[7], iid.Data1, static_cast<ULONG>(hr));
+    return hr;
+}
+static HRESULT QueryApiRoute(const GUID *clsid, REFIID iid, void **out) {
     /* mac chain: XThreading stays with the genuine runtime underneath (the
      * game's task queues are its objects); Store, GameSave, XNetworking,
      * diagnostics and, with XODUS_USER_RUNTIME=1, XUser and XGame are answered
