@@ -27,12 +27,9 @@ HRESULT user_api(IXUserImpl** out) {
     std::lock_guard<std::mutex> guard(user_api_mutex);
     if(!retained_user_api) {
         const GUID id=__uuidof(IXUserImpl);
-        /* mac chain: the game's XUser handles come from the outer adapter
-         * (xgameruntime.dll), so GameSave must use that implementation. */
-        using QueryFn=HRESULT(WINAPI*)(const GUID*,REFIID,void**);
-        HMODULE outer=GetModuleHandleW(L"xgameruntime.dll");
-        auto query=outer?reinterpret_cast<QueryFn>(GetProcAddress(outer,"QueryApiImpl")):nullptr;
-        HRESULT hr=query?query(&id,id,reinterpret_cast<void**>(&retained_user_api)):HRESULT_FROM_WIN32(ERROR_MOD_NOT_FOUND);
+        /* the game's XUser handles come from the user runtime (proxy.cpp) */
+        if(HRESULT ready=EnsureStoreModule();FAILED(ready))return ready;
+        HRESULT hr=QueryUserRuntime(&id,id,reinterpret_cast<void**>(&retained_user_api));
         if(FAILED(hr))return hr;
         if(!retained_user_api)return E_UNEXPECTED;
     }

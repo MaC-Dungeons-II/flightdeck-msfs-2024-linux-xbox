@@ -11,6 +11,7 @@
 #include "GameSaveBridge.h"
 #include "RuntimeDiagnostics.h"
 #include <cstdlib>
+#include <cstring>
 
 static INIT_ONCE base_once = INIT_ONCE_STATIC_INIT;
 static HMODULE base_module;
@@ -70,16 +71,24 @@ static FARPROC base_proc(const char *name) {
     if (!base_module) { SetLastError(base_error ? base_error : ERROR_MOD_NOT_FOUND); return nullptr; }
     return GetProcAddress(base_module, name);
 }
+extern IXNetworkingImpl *x_networking_impl;
 extern "C" HRESULT WINAPI QueryApiImpl(const GUID *clsid, REFIID iid, void **out) {
     if (!clsid || !out) return E_POINTER;
     *out = nullptr;
-    /* mac chain: XThreading, XNetworking and XUser stay with the genuine
-     * runtime (the outer mcd2 adapter owns users), so only Store, GameSave and
-     * diagnostics are answered here; everything else is forwarded. */
+    /* mac chain: XThreading stays with the genuine runtime underneath (the
+     * game's task queues are its objects); Store, GameSave, XNetworking,
+     * diagnostics and, with XODUS_USER_RUNTIME=1, XUser and XGame are answered
+     * here. Everything else is forwarded. */
     if (XodusGameSaveLocalEnabled() && IsGameSaveRuntimeClass(clsid))
         return QueryGameSaveRuntime(clsid,iid,out);
     if (IsStoreRuntimeClass(clsid)) return QueryStoreRuntime(clsid,iid,out);
+    if (*clsid == __uuidof(IXNetworkingImpl)) return x_networking_impl->QueryInterface(iid,out);
     if (IsRuntimeDiagnosticsClass(clsid)) return QueryRuntimeDiagnostics(clsid,iid,out);
+    if (UserRuntimeEnabled() && IsUserRuntimeClass(clsid)) {
+        /* the user runtime starts lazily (see initialize_client) */
+        if (HRESULT ready = EnsureStoreModule(); FAILED(ready)) return ready;
+        return QueryUserRuntime(clsid,iid,out);
+    }
     return QueryOriginalApi(clsid,iid,out);
 }
 /* Per-call tracing; the game calls QueryApi constantly, so only with
@@ -99,19 +108,37 @@ HRESULT QueryOriginalApi(const GUID *clsid, REFIID iid, void **out) {
     if (TraceQueryApi()) std::fprintf(stderr,"xodus-taskqueue: forwarded QueryApi result=%08lx\n",static_cast<ULONG>(hr));
     return hr;
 }
-extern "C" HRESULT WINAPI InitializeApiImpl(ULONG a, ULONG b) {
-    return initialize_client(a,b,0,nullptr,2,[&] {
-        using Fn=HRESULT(WINAPI *)(ULONG,ULONG); auto fn=reinterpret_cast<Fn>(base_proc("InitializeApiImpl"));
-        return fn ? fn(a,b) : HRESULT_FROM_WIN32(GetLastError());
-    });
+/* mac chain: the genuine runtime does not find the title's
+ * MicrosoftGame.config under Wine, so callers that pass no options get one
+ * pointing at the game root (this DLL sits in <root>\Dungeons\Binaries\WinGDK).
+ * All three entry points go through InitializeApiImplEx2. Like
+ * mcd2-crossover's adapter (MIT, Copyright (c) 2026 Wanzho). */
+namespace {
+struct TitleConfigOptions { unsigned version, flags; const char *file; };
+const TitleConfigOptions *title_config_options() {
+    static char path[2048];
+    static TitleConfigOptions options{1, 0, path};
+    static INIT_ONCE once = INIT_ONCE_STATIC_INIT;
+    InitOnceExecuteOnce(&once, [](PINIT_ONCE, PVOID, PVOID *) -> BOOL {
+        HMODULE self;
+        if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                                reinterpret_cast<LPCWSTR>(&title_config_options), &self)) return TRUE;
+        DWORD n = GetModuleFileNameA(self, path, sizeof(path));
+        if (!n || n >= sizeof(path)) { path[0] = 0; return TRUE; }
+        while (n && path[n - 1] != '\\' && path[n - 1] != '/') n--;
+        static const char tail[] = "..\\..\\..\\MicrosoftGame.config";
+        if (n + sizeof(tail) > sizeof(path)) { path[0] = 0; return TRUE; }
+        std::memcpy(path + n, tail, sizeof(tail));
+        return TRUE;
+    }, nullptr, nullptr);
+    return path[0] ? &options : nullptr;
 }
-extern "C" HRESULT WINAPI InitializeApiImplEx(ULONG a, ULONG b, char c) {
-    return initialize_client(a,b,c,nullptr,3,[&] {
-        using Fn=HRESULT(WINAPI *)(ULONG,ULONG,char); auto fn=reinterpret_cast<Fn>(base_proc("InitializeApiImplEx"));
-        return fn ? fn(a,b,c) : HRESULT_FROM_WIN32(GetLastError());
-    });
 }
+extern "C" HRESULT WINAPI InitializeApiImplEx2(ULONG a, ULONG b, char c, const void *d);
+extern "C" HRESULT WINAPI InitializeApiImpl(ULONG a, ULONG b) { return InitializeApiImplEx2(a,b,0,nullptr); }
+extern "C" HRESULT WINAPI InitializeApiImplEx(ULONG a, ULONG b, char c) { return InitializeApiImplEx2(a,b,c,nullptr); }
 extern "C" HRESULT WINAPI InitializeApiImplEx2(ULONG a, ULONG b, char c, const void *d) {
+    if (!d) d = title_config_options();
     return initialize_client(a,b,c,d,4,[&] {
         using Fn=HRESULT(WINAPI *)(ULONG,ULONG,char,const void*); auto fn=reinterpret_cast<Fn>(base_proc("InitializeApiImplEx2"));
         return fn ? fn(a,b,c,d) : HRESULT_FROM_WIN32(GetLastError());
@@ -149,7 +176,3 @@ extern "C" void WINAPI XErrorReport(ULONG a, const char *b) {
     if (fn) fn(a,b);
 }
 
-/* mac chain: the outer mcd2 adapter forwards XNetworking security-information
- * calls (used by libHttpClient's WinHTTP websockets) to this implementation. */
-extern IXNetworkingImpl *x_networking_impl;
-extern "C" __declspec(dllexport) void *WINAPI MacNetworkingImpl() { return x_networking_impl; }

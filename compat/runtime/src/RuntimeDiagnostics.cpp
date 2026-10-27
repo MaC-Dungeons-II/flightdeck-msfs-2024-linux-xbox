@@ -24,7 +24,9 @@ public:
     ULONG WINAPI AddRef() override{return ++refs;}
     ULONG WINAPI Release() override{return --refs;}
     BOOLEAN WINAPI XGameRuntimeIsFeatureAvailable(XGameRuntimeFeature feature) override {
-        const BOOLEAN available=original->XGameRuntimeIsFeatureAvailable(feature);
+        /* mac chain: XNetworking is answered by this runtime (proxy.cpp),
+         * whatever the genuine one reports */
+        const BOOLEAN available=static_cast<unsigned>(feature)==10u /* XNetworking */?TRUE:original->XGameRuntimeIsFeatureAvailable(feature);
         if(calls.fetch_add(1)<64)std::fprintf(stderr,"xodus-runtime: FeatureAvailable feature=%u original=%u\n",static_cast<unsigned>(feature),static_cast<unsigned>(available));
         return available;
     }
