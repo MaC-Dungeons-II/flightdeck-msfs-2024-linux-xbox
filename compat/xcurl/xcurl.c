@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * XCurl.dll for the macOS (Wine) build: the GDK's libcurl (curl-compat.dll,
+ * XCurl.dll for the macOS (Wine) build: curl.se's libcurl (curl-compat.dll,
  * next to this DLL) with three fixes the game needs under Wine. Everything
  * not overridden here is forwarded by xcurl.def.
  *
