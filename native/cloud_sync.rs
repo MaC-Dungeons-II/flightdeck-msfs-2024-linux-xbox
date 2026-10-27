@@ -65,7 +65,7 @@ fn automatic_enabled(s: &crate::backend::State, enabled: bool) -> Value {
     let active = current && s.active.as_ref().is_some_and(|a| a.kind == "cloud-auto");
     // A durable fence outlives the service's in-memory cloud state. Surface it
     // only when idle; every legitimate running session also has this fence.
-    let pending = if enabled && s.active.is_none() && s.process.is_none() && !s.closing {
+    let pending = if s.active.is_none() && s.process.is_none() && !s.closing {
         s.runtime.as_deref().and_then(|root| {
             crate::cloud_process_guard::recovery_id(root)
                 .unwrap_or_else(|_| Some("interrupted-invalid".into()))
@@ -74,21 +74,25 @@ fn automatic_enabled(s: &crate::backend::State, enabled: bool) -> Value {
         None
     };
     if let Some(id) = &pending {
+        // A failed recovery already names the blocking process; keep its
+        // request, message and details instead of the generic fence notice.
         if !current || value["error_code"] != "unsafe_session" {
             value["request_id"] = json!(id);
+            value["error_details"] = json!({});
+            value["message"] = json!(
+                "Die vorherige Spielsitzung ist noch nicht freigegeben. Sitzung prüfen beendet ihre verbliebenen Prozesse und sichert die lokalen Spielstände."
+            );
         }
         value["state"] = json!("attention");
         value["phase"] = json!("before_start");
         value["error_code"] = json!("unsafe_session");
-        value["message"] = json!(
-            "Die vorherige Spielsitzung ist noch nicht freigegeben. Erneut versuchen prüft, ob alle zugehörigen Prozesse beendet sind, und sichert die lokalen Spielstände."
-        );
     }
-    let attention = enabled
-        && (current || pending.is_some())
-        && value["state"] == "attention"
-        && !active
-        && !s.closing;
+    let attention =
+        (enabled || pending.is_some() || current && value["error_code"] == "unsafe_session")
+            && (current || pending.is_some())
+            && value["state"] == "attention"
+            && !active
+            && !s.closing;
     let review = current && pending.is_none() && s.cloud_data.review.is_some();
     let code = value["error_code"].as_str().unwrap_or("");
     // An interrupted session gets a recovery-only retry: verify no owned
@@ -451,6 +455,11 @@ mod recovery_tests {
         let app = Launcher::new(temp.path().join("launcher"), None).expect("launcher");
         let mut state = app.lock();
         state.runtime = Some(root.clone());
+        let unavailable = automatic_enabled(&state, false);
+        assert_eq!(unavailable["state"], "attention");
+        assert_eq!(unavailable["can_retry"], true);
+        assert_eq!(unavailable["can_play_local"], false);
+        assert_eq!(unavailable["enabled"], false);
         let status = automatic_enabled(&state, true);
         assert_eq!(status["state"], "attention");
         assert_eq!(status["error_code"], "unsafe_session");

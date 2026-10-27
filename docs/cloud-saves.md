@@ -102,14 +102,21 @@ require a Linux restart before another automatic session. This prevents save
 changes while an orphaned game process might still be running. A normal game
 exit and the launcher's Stop button do not require a restart.
 
-**In 0.2.6:** **Check session** can release this block without a
-Linux restart. Flightdeck first verifies that the runtime's processes have ended
-and backs up local saves. A failed check keeps the block in place. The action
-does not start MSFS or upload saves; the next normal launch reconciles pending
-local and cloud changes. [Details](native-ui.md#session-and-control-fixes-in-026).
+**Since 0.2.6:** **Check session** can release this block without a
+Linux restart. Since 0.2.9 Flightdeck ends the runtime's remaining processes
+(SIGTERM, then SIGKILL), verifies they are gone and backs up local saves. When
+the simulator exits, the same happens automatically for the game, Fenix, GSX
+and Wine's services; another Windows application in the profile, such as an
+installer, is left running and named, and **Check session** ends it on request.
+Processes that cannot be matched to the runtime are never signalled. If a
+process survives, the block stays in place and the message names it with its
+PID; a process stuck in the kernel (state D, typically after a GPU device loss)
+only ends with a Linux restart. The action does not start MSFS or upload saves;
+the next normal launch reconciles pending local and cloud changes.
+[Details](native-ui.md#session-and-control-fixes-in-026).
 
 This check also protects the normal exit path: if another Windows application
-is still using that profile, close it before retrying session recovery and sync.
+is still using that profile, close it or end it with **Check session**.
 
 ## Advanced tools
 
@@ -128,7 +135,7 @@ All local copies remain in the selected runtime:
 | --- | --- |
 | `private/cloud-saves/` | Separate cloud snapshots, including the cloud state before an upload |
 | `private/cloud-cache/` | Profile-bound references to verified snapshots for faster starts |
-| `private/cloud-helper-prefixes/` | Separate version-bound Wine environment for the cloud helper |
+| `private/cloud-helper-prefixes/` | Separate version-bound Wine environment for the cloud helper; those of earlier versions are removed after a completed run |
 | `private/cloud-import-backups/` | Local saves before imports and undo operations |
 | `private/cloud-import-receipts/` | Records used to validate previous completed transfers |
 | `private/local-saves/` | Active local saves and their comparison baseline |
@@ -136,6 +143,14 @@ All local copies remain in the selected runtime:
 | `private/cloud-sessions/` | Account-bound pending transfers and recovery references |
 | `private/cloud-offline.pending` | Protects unconfirmed progress, including account changes during play |
 | `private/connected-storage-device.seed` | Random local identifier for normal cloud-lock ownership |
+
+Three of these folders gain an entry with every session: `cloud-saves/`,
+`cloud-import-backups/` and `save-backups/`. Before a start, Flightdeck removes
+entries of each that are neither among the newest 20 nor younger than 30 days,
+unless the snapshot cache, a pending transfer, the comparison baseline of the
+local saves or the running launcher still refers to them. The receipt of a
+removed import backup goes with it. If a stored record cannot be read, nothing
+is removed.
 
 These files contain private data and must not be included in issues, source
 exports or release archives. Xbox tokens, signatures and temporary upload URLs

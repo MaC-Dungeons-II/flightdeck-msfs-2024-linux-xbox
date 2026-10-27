@@ -95,7 +95,10 @@ fn access<T>(
         fs::linked(&root, "private", &private)?;
         Ok(result)
     };
-    run().map_err(|_| Failure::new("unsafe_session"))
+    run().map_err(|error| Failure {
+        detail: error.detail,
+        ..Failure::new("unsafe_session")
+    })
 }
 
 fn process_alive(fd: &std::os::fd::OwnedFd) -> Result<bool> {
@@ -110,20 +113,33 @@ fn process_alive(fd: &std::os::fd::OwnedFd) -> Result<bool> {
     )? == 0)
 }
 
-// These protected native services routinely hide their environment. They are
-// not Wine or Flightdeck save writers. Any unknown inaccessible process, or a
-// command explicitly referring to this runtime, remains an unresolved writer.
-fn unrelated_protected_service(command: &[u8], runtime: &Path) -> bool {
+/// Whether a process that hides its environment is held against the session.
+/// Without the environment it cannot be attributed to a runtime, so it counts
+/// when its command line refers to this runtime, or when it is by its name a
+/// Wine, Xodus or Flightdeck process of some runtime. Everything else that
+/// protects itself this way is a service of the desktop: authentication and
+/// key agents, password stores, a running `sudo`. Those never write saves,
+/// and holding them against the session would fence the profile until the
+/// next boot on every desktop that runs one.
+fn unattributed_writer(command: &[u8], kernel_name: &str, runtime: &Path) -> bool {
     let root = runtime.as_os_str().as_bytes();
     if command.windows(root.len()).any(|part| part == root) {
-        return false;
+        return true;
     }
-    let name = command.split(|byte| *byte == 0).next().unwrap_or_default();
-    let name = name.rsplit(|byte| *byte == b'/').next().unwrap_or_default();
-    matches!(
-        name,
-        b"systemd" | b"(sd-pam)" | b"fusermount3" | b"ssh-agent" | b"gpg-agent" | b"scdaemon"
-    )
+    let arguments: Vec<String> = command
+        .split(|byte| *byte == 0)
+        .map(|value| String::from_utf8_lossy(value).into_owned())
+        .collect();
+    // The kernel's name is cut at 15 bytes; the command line names a Windows
+    // program in full, with its Windows path.
+    let program = crate::wine_processes::name(&arguments);
+    [program, kernel_name.to_lowercase()].iter().any(|name| {
+        name.ends_with(".exe")
+            || ["wine", "xodus", "flightdeck"]
+                .iter()
+                .any(|prefix| name.starts_with(prefix))
+            || crate::wine_processes::session_process(name)
+    })
 }
 
 fn process_disappeared(error: &crate::Error) -> bool {
@@ -132,13 +148,55 @@ fn process_disappeared(error: &crate::Error) -> bool {
             || error.raw_os_error() == Some(rustix::io::Errno::SRCH.raw_os_error()))
 }
 
+/// A live process still bound to this runtime. `confirmed` means its environment
+/// names this runtime; otherwise its binding is empty or unreadable, or its
+/// environment is inaccessible and it may be a Wine, Xodus or Flightdeck
+/// process: its identity is unresolved, so it is reported but never signalled.
+struct Writer {
+    pid: u32,
+    fd: std::os::fd::OwnedFd,
+    name: String,
+    state: String,
+    confirmed: bool,
+    /// Another Windows application in this profile, such as an installer.
+    /// It is not part of the ended game session and may be mid-installation.
+    application: bool,
+}
+impl Writer {
+    fn detail(&self, spared: bool) -> Value {
+        json!({
+            "pid": self.pid,
+            "name": self.name,
+            "state": self.state,
+            "identified": self.confirmed,
+            "application": self.application,
+            "spared": spared,
+            "unkillable": self.state.starts_with('D'),
+        })
+    }
+}
+fn status_field<'a>(status: &'a str, key: &str) -> &'a str {
+    status
+        .lines()
+        .find_map(|line| line.strip_prefix(key))
+        .map(str::trim)
+        .unwrap_or("")
+}
+fn blocked(writer: &Writer, spared: bool) -> Failure {
+    Failure {
+        detail: Some(json!({"blocking_process": writer.detail(spared)})),
+        ..Failure::new("unsafe_session")
+    }
+}
+
 /// Check the entire owned session, including native Xodus helpers which can
 /// outlive the Wine process tree. Retain a pidfd while inspecting each process;
 /// an exited process or reused PID must never establish a live identity.
-fn quiescent(runtime: &Path) -> Result<()> {
+fn scan(runtime: &Path) -> Result<Vec<Writer>> {
     use rustix::process::{Pid, PidfdFlags, pidfd_open};
     let prefix = runtime.join("local/msfs-prefix").canonicalize()?;
     let root = runtime.canonicalize()?;
+    let mut writers = Vec::new();
     for (count, entry) in std::fs::read_dir("/proc")?.enumerate() {
         require(count < 131072, "unsafe_session")?;
         let entry = entry?;
@@ -158,24 +216,22 @@ fn quiescent(runtime: &Path) -> Result<()> {
             Err(error) if process_disappeared(&error) => continue,
             Err(error) => return Err(error.into()),
         };
+        let status = std::str::from_utf8(&status).map_err(|_| Failure::new("unsafe_session"))?;
         // /proc directory ownership changes for non-dumpable processes; read
         // real/effective UIDs rather than mistaking a protected user process for root.
-        let ids = std::str::from_utf8(&status)
-            .ok()
-            .and_then(|text| text.lines().find_map(|line| line.strip_prefix("Uid:")))
-            .map(|line| {
-                line.split_whitespace()
-                    .take(2)
-                    .map(str::parse::<u32>)
-                    .collect::<std::result::Result<Vec<_>, _>>()
-            })
-            .transpose()
-            .map_err(|_| Failure::new("unsafe_session"))?
-            .ok_or_else(|| Failure::new("unsafe_session"))?;
+        let ids = status_field(status, "Uid:")
+            .split_whitespace()
+            .take(2)
+            .map(str::parse::<u32>)
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(|_| Failure::new("unsafe_session"))?;
         require(ids.len() == 2, "unsafe_session")?;
         if !ids.contains(&files::uid()) {
             continue;
         }
+        let name = status_field(status, "Name:").to_owned();
+        let state = status_field(status, "State:").to_owned();
+        let pid_raw = pid;
         let pid = i32::try_from(pid)
             .ok()
             .and_then(Pid::from_raw)
@@ -199,15 +255,28 @@ fn quiescent(runtime: &Path) -> Result<()> {
                 if !process_alive(&fd)? {
                     continue;
                 }
-                require(
-                    command
-                        .as_ref()
-                        .is_ok_and(|value| unrelated_protected_service(value, &root)),
-                    "unsafe_session",
-                )?;
+                // A command line that cannot be read rules nothing out.
+                if command
+                    .as_ref()
+                    .map_or(true, |value| unattributed_writer(value, &name, &root))
+                {
+                    writers.push(Writer {
+                        pid: pid_raw,
+                        fd,
+                        name,
+                        state,
+                        confirmed: false,
+                        application: false,
+                    });
+                }
                 continue;
             }
         };
+        let mut bound = false;
+        // An empty or unresolvable binding cannot be attributed to this runtime
+        // or ruled out: it blocks as before but is never signalled.
+        let mut unresolved = false;
+        let mut windows = false;
         for variable in environment.split(|byte| *byte == 0) {
             let matching = [
                 (b"WINEPREFIX=".as_slice(), &prefix),
@@ -217,12 +286,88 @@ fn quiescent(runtime: &Path) -> Result<()> {
             for (key, expected) in matching {
                 if let Some(value) = variable.strip_prefix(key) {
                     let path = Path::new(std::ffi::OsStr::from_bytes(value));
-                    require(
-                        !value.is_empty() && path.canonicalize()? != *expected,
-                        "unsafe_session",
-                    )?;
+                    match path.canonicalize() {
+                        _ if value.is_empty() => unresolved = true,
+                        Ok(path) if path == *expected => {
+                            bound = true;
+                            windows |= key == b"WINEPREFIX=";
+                        }
+                        Ok(_) => {}
+                        // A path that does not exist cannot be this runtime.
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                        Err(_) => unresolved = true,
+                    }
                 }
             }
+        }
+        if !bound && !unresolved {
+            continue;
+        }
+        // Report Windows processes by executable; the kernel name is truncated.
+        let mut name = name;
+        let mut application = false;
+        if bound && windows {
+            let command = files::read_public(&entry.path().join("cmdline"), 1024 * 1024);
+            if !process_alive(&fd)? {
+                continue;
+            }
+            let arguments: Vec<_> = command
+                .unwrap_or_default()
+                .split(|byte| *byte == 0)
+                .map(|value| String::from_utf8_lossy(value).into_owned())
+                .collect();
+            let executable = crate::wine_processes::name(&arguments);
+            if executable.ends_with(".exe") || executable == "fenix-webview2" {
+                application = !crate::wine_processes::session_process(&executable);
+                name = executable.chars().take(64).collect();
+            }
+        }
+        writers.push(Writer {
+            pid: pid_raw,
+            fd,
+            name,
+            state,
+            confirmed: bound,
+            application,
+        });
+    }
+    Ok(writers)
+}
+fn quiescent(runtime: &Path) -> Result<()> {
+    match scan(runtime)?.first() {
+        None => Ok(()),
+        Some(writer) => Err(blocked(writer, false)),
+    }
+}
+/// End what remains of an ended session: the game, Fenix and GSX companions,
+/// Wine infrastructure and native helpers bound to this runtime. Unresolved processes are never
+/// signalled. Another Windows application in the profile is ended only on the
+/// user's explicit request (`applications`); otherwise it is left running and
+/// reported, and nothing is signalled, because ending the Wine server would
+/// end it too. A process stuck in the kernel survives SIGKILL; it stays
+/// reported as the blocker and only a reboot releases it.
+fn terminate(runtime: &Path, applications: bool) -> Result<()> {
+    use rustix::process::{Signal, pidfd_send_signal};
+    use std::time::{Duration, Instant};
+    for (signal, seconds) in [(Signal::TERM, 2), (Signal::KILL, 3)] {
+        let writers = scan(runtime)?;
+        if !applications && let Some(writer) = writers.iter().find(|w| w.application) {
+            return Err(blocked(writer, true));
+        }
+        let writers: Vec<_> = writers.into_iter().filter(|w| w.confirmed).collect();
+        if writers.is_empty() {
+            return Ok(());
+        }
+        for writer in &writers {
+            let _ = pidfd_send_signal(&writer.fd, signal);
+        }
+        let end = Instant::now() + Duration::from_secs(seconds);
+        while Instant::now() < end
+            && writers
+                .iter()
+                .any(|w| process_alive(&w.fd).unwrap_or(false))
+        {
+            std::thread::sleep(Duration::from_millis(50));
         }
     }
     Ok(())
@@ -241,6 +386,7 @@ fn recover_with(
     access(runtime, lease, |root, private| {
         let identity = fence_identity(private)?;
         let previous = read(private)?;
+        terminate(runtime, true)?;
         quiescent(runtime)?;
         let backup = backup(runtime)?;
         quiescent(runtime)?;
@@ -311,7 +457,8 @@ pub fn mark(runtime: &Path, lease: &File) -> Result<()> {
     })
 }
 /// A supervisor exit or spawn failure does not prove its descendants ended.
-/// Keep the fence until all runtime-bound writers are gone under this lease.
+/// End the remainder of the session and keep the fence while any runtime-bound
+/// writer, or another Windows application in the profile, is still alive.
 pub fn clear(runtime: &Path, lease: &File) -> Result<()> {
     access(runtime, lease, |root, private| {
         let identity = fence_identity(private)?;
@@ -321,6 +468,7 @@ pub fn clear(runtime: &Path, lease: &File) -> Result<()> {
             value.as_ref().is_some_and(|v| v.boot_id == boot),
             "unsafe_session",
         )?;
+        terminate(runtime, false)?;
         quiescent(runtime)?;
         fs::lease(private, lease)?;
         fs::same(runtime, root, false)?;
@@ -384,5 +532,100 @@ mod tests {
         assert_eq!(result.expect_err("replaced fence").code, "unsafe_session");
         assert_eq!(std::fs::read(&path).expect("retained"), original);
         assert!(!root.join("private/cloud-process-recovery.json").exists());
+    }
+}
+
+#[cfg(test)]
+mod attribution {
+    use super::*;
+
+    fn held(command: &[&str], kernel_name: &str) -> bool {
+        let command = command.join("\0").into_bytes();
+        unattributed_writer(&command, kernel_name, Path::new("/data/runtimes/msfs2024"))
+    }
+
+    #[test]
+    fn a_protected_desktop_service_is_not_held_against_the_session() {
+        for (command, kernel_name) in [
+            (
+                &["/usr/lib/polkit-kde-authentication-agent-1"][..],
+                "polkit-kde-auth",
+            ),
+            (
+                &["/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"],
+                "polkit-gnome-au",
+            ),
+            (
+                &["/usr/bin/gnome-keyring-daemon", "--daemonize", "--login"],
+                "gnome-keyring-d",
+            ),
+            (
+                &["/usr/bin/kwalletd6", "--pam-login", "7", "8"],
+                "kwalletd6",
+            ),
+            (
+                &[
+                    "/usr/bin/ssh-agent",
+                    "-D",
+                    "-a",
+                    "/run/user/1000/ssh-agent.socket",
+                ],
+                "ssh-agent",
+            ),
+            (&["gpg-agent", "--supervised"], "gpg-agent"),
+            (&["sudo", "pacman", "-Syu"], "sudo"),
+            (&["/usr/lib/systemd/systemd", "--user"], "systemd"),
+            (&["(sd-pam)"], "(sd-pam)"),
+            (&["keepassxc"], "keepassxc"),
+            (&[""], ""),
+        ] {
+            assert!(!held(command, kernel_name), "{command:?}");
+        }
+    }
+
+    #[test]
+    fn what_refers_to_the_runtime_or_looks_like_its_processes_stays_unresolved() {
+        for (command, kernel_name) in [
+            // Anything that names this runtime, whatever it is called.
+            (
+                &[
+                    "/usr/bin/helper",
+                    "--state",
+                    "/data/runtimes/msfs2024/private",
+                ][..],
+                "helper",
+            ),
+            (
+                &["/data/runtimes/msfs2024/bin/xodus-service"],
+                "xodus-service",
+            ),
+            // Wine and its Windows processes, of this or of another runtime.
+            (&["/opt/runner/files/bin/wineserver"], "wineserver"),
+            (
+                &["/opt/runner/files/bin/wine64-preloader", "wineboot"],
+                "wine64-preloade",
+            ),
+            (&[r"C:\windows\system32\services.exe"], "services.exe"),
+            (
+                &[r"Z:\games\MSFS2020\FlightSimulator.exe", "-FastLaunch"],
+                "FlightSimulator",
+            ),
+            (
+                &[r"C:\Program Files\FenixSim A320\FenixSystem.exe"],
+                "FenixSystem.exe",
+            ),
+            // The kernel's name alone, when the command line says nothing.
+            (&[""], "winedevice.exe"),
+            (&["fenix-webview2"], "fenix-webview2"),
+            // Xodus and Flightdeck programs started from elsewhere.
+            (&["/tmp/copy/xodus-cli", "run"], "xodus-cli"),
+            (
+                &["/opt/flightdeck/bin/flightdeck", "run-game"],
+                "flightdeck",
+            ),
+            (&["xodus-wine-launch"], "flightdeck-rust"),
+        ] {
+            assert!(held(command, kernel_name), "{command:?}");
+        }
     }
 }

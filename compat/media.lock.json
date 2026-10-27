@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "id": "xodus-system-memory-v1",
+  "upstream": {
+    "repository": "https://github.com/OnlyCrayZ-Labs/wine",
+    "revision": "2aa1523c4ff41f6bf6b7ed05e9bd52c554a8fe9b",
+    "license": "LGPL-2.1-or-later"
+  },
+  "wine": {
+    "revision": "b1dd32734a34472a28eb5be9922df06e07ac0834",
+    "archive_url": "https://codeload.github.com/xodus-gaming/wine/tar.gz/b1dd32734a34472a28eb5be9922df06e07ac0834",
+    "archive_sha256": "975df721180fc5f53bfefe47cb34ed251083fef9d3c639af849c7c1f1eec3758"
+  },
+  "xgameruntime": {
+    "revision": "64aebcabb8c66121eae25d3bf0ace4b582ebb0da",
+    "archive_url": "https://codeload.github.com/xodus-gaming/xgameruntime/tar.gz/64aebcabb8c66121eae25d3bf0ace4b582ebb0da",
+    "archive_sha256": "3bec6643f35071a815da4ab77c6571789e35875752cc7e09fc3da66fed0d244b"
+  },
+  "patch": "compat/media/system-memory.patch",
+  "patch_sha256": "4b3e2a32e9687daf34967fa86e4f0b72457bed98d39bd0f5292646031af81bca",
+  "parser_before_sha256": "52054f40745b43af99823168a2f24eace018c2dcf20846e2172643de88a7a561",
+  "parser_after_sha256": "536fe73833e9c03ebf36b8f09c5ebe43dfa37da1e7c5b3ebe2646829a60b797c",
+  "files": {
+    "winegstreamer.so": {
+      "sha256": "89143ed1d8023d918d5c274b45b893fa442eb64b4176d45f44c30260757e1105",
+      "bytes": 238728
+    }
+  },
+  "runner_inputs": {
+    "files/bin/wine": "041dd0e1ff3f799c4cc155edabf0286ea6fbe53668ab4d6ae57eff3dd7406ae6",
+    "files/lib/wine/x86_64-windows/winegstreamer.dll": "e21dd7f43f360a18c14458d9a87e9b9db3ae36c93456f67974f501f3529f4477",
+    "files/lib/wine/x86_64-unix/winegstreamer.so": "e1210f41d7fc9325d1dda80dc9abaec2adeb4eb5abe75218ef7051d45159cd69"
+  }
+}

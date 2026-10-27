@@ -1,7 +1,60 @@
+# Weekly dependency maintenance; times are Europe/Vienna.
+# Security PRs are event-driven and bypass the normal-update cooldown.
+# Minor/patch updates are grouped; major updates remain individual PRs.
+# Review repository patches, quarantine rules and runtime pins before merging.
 version: 2
 updates:
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: monthly
-    open-pull-requests-limit: 3
+- package-ecosystem: cargo
+  directories:
+  - /
+  - /examples/native-ui
+  schedule:
+    interval: weekly
+    day: monday
+    time: 08:10
+    timezone: Europe/Vienna
+  open-pull-requests-limit: 3
+  cooldown:
+    default-days: 7
+  assignees:
+  - marselnenaj
+  commit-message:
+    prefix: deps
+    include: scope
+  groups:
+    minor-patch:
+      patterns:
+      - '*'
+      update-types:
+      - minor
+      - patch
+    security:
+      applies-to: security-updates
+      patterns:
+      - '*'
+- package-ecosystem: github-actions
+  directory: /
+  schedule:
+    interval: weekly
+    day: monday
+    time: 08:11
+    timezone: Europe/Vienna
+  open-pull-requests-limit: 3
+  cooldown:
+    default-days: 7
+  assignees:
+  - marselnenaj
+  commit-message:
+    prefix: deps
+    include: scope
+  groups:
+    minor-patch:
+      patterns:
+      - '*'
+      update-types:
+      - minor
+      - patch
+    security:
+      applies-to: security-updates
+      patterns:
+      - '*'

@@ -1,0 +1,67 @@
+
+// SPDX-License-Identifier: MIT
+// Synthetic pages and tokens only. Exercise the production GTK/WebKit runtime
+// without opening Microsoft, initializing the keyring or exchanging credentials.
+mod webview {
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/webview.rs"));
+
+    pub fn fixture_request(url: String) -> WebviewRequest {
+        WebviewRequest::new("Flightdeck synthetic email verification", url, HeaderMap::new())
+    }
+}
+
+use webview::{HandlerControl, RuntimeCommands, SessionHandler, SessionId};
+use xodus::models::live::DAProperty;
+
+struct Handler {
+    origin: String,
+    mode: String,
+    step: usize,
+}
+
+impl SessionHandler for Handler {
+    type Output = usize;
+
+    fn bootstrap(&mut self, runtime: &mut RuntimeCommands) -> Result<(), Box<dyn std::error::Error>> {
+        runtime.open_session(webview::fixture_request(format!("{}/password?{}", self.origin, self.mode)));
+        Ok(())
+    }
+
+    fn on_token(&mut self, session: SessionId, data: DAProperty, runtime: &mut RuntimeCommands)
+        -> Result<HandlerControl<usize>, Box<dyn std::error::Error>>
+    {
+        if self.mode == "response-error" {
+            return Err(xodus::api::live::RSTError::InvalidResponse.into());
+        }
+        let expected = ["password", "email-code", "verified"][self.step];
+        if data.username != expected {
+            return Err("Unexpected or stale callback during verification".into());
+        }
+        self.step += 1;
+        runtime.close_session(session);
+        if self.step == 3 {
+            return Ok(HandlerControl::Complete(self.step));
+        }
+        let next = if self.step == 1 { "email-code" } else { "verified" };
+        runtime.open_session(webview::fixture_request(format!("{}/{next}?{}", self.origin, self.mode)));
+        Ok(HandlerControl::Continue)
+    }
+}
+
+fn main() {
+    let mode = std::env::args().nth(1).unwrap();
+    let expect_error = mode == "response-error";
+    let handler = Handler {
+        origin: std::env::var("FIXTURE_ORIGIN").unwrap(),
+        mode,
+        step: 0,
+    };
+    match webview::run_sessions(handler) {
+        Ok(Some(3)) if !expect_error => println!("Completed password, email code and verification"),
+        Err(error) if expect_error && matches!(error.downcast_ref::<xodus::api::live::RSTError>(),
+                                              Some(xodus::api::live::RSTError::InvalidResponse)) => {
+            println!("Preserved response error classification");
+        }
+        _ => std::process::exit(1),
+    }
+}

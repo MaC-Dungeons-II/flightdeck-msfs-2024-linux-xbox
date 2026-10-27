@@ -172,10 +172,12 @@ or a cold-boot measurement.
 
 Build Rust as described in [BUILDING.md](../BUILDING.md#native-packages), export
 the referenced Python revision to a separate directory, and install both full
-packages into isolated directories with `--no-desktop --no-launch`. Then run:
+packages into isolated directories with `--no-desktop --no-launch`. The Python
+launcher is the subject of the comparison, so `python3` must be installed;
+`--python /path/to/interpreter` selects another one. Then run:
 
 ```sh
-python3 scripts/benchmark-launchers.py \
+cargo run --locked -p flightdeck-tools -- probe benchmark-launchers \
   --binary target/release/flightdeck-rust \
   --python-source build/python-baseline \
   --python-commit 005194e2d071447637f48e74c406f410c4fe5284 \
@@ -186,9 +188,11 @@ python3 scripts/benchmark-launchers.py \
 ```
 
 Omit both installed-launcher arguments to measure direct invocation only. The
-output path must be new. The script cleans up only its own temporary services
+output path must be new. The command cleans up only its own temporary services
 and data. It does not flush the workstation's filesystem cache or change CPU
-settings.
+settings. The published results were measured by the earlier Python version of
+this command, whose own HTTP client was part of each request time; a new run
+is comparable between its two launchers, not with those absolute numbers.
 
 ## Historical web UI idle work (before the native desktop)
 

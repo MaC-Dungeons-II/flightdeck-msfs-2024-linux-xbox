@@ -576,10 +576,11 @@ pub fn download_action(app: &Launcher, id: &str, operation: &str) -> Result<Valu
         "Es gibt keine passende laufende Einrichtung.",
     ))?;
     require(
-        job["state"] == "installing"
+        (job["state"] == "installing" || (job["state"] == "failed" && operation == "retry"))
             && match operation {
                 "pause" => job["can_pause"] == true,
                 "resume" => job["can_resume"] == true,
+                "retry" => job["can_retry"] == true && job["phase"] == "download_failed",
                 _ => false,
             },
         "Dieser Download kann gerade nicht pausiert oder fortgesetzt werden.",
@@ -590,6 +591,11 @@ pub fn download_action(app: &Launcher, id: &str, operation: &str) -> Result<Valu
     ))?;
     job["can_pause"] = json!(false);
     job["can_resume"] = json!(false);
+    job["can_retry"] = json!(false);
+    if operation == "retry" {
+        job["state"] = json!("installing");
+        job["error"] = Value::Null;
+    }
     job["phase"] = json!(if operation == "pause" {
         "pausing"
     } else {

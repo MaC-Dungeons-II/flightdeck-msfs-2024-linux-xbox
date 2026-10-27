@@ -10,6 +10,7 @@
   <a href="docs/index.md">Documentation</a> &nbsp;·&nbsp;
   <a href="docs/known-issues.md">Known issues</a> &nbsp;·&nbsp;
   <a href="docs/changelog.md">Changes</a> &nbsp;·&nbsp;
+  <a href="https://discord.gg/fAhHR2DkqN">Discord</a> &nbsp;·&nbsp;
   <a href="docs/readme.de.md">Deutsch</a>
 </p>
 
@@ -20,18 +21,25 @@ of MSFS 2024 or 2020** through Wine/Proton. Sign in with your Microsoft account,
 download the licensed game and start it from the native Rust desktop application.
 Windows, the Xbox app and a previous MSFS installation are not required.
 
-**Current stable release: [Flightdeck 0.2.7](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.7).**
+**Current stable release: [Flightdeck 0.3.0](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.3.0).**
 The launcher, installer and updater need no Python.
 
-**New in 0.2.7:** Fenix and GSX show the next setup step with errors at the top;
-additional maintenance actions stay in the collapsed **Manage & repair** section.
-Licensed GSX operation in the simulator remains unconfirmed.
-See the [changelog](docs/changelog.md) and [add-on guide](docs/addons.md).
+**New in 0.3.0:** Select Steam MSFS 2020/2024 alongside Xbox installations and
+manage Fenix through the shared standalone Rust engine. Steam support is beta;
+actual simulator flights still need tester qualification. See the
+[Steam guide](docs/steam.md) and [changelog](docs/changelog.md).
+
+Join the [Flightdeck Discord community](https://discord.gg/fAhHR2DkqN) to ask
+questions, share your Linux setup and help develop Flightdeck. For reproducible
+bugs, use [GitHub Issues](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues).
+
+[Credits and acknowledgements](docs/credits.md) name the collaborators and
+projects behind Flightdeck. The launcher also has a **Credits** page.
 
 ## Get started
 
 1. Download **Flightdeck-Linux-x86_64.tar.gz** from the
-   [0.2.7 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.7),
+   [0.3.0 release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.3.0),
    extract it and open **Install Flightdeck.desktop**. Your file manager may ask
    you to trust this local launcher. Alternatively, run `./install.sh` there.
 2. Choose **Install MSFS**, select 2024 or 2020 and a destination, then
@@ -39,6 +47,9 @@ See the [changelog](docs/changelog.md) and [add-on guide](docs/addons.md).
 3. Open **Flightdeck** from your application menu and start the simulator.
    Select an installed edition on the overview to switch between separate
    runtimes, Wine prefixes, updates and local saves.
+
+**Bazzite:** Install in Desktop Mode. If the installer reports that its path
+contains a symbolic link, follow the [installation workaround](docs/install.md#bazzite-and-symbolic-link-errors).
 
 An Internet connection and a purchased PC license are required. Allow at least
 **100 GiB free**, including room for streamed content, caches and retained game
@@ -49,9 +60,9 @@ a Wayland or X11 desktop and a Linux Secret Service keyring. The full runtime
 also needs GTK 3, WebKitGTK 4.1, OpenSSL 3 and GStreamer Good/Bad/Libav plugins;
 the launcher also needs liblzma, libgcc_s and libxkbcommon, plus the selected
 Wayland/X11 libraries. Setup checks missing prerequisites.
-An unreleased packaged candidate passed launcher checks on Ubuntu 24.04, Debian
-13, Fedora 44, Arch Linux and openSUSE Tumbleweed on 8 October 2026. See the
-[Linux test matrix](docs/install.md#linux-test-matrix-unreleased) for the tested scope.
+Launcher checks passed on Ubuntu 24.04, Debian 13, Fedora 44, Arch Linux and
+openSUSE Tumbleweed on 8 October 2026. See the
+[Linux test matrix](docs/install.md#linux-test-matrix) for the tested scope.
 These container checks do not establish simulator or GPU-driver compatibility.
 [Requirements and installation options](docs/install.md)
 
@@ -65,7 +76,7 @@ use the full installer once; existing runtimes and saves are preserved.
 
 | Area | What it provides |
 | --- | --- |
-| **Install and updates** | Licensed downloads, pause/resume, game-file verification, full repair and rollback. [Details](docs/game-updates.md) |
+| **Install and updates** | Licensed downloads, retry and pause/resume, game-file verification, full repair and rollback. [Details](docs/game-updates.md) |
 | **Mods** | Community-folder management and optional Fenix/GSX setup through their official installers. [Guide](docs/addons.md) |
 | **Saves** | Local backups and experimental automatic Xbox cloud sync with conflict recovery. [Guide](docs/cloud-saves.md) |
 | **Graphics and VR** | Automatic GPU setup, NVIDIA compatibility options and optional OpenXR setup. [Graphics](docs/graphics.md) · [VR](docs/vr.md) |
@@ -81,6 +92,9 @@ not yet supported. [Pause/resume limits](docs/download-pause.md)
 **Experimental.** MSFS 2024 cockpit access and takeoff have been tested on AMD.
 **NVIDIA rendering is confirmed by user testing**, with remaining minor issues
 such as missing startup video. This does not establish support for every GPU or driver.
+A user reports reaching the rendered MSFS 2024 menu and scene with CachyOS
+11.0-20261015 on 0.2.20 after waiting through a black loading screen. Startup
+video and the 48-FPS VSync limit remain open. [Reported scope](docs/known-issues.md).
 MSFS 2020 installation and license checks are implemented; successful simulator
 startup and complete-flight compatibility remain unconfirmed.
 
@@ -89,6 +103,9 @@ operation, physical VR headsets and cross-device cloud-save gameplay still need
 validation. Marketplace session errors and incomplete DLC/purchase coverage
 remain documented separately. Installed files alone do not prove activation or
 working aircraft systems.
+Fenix 0.1.0 retains GPU display sharing for the pinned Xodus and Proton 11
+runners, with a CPU fallback, and includes the Direct2D memory-leak fix.
+Fenix v3 remains experimental; see the [tested scope](docs/addons.md#compatibility-and-recovery).
 [Known issues](docs/known-issues.md) · [Add-on scope](docs/addons.md) ·
 [Marketplace scope](docs/marketplace-collections.md)
 

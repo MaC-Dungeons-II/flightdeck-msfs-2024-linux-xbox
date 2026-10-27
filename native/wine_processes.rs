@@ -37,6 +37,14 @@ const INFRASTRUCTURE: &[&str] = &[
     "tabtip.exe",
     "conhost.exe",
 ];
+/// The game, its Fenix and GSX companions and Wine's own services, as opposed
+/// to another application, such as an installer, running in the same profile.
+pub fn session_process(name: &str) -> bool {
+    GAMES.contains(&name)
+        || FENIX.contains(&name)
+        || crate::gsx::COMPANIONS.contains(&name)
+        || INFRASTRUCTURE.contains(&name)
+}
 pub fn name(arguments: &[String]) -> String {
     let base = arguments
         .first()
@@ -150,7 +158,32 @@ impl Processes {
                     return Ok(None);
                 };
                 use std::os::unix::ffi::OsStrExt;
-                if Path::new(std::ffi::OsStr::from_bytes(prefix)).canonicalize()? != self.prefix {
+                let prefix = Path::new(std::ffi::OsStr::from_bytes(prefix));
+                // Flatpak and pressure-vessel can bind a different directory at
+                // the same pathname. Compare the directory seen by the process,
+                // before considering the host's interpretation of that string.
+                let wanted = self.prefix.metadata()?;
+                let observed = prefix
+                    .strip_prefix("/")
+                    .ok()
+                    .and_then(|relative| entry.path().join("root").join(relative).metadata().ok());
+                let matches = match observed {
+                    Some(actual) => {
+                        actual.is_dir()
+                            && [actual.dev(), actual.ino()] == [wanted.dev(), wanted.ino()]
+                    }
+                    None => {
+                        let same_namespace = entry
+                            .path()
+                            .join("ns/mnt")
+                            .metadata()
+                            .ok()
+                            .zip(std::fs::metadata("/proc/self/ns/mnt").ok())
+                            .is_some_and(|(a, b)| [a.dev(), a.ino()] == [b.dev(), b.ino()]);
+                        same_namespace && prefix.canonicalize().is_ok_and(|p| p == self.prefix)
+                    }
+                };
+                if !matches {
                     return Ok(None);
                 }
                 let raw = files::read_public(&entry.path().join("cmdline"), 1024 * 1024)?;
@@ -269,13 +302,112 @@ pub fn idle(prefix: &Path) -> Result<()> {
         "Close MSFS, Fenix and all installers for this profile first.",
     )
 }
+/// Signal retained identities in one profile; never Steam or other games.
+pub fn terminate_named(prefix: &Path, names: &[&str], timeout: Duration) -> Result<()> {
+    let mut processes = Processes::new(prefix)?;
+    for handle in processes.handles.values() {
+        if names.contains(&handle.name.as_str()) && alive(&handle.fd) {
+            pidfd_send_signal(&handle.fd, Signal::TERM)?;
+        }
+    }
+    let deadline = Instant::now() + timeout;
+    while processes.any(Some(names)) && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+        processes.collect()?;
+    }
+    require(
+        !processes.any(Some(names)),
+        "Der Prozess läuft noch. Bitte den Simulator oder Fenix direkt beenden.",
+    )
+}
+
+/// A cached runner may be used with a prefix outside this runtime. Do not
+/// reclaim it merely because the runtime's current prefix is idle.
+pub(crate) fn path_in_use(path: &Path) -> Result<bool> {
+    let path = path.canonicalize()?;
+    for (count, entry) in std::fs::read_dir("/proc")?.enumerate() {
+        require(
+            count < 131072,
+            "Too many processes to inspect this Windows profile.",
+        )?;
+        let entry = entry?;
+        if !entry
+            .file_name()
+            .to_str()
+            .is_some_and(|n| n.bytes().all(|b| b.is_ascii_digit()))
+        {
+            continue;
+        }
+        let proc = entry.path();
+        if !proc.metadata().is_ok_and(|m| m.uid() == files::uid()) {
+            continue;
+        }
+        let Some(pid) = entry
+            .file_name()
+            .to_str()
+            .and_then(|s| s.parse::<i32>().ok())
+            .and_then(Pid::from_raw)
+        else {
+            continue;
+        };
+        let handle = match pidfd_open(pid, PidfdFlags::empty()) {
+            Ok(handle) => handle,
+            Err(rustix::io::Errno::SRCH) => continue,
+            Err(error) => return Err(error.into()),
+        };
+        if !alive(&handle) {
+            continue;
+        }
+        if std::fs::read_link(proc.join("exe")).is_ok_and(|p| p.starts_with(&path))
+            && alive(&handle)
+        {
+            return Ok(true);
+        }
+        let bytes = match std::fs::read(proc.join("environ")) {
+            Ok(bytes) => bytes,
+            Err(error)
+                if error.kind() == std::io::ErrorKind::NotFound
+                    || error.raw_os_error() == Some(3)
+                    || !alive(&handle) =>
+            {
+                continue;
+            }
+            Err(error) => return Err(error.into()),
+        };
+        for item in bytes.split(|b| *b == 0) {
+            let Some((key, value)) = item
+                .iter()
+                .position(|b| *b == b'=')
+                .map(|i| (&item[..i], &item[i + 1..]))
+            else {
+                continue;
+            };
+            if [
+                b"WINEPREFIX".as_slice(),
+                b"WINE",
+                b"WINELOADER",
+                b"WINESERVER",
+            ]
+            .contains(&key)
+                && Path::new(<std::ffi::OsStr as std::os::unix::ffi::OsStrExt>::from_bytes(value))
+                    .starts_with(&path)
+            {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
 pub fn status(prefix: &Path) -> (bool, bool) {
     Processes::new(prefix)
         .map(|v| (v.any(Some(FENIX)), v.any(Some(GAMES))))
         .unwrap_or((false, false))
 }
 pub fn stop(root: &Path, names: &[&str]) -> Result<()> {
-    let mut processes = Processes::new(&root.join("local/msfs-prefix"))?;
+    stop_prefix(&root.join("local/msfs-prefix"), &root.join("runner"), names)
+}
+pub fn stop_prefix(prefix: &Path, runner: &Path, names: &[&str]) -> Result<()> {
+    let mut processes = Processes::new(prefix)?;
     processes.check_game()?;
     if processes.any(Some(names)) {
         let named: Vec<_> = processes
@@ -287,13 +419,13 @@ pub fn stop(root: &Path, names: &[&str]) -> Result<()> {
             .map(|v| v.name.clone())
             .collect();
         if !named.is_empty() {
-            let mut c = Command::new(crate::runtime::wine(&root.join("runner")));
+            let mut c = Command::new(crate::runtime::wine(runner));
             c.arg("taskkill.exe");
             for name in named {
                 c.args(["/IM", &name]);
             }
             c.env_clear()
-                .envs(wine::environment(&processes.prefix, &root.join("runner")))
+                .envs(wine::environment(&processes.prefix, runner))
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());

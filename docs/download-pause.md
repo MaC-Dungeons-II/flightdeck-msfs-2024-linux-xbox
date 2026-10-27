@@ -1,5 +1,7 @@
 # Pausing a game download
 
+[Deutsch](download-pause.de.md)
+
 During an installation, **Pause download** stops Flightdeck's own Xodus streaming
 process. **Resume download** starts it again in the same private installation
 folder. The launcher stays reserved for that installation while paused.
@@ -9,6 +11,23 @@ changing its language is supported; restoring an installation job after the
 background service or computer restarts is not yet supported. Cancelling keeps
 the private downloaded files, but does not turn that cancelled job into a
 resumable installation.
+
+Since **0.2.21**, a failed download or sign-in offers **Retry download** in the
+same job. The existing workspace stays reserved and the background service
+waits for your choice. Retry starts the verified downloader again in that
+folder, rechecking and reusing completed files. **Cancel** releases the job and
+keeps its files. No other installation or game can start while the job is
+reserved. This also applies to downloads started under **Updates**.
+
+If sign-in expires, the existing bounded sign-in recovery runs again; repeated
+failure waits for your choice. A changed pinned package revision still needs a
+fresh update check. Old component packages without the resume capability do not
+offer retry with file reuse. These controls do not recover jobs that already
+ended in earlier Flightdeck versions or after a service/computer restart.
+
+The displayed sign-in/download code and a fixed setup summary remain available
+in **Diagnostics → Report a problem**, even before an installation exists.
+The summary survives a service restart; the active download job does not.
 
 A resumed download checks every completed file against its stored SHA-256 digest
 and exact output length. It downloads incomplete or changed files again. Up to
@@ -39,10 +58,9 @@ Each invocation obtains new package access and a content license through Xodus'
 existing authenticated operations. Expired device tickets use the existing
 device authentication path. If the user's sign-in has expired, Microsoft sign-in
 opens again; completed files remain. Flightdeck permits one such sign-in attempt
-per resume, then reports failure instead of retrying indefinitely. Revoked
-ownership, unavailable services or an updated package can still require a new
-installation attempt. A changed package identity is rejected rather than mixing
-files from two package versions.
+per resume or explicit retry, then waits for a choice after repeated failure.
+Ownership and service availability must still permit the download. A changed
+package identity is rejected rather than mixing files from two package versions.
 
 ## Component contract
 
@@ -81,6 +99,12 @@ The raw-page hash behavior is corroborated by the upstream
 [XVD data hash implementation](https://github.com/emoose/xvdtool/blob/master/LibXboxOne/XVD/XVDFile.cs#L803).
 
 The JSON API adds `job.can_pause`, `job.can_resume` and `job.failure_phase`.
+Version 0.2.21 adds `job.can_retry`, `download_exit_code`, `login_exit_code` and
+`download_attempt`. A failed resumable download has `state: failed`,
+`phase: download_failed` and `can_retry: true`, while retaining its job lease.
+`POST /api/setup/retry` accepts that job's ID and the existing CSRF protection.
+Only the matching waiting job may be retried; a repeated or stale request is
+rejected. Retrying a job never changes its downloader pin or target folder.
 `POST /api/setup/pause` and `POST /api/setup/resume` accept the current `job_id`
 and require the existing CSRF token. `state` stays `installing`; `phase` changes
 from `download` to `pausing`, then to `paused` only after the child has exited.
@@ -92,8 +116,8 @@ Translations do not change these machine-readable values.
 No Microsoft login or game download is needed for the automated regression tests:
 
 ```sh
-cargo test --locked --test native_setup --test native_updates
-python3 scripts/check-rust-http.py --binary target/debug/flightdeck-rust
+cargo test --locked --test native_download_retry --test native_setup --test native_updates
+cargo run --locked -p flightdeck-tools -- http-contract --binary target/debug/flightdeck-rust
 cargo test --locked --manifest-path build/compat/xodus-src/Cargo.toml -p msixvc
 cargo test --locked --manifest-path build/compat/xodus-src/Cargo.toml -p xodus-cli
 cargo test --locked --manifest-path build/compat/xodus-src/Cargo.toml -p xodus resume_expiry_tests

@@ -196,7 +196,21 @@ pub fn output_status(
     }
     result
 }
+/// A log that several runs append to starts anew beyond this size. The one
+/// before it is kept once, as `<name>.1`.
+pub const LOG_MAXIMUM: u64 = 8 * 1024 * 1024;
 pub fn log(path: &Path) -> Result<File> {
+    if std::fs::symlink_metadata(path).is_ok_and(|info| {
+        info.is_file()
+            && info.uid() == crate::files::uid()
+            && info.nlink() == 1
+            && info.len() > LOG_MAXIMUM
+    }) {
+        let mut previous = path.as_os_str().to_owned();
+        previous.push(".1");
+        // A log that cannot be set aside is appended to as before.
+        let _ = std::fs::rename(path, previous);
+    }
     let file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -239,7 +253,18 @@ pub fn copy_tree(source: &Path, destination: &Path, cancel: &AtomicBool) -> Resu
     require(
         run(
             Command::new("cp")
-                .args(["-a", "--reflink=auto", "--"])
+                // These are new, private clones owned by the invoking user.
+                // Archive mode also restores POSIX ACLs, ownership and xattrs;
+                // fixed-permission filesystems can reject those after copying
+                // every byte. Normal recursive copying keeps executable bits
+                // (subject to umask); preserve link topology and times as well.
+                .args([
+                    "-R",
+                    "-P",
+                    "--preserve=links,timestamps",
+                    "--reflink=auto",
+                    "--",
+                ])
                 .arg(source)
                 .arg(destination)
                 .stdin(Stdio::null())

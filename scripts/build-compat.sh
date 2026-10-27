@@ -41,34 +41,51 @@ cp -- "$stage/runtime/xgameruntime.dll" "$stage/artifacts/runtime/"
 bash "$stage/runtime/tools/build-connected-storage.sh" "$stage"
 export CARGO_TARGET_DIR="$stage/cargo-target"
 # Rust embeds panic/source locations even in release builds. Keep personal
-# checkout and Cargo-cache paths out of distributable binaries.
+# checkout and Cargo-cache paths out of distributable binaries. Cargo's encoded
+# form preserves an installation path containing spaces.
 flightdeck_cargo_sources=${CARGO_HOME:-"$HOME/.cargo"}
-export CARGO_ENCODED_RUSTFLAGS
-CARGO_ENCODED_RUSTFLAGS=$(python3 - "$stage" "$flightdeck_cargo_sources" <<'PY'
-import os, sys
-# Cargo's encoded form preserves an installation path containing spaces.
-flags = (os.environ['CARGO_ENCODED_RUSTFLAGS'].split('\x1f')
-         if os.environ.get('CARGO_ENCODED_RUSTFLAGS') else os.environ.get('RUSTFLAGS', '').split())
-flags += ['--remap-path-prefix=' + sys.argv[1] + '=/usr/src/flightdeck',
-          '--remap-path-prefix=' + sys.argv[2] + '=/usr/src/cargo']
-print('\x1f'.join(flags), end='')
-PY
-)
+flightdeck_separator=$'\x1f'
+flightdeck_flags=
+if [[ -n ${CARGO_ENCODED_RUSTFLAGS:-} ]]; then
+    flightdeck_flags=$CARGO_ENCODED_RUSTFLAGS$flightdeck_separator
+else
+    set -f
+    for flightdeck_flag in ${RUSTFLAGS:-}; do
+        flightdeck_flags+=$flightdeck_flag$flightdeck_separator
+    done
+    set +f
+fi
+flightdeck_flags+="--remap-path-prefix=$stage=/usr/src/flightdeck$flightdeck_separator"
+flightdeck_flags+="--remap-path-prefix=$flightdeck_cargo_sources=/usr/src/cargo"
+export CARGO_ENCODED_RUSTFLAGS=$flightdeck_flags
 # CLI and service deliberately share default Linux Secret Service credentials.
 cargo build --locked --release --manifest-path "$stage/xodus-src/Cargo.toml" \
     -p xodus-cli -p xodus-service --bin xodus-cli --bin xodus-service
 cp -- "$CARGO_TARGET_DIR/release/xodus-cli" "$CARGO_TARGET_DIR/release/xodus-service" \
     "$stage/artifacts/bin/"
-python3 - "$stage" <<'PY'
-import hashlib, json, pathlib, sys
-stage = pathlib.Path(sys.argv[1]); root = stage / 'artifacts'
-files = {str(p.relative_to(root)): hashlib.file_digest(p.open('rb'), 'sha256').hexdigest()
-         for p in sorted(root.rglob('*')) if p.is_file() and p.name != 'manifest.json'}
-(root / 'manifest.json').write_text(json.dumps({'format': 1, 'source_manifest_sha256':
-    hashlib.file_digest((stage/'source-manifest.json').open('rb'), 'sha256').hexdigest(),
-    'credential_backend': 'Linux Secret Service (D-Bus)',
-    'features': ['connected-storage-read-v1', 'connected-storage-sync-v1'],
-    'cli_features': ['streaming-resume-files-v1', 'package-info-json-v1',
-                     'streaming-integrity-index-v1', 'streaming-progress-v1'], 'files': files}, indent=2)+'\n')
-print('Built', len(files), 'artifacts; no installation performed.')
-PY
+# The manifest binds the built files to the staged sources they came from.
+flightdeck_digest() { sha256sum -- "$1" | cut -d' ' -f1; }
+flightdeck_manifest=$stage/artifacts-manifest.new
+flightdeck_count=0
+{
+    printf '{\n  "format": 1,\n  "source_manifest_sha256": "%s",\n' \
+        "$(flightdeck_digest "$stage/source-manifest.json")"
+    printf '  "credential_backend": "Linux Secret Service (D-Bus)",\n'
+    printf '  "features": [\n    "connected-storage-read-v1",\n    "connected-storage-sync-v1"\n  ],\n'
+    printf '  "cli_features": [\n    "streaming-resume-files-v1",\n    "package-info-json-v1",\n'
+    printf '    "streaming-integrity-index-v1",\n    "streaming-progress-v1"\n  ],\n  "files": {'
+    while IFS= read -r -d '' flightdeck_file; do
+        flightdeck_name=${flightdeck_file#"$stage/artifacts/"}
+        # Names are written into JSON as they are.
+        [[ $flightdeck_name =~ ^[A-Za-z0-9._/-]+$ ]] || {
+            echo "Unexpected artifact name: $flightdeck_name" >&2
+            exit 1
+        }
+        if ((flightdeck_count > 0)); then printf ','; fi
+        printf '\n    "%s": "%s"' "$flightdeck_name" "$(flightdeck_digest "$flightdeck_file")"
+        flightdeck_count=$((flightdeck_count + 1))
+    done < <(find "$stage/artifacts" -type f ! -name manifest.json -print0 | LC_ALL=C sort -z)
+    printf '\n  }\n}\n'
+} > "$flightdeck_manifest"
+mv -- "$flightdeck_manifest" "$stage/artifacts/manifest.json"
+echo "Built $flightdeck_count artifacts; no installation performed."

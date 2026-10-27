@@ -1,12 +1,78 @@
 // SPDX-License-Identifier: MIT
 //! Synthetic diagnostics and owned helper processes; no accounts or game.
 #![allow(clippy::unwrap_used)]
+#[path = "fixtures/programs.rs"]
+mod programs;
 use flightdeck::{
     backend::Launcher, files, graphics_diagnostics as gd, log_reader, run_diagnostics, store_check,
     store_diagnostics,
 };
 use serde_json::{Value, json};
 use std::{fs, io::Write, os::unix::fs::symlink, process::Command, time::Duration};
+#[test]
+fn xbox_startup_failures_keep_stage_and_result_without_private_log_text() {
+    let mut log = run_diagnostics::GameLog::default();
+    log.consume(
+        "xodus-runtime-lifetime: initialize argc=4 clients=1 result=00000000\n\
+        xodus-user-bridge: initialize result=00000000\n\
+        xodus-user-load: stage=xbox_user_load hr=80004001 private-token\n\
+        xodus-user-auth: stage=user_token hr=80004001 private-token\n\
+        xodus-user-api: XUserAddAsync.service call=0 hr=80004001\n\
+        xodus-user-api: XUserAddAsync.complete call=0 hr=80004001\n\
+        xodus-runtime: System.GetXboxLiveSandboxId result=00000000\n\
+        xodus-user-load: stage=private_secret hr=80004001\n\
+        xodus-user-api: private_secret call=0 hr=80004001\n",
+    );
+    let out = log.result(json!({"complete":true}));
+    assert_eq!(out["runtime_calls"].as_array().unwrap().len(), 5);
+    assert_eq!(
+        out["runtime_calls"][2],
+        json!({"method":"XUserAddAsync","stage":"xbox_user_load","hresult":"80004001"})
+    );
+    assert_eq!(out["user_calls"].as_array().unwrap().len(), 2);
+    assert!(!out.to_string().contains("private"));
+}
+#[test]
+fn xbox_startup_results_are_bounded_across_log_chunks() {
+    let mut log = run_diagnostics::GameLog::default();
+    for n in 0..300 {
+        log.consume(&format!("xodus-user-bridge: initialize result={n:08x}\n"));
+    }
+    let out = log.result(json!({"complete":true}));
+    assert_eq!(out["runtime_calls"].as_array().unwrap().len(), 256);
+    assert_eq!(out["summary_limited"], true);
+}
+#[test]
+fn media_failures_and_placeholder_video_are_exported_without_private_log_text() {
+    let t = tempfile::tempdir().unwrap();
+    let path = t.path().join("game.log");
+    files::atomic(
+        &path,
+        b"flightdeck-media: source=host h264=software_preferred\n\
+        ERROR WINE Cannot decode caps video/x-h264, codec_data=SECRET-CODEC-DATA\n\
+        ERROR protonmediaconverter Creating tag file placeholder-video-used.\n\
+        ERROR Env MEDIACONV_VIDEO_TRANSCODED_FILE is not set. /private/account/token\n\
+        WARN module_open failed: libvpx.so.6: cannot open shared object file: No such file or directory\n",
+    )
+    .unwrap();
+    let result = run_diagnostics::read(&path).unwrap().0;
+    assert_eq!(
+        result["media"]["configuration"]["h264"],
+        "software_preferred"
+    );
+    assert_eq!(result["media"]["observations"]["placeholder_video"], 1);
+    assert_eq!(result["media"]["observations"]["h264_decode_failed"], 1);
+    assert_eq!(
+        result["media"]["observations"]["transcoded_video_unavailable"],
+        1
+    );
+    assert!(!result.to_string().contains("SECRET"));
+    assert_eq!(
+        result["media"]["observations"]["plugin_library_unavailable"],
+        1
+    );
+    assert!(!result.to_string().contains("/private/account"));
+}
 #[test]
 fn bounded_scan_keeps_complete_lines_and_never_joins_omitted_fragments() {
     let t = tempfile::tempdir().unwrap();
@@ -213,10 +279,10 @@ fn store_events_reject_extra_fields_duplicate_keys_and_terminal_changes() {
 fn store_protocol_uses_runtime_account_and_rejects_private_output() {
     let t = tempfile::tempdir().unwrap();
     let ctx = context(t.path());
-    let body = "import os,sys;assert os.environ['XDG_DATA_HOME']==os.getcwd()+'/private/xdg/data';assert 'FLIGHTDECK_STORE_LAUNCH' not in os.environ;assert sys.stdin.buffer.read()==b'{}';print('{\"stage\":\"account\",\"state\":\"passed\",\"code\":\"local_session\"}',flush=True)";
+    let body = r#"[ "$XDG_DATA_HOME" = "$(pwd -P)/private/xdg/data" ] && [ -z "${FLIGHTDECK_STORE_LAUNCH+set}" ] && [ "$(cat)" = '{}' ] && echo '{"stage":"account","state":"passed","code":"local_session"}'"#;
     let code = store_check::check_process(
         &ctx,
-        Command::new("python3")
+        Command::new("sh")
             .args(["-c", body])
             .env("FLIGHTDECK_STORE_LAUNCH", "private-token"),
         b"{}",
@@ -231,7 +297,7 @@ fn store_protocol_uses_runtime_account_and_rejects_private_output() {
     );
     let code = store_check::check_process(
         &ctx,
-        Command::new("python3").args(["-c", "print('private-token')"]),
+        Command::new("sh").args(["-c", "echo private-token"]),
         b"",
         &["account"],
         Duration::from_secs(3),
@@ -248,11 +314,10 @@ fn store_protocol_uses_runtime_account_and_rejects_private_output() {
 fn store_timeout_cleans_up_descendants_even_after_leader_exit() {
     let t = tempfile::tempdir().unwrap();
     let ctx = context(t.path());
-    let body = "import os,signal,time\nif os.fork()==0:\n def done(*_):\n  open('private/stopped','w').write('yes');os._exit(0)\n signal.signal(signal.SIGTERM,done)\n open('private/ready','w').write('yes')\n while True:time.sleep(.02)\nelse:\n while not os.path.exists('private/ready'):time.sleep(.01)\n os._exit(0)\n";
     assert_eq!(
         store_check::check_process(
             &ctx,
-            Command::new("python3").args(["-c", body]),
+            &mut programs::peer("leader"),
             b"",
             &["account"],
             Duration::from_millis(400)
@@ -279,15 +344,13 @@ fn stale_store_recovery_never_overwrites_previous_job_or_reserves_runtime() {
 fn legacy_support_drafts_preserve_order_unicode_float_hashes_and_reject_tampering() {
     let t = tempfile::tempdir().unwrap();
     let path = t.path().join("problem-report.json");
-    let code = "import json,hashlib,sys,os\nr={'schema':1,'id':'a'*32,'created_at':'2026-10-03T12:00:00+00:00','category':'graphics','description':'Menü läd nicht 😕','observations':['menus_visible'],'system':{},'diagnostics':{'floats':[1.0,0.000001,1e-5,1e-4,1e16,1e20,-0.0],'summary':{}}}\ndef encoded(v):return (json.dumps(v,ensure_ascii=False,indent=2)+'\\n').encode()\nd={'report':r,'sha256':hashlib.sha256(encoded(r)).hexdigest()}\nwith open(sys.argv[1],'wb') as f:f.write(encoded(d))\nos.chmod(sys.argv[1],0o600)\n";
-    assert!(
-        Command::new("python3")
-            .args(["-c", code])
-            .arg(&path)
-            .status()
-            .unwrap()
-            .success()
-    );
+    // A draft exactly as the Python releases wrote it, with their float
+    // spellings and the hash over their encoding of the report.
+    files::atomic(
+        &path,
+        include_bytes!("fixtures/legacy-python/problem-report-draft.json"),
+    )
+    .unwrap();
     let mut draft = flightdeck::problem_reports::read(&path).unwrap().unwrap();
     assert_eq!(draft["report"]["description"], "Menü läd nicht 😕");
     draft["report"]["description"] = json!("changed contents");
@@ -319,4 +382,31 @@ fn support_draft_review_checks_scope_and_preserves_user_description() {
     assert!(flightdeck::problem_reports::discard(&app, "old").is_err());
     flightdeck::problem_reports::discard(&app, id).unwrap();
     assert!(flightdeck::problem_reports::snapshot(&app)["draft"].is_null());
+}
+#[test]
+fn support_drafts_retain_safe_xbox_startup_results() {
+    let t = tempfile::tempdir().unwrap();
+    let root = t.path().join("runtime");
+    let run = root.join("private/run-20261021-120000-test");
+    files::private_dir(&run).unwrap();
+    files::atomic(
+        &run.join("game.log"),
+        b"xodus-user-load: stage=xbox_user_load hr=80004001 private-token\n",
+    )
+    .unwrap();
+    let app = Launcher::new(t.path().join("state"), None).unwrap();
+    app.lock().runtime = Some(root.clone());
+    let out = flightdeck::problem_reports::prepare(&app, &json!({
+        "runtime_path":root,"category":"other","description":"Alternative Proton startup fails.","observations":[]
+    })).unwrap();
+    let evidence = &out["draft"]["report"]["diagnostics"]["summary"];
+    assert_eq!(
+        evidence["context"]["diagnostics_schema"],
+        run_diagnostics::SCHEMA
+    );
+    assert_eq!(
+        evidence["runtime_calls"][0],
+        json!({"method":"XUserAddAsync","stage":"xbox_user_load","hresult":"80004001"})
+    );
+    assert!(!out.to_string().contains("private-token"));
 }

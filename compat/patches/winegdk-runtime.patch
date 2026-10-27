@@ -5764,7 +5764,7 @@ diff --git c/dlls/xgameruntime/main.c w/dlls/xgameruntime/main.c
 +    if (ping) IAsyncAction_Release(ping);
 +    ReleaseSRWLockExclusive(&runtime_lock);
 +    return hr;
-@@ -294,0 +203,9 @@
+@@ -294,0 +203,30 @@
 +HRESULT WINAPI XodusUserSetThreading(IXThreadingImpl *threading)
 +{
 +    if (!threading) return E_POINTER;
@@ -5774,17 +5774,39 @@ diff --git c/dlls/xgameruntime/main.c w/dlls/xgameruntime/main.c
 +    return S_OK;
 +}
 +
-@@ -297,2 +214,7 @@
++/* The game asks for its user interfaces constantly. Each one is logged the
++ * first time: a line per call filled most of a session's log. */
++static BOOL first_user_interface( REFIID interfaceId )
++{
++    static SRWLOCK lock = SRWLOCK_INIT;
++    static GUID seen[32];
++    static unsigned int count;
++    unsigned int i;
++    BOOL first = FALSE;
++
++    AcquireSRWLockExclusive( &lock );
++    for (i = 0; i < count; i++) if (IsEqualGUID( &seen[i], interfaceId )) break;
++    if (i == count && count < ARRAY_SIZE( seen ))
++    {
++        seen[count++] = *interfaceId;
++        first = TRUE;
++    }
++    ReleaseSRWLockExclusive( &lock );
++    return first;
++}
++
+@@ -297,2 +235,8 @@
 -    QueryApiImpl_ext func = (QueryApiImpl_ext)GetProcAddress( xgameruntime_threading, "QueryApiImpl" );
 -    DWORD asked;
-+    if (runtimeClassId && IsEqualGUID(runtimeClassId, &CLSID_XUserImpl) && interfaceId)
++    if (runtimeClassId && IsEqualGUID(runtimeClassId, &CLSID_XUserImpl) && interfaceId &&
++        first_user_interface( interfaceId ))
 +        fprintf(stderr, "xodus-user-interface: iid=%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x caller=%p\n",
 +                interfaceId->Data1, interfaceId->Data2, interfaceId->Data3,
 +                interfaceId->Data4[0], interfaceId->Data4[1], interfaceId->Data4[2], interfaceId->Data4[3],
 +                interfaceId->Data4[4], interfaceId->Data4[5], interfaceId->Data4[6], interfaceId->Data4[7],
 +                __builtin_return_address(0));
 +
-@@ -313,6 +235,2 @@
+@@ -313,6 +257,2 @@
 -        if (func) return func( runtimeClassId, interfaceId, out );
 -
 -        LoadOtherRuntime( &asked );
@@ -5793,7 +5815,7 @@ diff --git c/dlls/xgameruntime/main.c w/dlls/xgameruntime/main.c
 -        return IXThreadingImpl_QueryInterface( x_threading_impl, interfaceId, out );
 +        if (!bound_threading) return E_UNEXPECTED;
 +        return IXThreadingImpl_QueryInterface(bound_threading, interfaceId, out);
-@@ -333,2 +251,11 @@
+@@ -333,2 +273,11 @@
 -    TRACE("stub!\n");
 -    return E_NOTIMPL;
 +    HRESULT hr;
@@ -5807,7 +5829,7 @@ diff --git c/dlls/xgameruntime/main.c w/dlls/xgameruntime/main.c
 +    /* The bound interface and immutable title metadata remain alive for already
 +       scheduled async cleanup. The module is pinned; the process releases them. */
 +    return hr;
-@@ -341 +268 @@
+@@ -341 +290 @@
 -}
 \ No newline at end of file
 +}

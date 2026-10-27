@@ -38,7 +38,7 @@ Die allgemeine Mod-Liste zeigt den Bestand und öffnet den Ordner.
 Für Fenix und die experimentelle GSX-Pro-Integration gibt es eigene Abläufe,
 derzeit nur für MSFS 2024.
 
-Flightdeck 0.2.7 zeigt für jedes Add-on einen hervorgehobenen nächsten Schritt.
+Seit 0.2.7 zeigt Flightdeck für jedes Add-on einen hervorgehobenen nächsten Schritt.
 Erkannte Komponenten bleiben sichtbar; zusätzliche Aktionen stehen unter
 **Verwalten & reparieren**.
 
@@ -156,6 +156,12 @@ Der Patch unterstützt MSFS 2024 mit dem festgelegten Xodus-Wine-Runner. Starte
 MSFS 2024 einmal, damit die Benutzereinstellungen angelegt sind. Schließe danach
 MSFS und alle Fenix-Anwendungen.
 
+Für den Fenix-v3-Installer wird zusätzlich die anhand ihrer Prüfsumme verifizierte
+Microsoft .NET 10 Desktop Runtime eingerichtet. Fehlt sie später, ergänzt
+Flightdeck sie vor dem Öffnen einer Fenix-App. Im offiziellen Installer den A320
+für den ausgewählten Simulator installieren, den Abschluss der
+Flugzeuginstallation abwarten und erst danach den Installer schließen.
+
 1. **Patch einrichten** lädt das Linux-ZIP aus dem öffentlichen Fenix-GitHub-Release
    und prüft dessen SHA-256. Es erstellt eine eigene Runner-/Profilkopie, bewahrt
    die bisherige Umgebung auf und installiert bei Bedarf Microsoft .NET Framework 4.8
@@ -167,9 +173,13 @@ MSFS und alle Fenix-Anwendungen.
    Simulatorprofil installieren, danach Manager oder Installer schließen.
 3. **Fenix öffnen**, anmelden und aktivieren. Danach Fenix wieder schließen
    oder in Flightdeck **Fenix beenden** wählen.
-4. **Einrichtung abschließen** setzt CPU-Anzeigen, Legacy-Readouts und Autostart.
+4. **Einrichtung abschließen** setzt GPU-Anzeigen auf unterstützten Versionen
+   (CPU bei CachyOS Proton 10), Legacy-Readouts und Autostart.
    Sobald die lokale Einrichtung abgeschlossen ist, zur Übersicht wechseln und
    MSFS ganz normal starten.
+   Hat Fenix seine Readout-Einstellungen noch nicht angelegt, weist das Panel
+   darauf hin: Flugzeug einmal im Simulator laden, MSFS beenden und
+   **Einstellungen erneut anwenden** wählen.
 
 **Fenix lokal eingerichtet** bestätigt nur Flightdecks Einstellungen.
 Sie bestätigt weder deine Fenix-Lizenz und Aktivierung noch ein funktionierendes
@@ -200,26 +210,81 @@ ursprüngliche Wiederherstellungspunkt bleiben erhalten.
 Meldet der offizielle Installer **„application install hook failed“**, zuerst
 alle Installer-Fenster schließen. Beim Start seiner EXE über Flightdeck greift
 der vorhandene ICU-/.NET-Fix, der bereits in 0.2.5 enthalten ist. Nach einem
-fehlgeschlagenen Installer oder Reparaturversuch erscheint **Fenix-App reparieren**
-direkt als nächste Aktion, sofern die Reparatur verfügbar ist. Sie wiederholt den
-offiziellen Einrichtungsschritt mit gültigen Paketdaten, ohne das Profil
-zurückzusetzen. Ansonsten steht die verfügbare Reparaturaktion unter
-**Verwalten & reparieren**. Anschließend den Manager erneut öffnen. Scheitert die Reparatur,
-enthält ein neuer Diagnosebericht den aktuellen Fenix-Befund.
+fehlgeschlagenen Installer erscheint **Fenix-App reparieren** als nächste Aktion,
+sofern die Reparatur verfügbar ist. Sie wiederholt den offiziellen
+Einrichtungsschritt mit gültigen Paketdaten, ohne das Profil zurückzusetzen.
+Nach erfolgreicher Reparatur den Manager erneut öffnen.
+
+In **0.2.8** bleibt der zuletzt protokollierte fehlgeschlagene Versuch nach einem
+Launcher-Neustart sichtbar. Nach einer fehlgeschlagenen Reparatur führt der
+nächste Schritt zu **Diagnose öffnen**. Vor einem weiteren Versuch einen aktuellen
+Bericht erstellen; eine verfügbare Reparatur bleibt unter **Verwalten & reparieren**.
+Fehlt der Manager oder lässt er sich nicht eindeutig erkennen, kann dort auch
+der offizielle Installer ausgewählt werden. Der grüne Check **Fenix-Linux-Patch**
+bestätigt nur den Linux-Patch, nicht den erfolgreichen App-Hook. Ein neuer
+protokollierter Versuch ersetzt das vorherige Ergebnis.
+
+Version 0.2.8 filtert geerbte Linux-.NET-Ladepfade, Ladeoptionen und Startup-Hooks
+vor Windows-Installer und Reparatur. Im kontrollierten Test mit offizieller
+FenixApp 1.0.286 verursachte ein ungültiger geerbter `DOTNET_STARTUP_HOOKS` Exitcode
+82; dieselbe Eingabe bestand nach dem Filtern mit Exitcode 0. Diese reproduzierte
+Ursache ist damit behoben. Dass gemeldete Exit-82-Fehler bei Nutzern dadurch
+behoben sind, ist noch nicht bestätigt. Exitcode 82 allein benennt keine Ursache.
+Diagnoseberichte enthalten erkannte Ausnahmetypen und einen ausdrücklich
+beobachteten CLR-Code, keine rohen Fehlermeldungen;
+`<Runtime-Ordner>/private/fenix-app.log` bleibt lokal.
 [Prüfumfang](native-ui.md#fenix-install-hook-warning).
+
+Flightdeck prüft außerdem gespeicherte `DOTNET_STARTUP_HOOKS` in der Benutzer-
+und Systemumgebung des Wine-Profils. Ein fehlender absoluter `C:\…`-Hook kann
+Exitcode 82/`FileNotFoundException` trotz gefilterter Linux-Umgebung erneut
+verursachen. Entfernt werden nur nachweislich fehlende Pfade. Vorhandene Hooks,
+relative Einträge, Variablen und andere Laufwerke bleiben erhalten. Vor der
+Registry-Änderung wird der ursprüngliche Wert lokal in
+`<Wine-Profil>/.flightdeck-fenix-environment.json` gesichert. Das behebt den
+reproduzierten Fall; andere fehlende Assemblies können weitere Ursachen haben.
 
 Nach der Einrichtung startet Fenix automatisch mit MSFS. Du musst es nicht
 separat öffnen. Beim normalen Spielende, einem Absturz oder **Stoppen** beendet
 Flightdeck die Fenix-Begleitprozesse dieser Sitzung; hängende Prozesse werden
-nach einer kurzen Wartezeit beendet. Der offizielle Fenix-Installer und andere
-Wine-Profile bleiben davon unberührt.
+nach einer kurzen Wartezeit beendet. Seit 0.2.9 gilt das auch für die offizielle
+Fenix-App, falls sie noch geöffnet ist; schließe Installationen oder
+Livery-Downloads dort ab, bevor du MSFS beendest. Andere Wine-Profile bleiben
+davon unberührt.
 
-Flightdeck verwendet Patch **0.1.0-preview.3**. Neuere Patch-Versionen werden
-mit einem Flightdeck-Update übernommen; der Launcher sucht nicht eigenständig
-nach dem neuesten Fenix-Patch auf GitHub. Unterstützte ältere Patches werden
-beim Öffnen von Fenix, seinem Installer oder Manager sowie beim Abschließen der
-Einrichtung auf die mit Flightdeck bereitgestellte Version aktualisiert.
-Eine Flightdeck-Installation richtet Fenix nicht automatisch ein.
+Flightdeck 0.2.23 enthält Patch **0.1.0** als geprüfte Ausgangsversion
+und sucht beim Start sowie alle 30 Minuten eigenständig auf GitHub nach
+kompatiblen Fenix-Patches. Fehlgeschlagene Prüfungen werden nach fünf Minuten
+wiederholt; der installierte Patch bleibt nutzbar. Unter **Updates** und
+**Mods → Fenix A320 → Verwalten & reparieren** stehen die installierte Version,
+ein verfügbares Update und **Fenix-Updates prüfen**.
+
+Ein gefundenes kompatibles Update wird vor dem MSFS-Start, vor dem Öffnen von
+Fenix, seinem Installer oder Manager sowie beim Abschließen der Einrichtung
+automatisch installiert. Alternativ **Patch aktualisieren** wählen. MSFS und
+Fenix müssen geschlossen sein; Runtime-Sperre und die vorhandenen Profil- und
+Runner-Sicherungen schützen die Installation. Flugzeugdateien, Renderer-Wahl und
+Wiederherstellungspunkte bleiben erhalten. Nach einem Launcher-Neustart oder
+einer Offline-Prüfung wird ein neuerer installierter Patch nicht zurückgestuft.
+Preview-Installationen bevorzugen eine verfügbare stabile Version; stabile
+Installationen folgen stabilen Releases. Benötigt ein Patch eine neue
+Installer-Schnittstelle oder andere Runner, ist zuerst ein Flightdeck-Update nötig.
+
+Ab 0.2.23 lässt sich eine bekannte ältere lokale Einrichtung vor dem Start
+automatisch oder über **Einrichtung übernehmen & aktualisieren** übernehmen.
+Flightdeck prüft die Dateien, kopiert Profil und Runner und behält den vorherigen
+Stand zur Wiederherstellung. Flugzeug sowie vorhandene Renderer- und FCU-Wahl
+bleiben erhalten. Unbekannte angepasste Dateien stoppen die Übernahme. Nach einer Wiederherstellung ist die automatische Übernahme pausiert; mit der Übernahme-Schaltfläche kannst du sie erneut aktivieren. Übersicht
+und Update-Symbol zeigen die ausstehende Übernahme; eine **verfügbare** Version
+bestätigt keine installierte Version.
+
+Patch 0.1.0 ersetzt die restlichen eigenen Linux-Python-Helfer durch Rust.
+Er benötigt Flightdeck **ab 0.2.22**; zuerst den Launcher aktualisieren. Wine,
+DXVK und die Windows-ABI-Helfer bleiben natives C/C++. Stabilität über ganze
+Flüge und das separate Speicherwachstum von FenixSystem bleiben ungeklärt.
+
+Die Flightdeck-Installation richtet das Fenix-Flugzeug nicht automatisch ein.
+Flugzeug-Updates und Lizenzierung übernimmt weiterhin die offizielle Fenix-App.
 Für den öffentlichen Patch-Download ist keine GitHub-Anmeldung nötig. Das
 Flugzeug selbst wird mit dem offiziellen Fenix-Programm heruntergeladen und über
 dein Fenix-Konto aktiviert.
@@ -229,8 +294,8 @@ Patch-Paket und Wiederherstellung**, unterhalb von **Verwalten & reparieren**,
 den Ordner mit `bundle.json` auswählen.
 Der GitHub-Quellcode oder das reine Quellarchiv enthält die Wine-Binärdateien nicht.
 Ein leeres Feld verwendet den geprüften Download bzw. Cache. Der eigenständige
-Installer `install.sh` bietet denselben Ablauf ohne Flightdecks Oberfläche; seine
-grafische Oberfläche benötigt Python Tk. Flightdecks Fenix-Bereich benötigt kein Tk.
+Installer `install.sh` bietet denselben Ablauf ohne Flightdecks Oberfläche, als
+geführte Einrichtung im Webbrowser.
 
 ### Liveries
 
@@ -254,12 +319,32 @@ angezeigt, zuerst Modell, Triebwerk/Flügel, Simulatorversion und eine zusätzli
 
 ### Kompatibilität und Wiederherstellung
 
-Getestet wurden Fenix 2.4.0.4720 und MSFS 2024 1.8.16.0 auf Hyprland. Die
+**Fenix v3 ist experimentell.** Preview.11 korrigiert die Gateway-Loadernamen
+für alle vier gepinnten Runner. Mit **Fenix 3.0.0.7454 / Steam-MSFS 2020 /
+CachyOS 11 / NVIDIA-PRIME** bestätigt der Reporter danach Gateway-Protokoll,
+Port 8083 und ein funktionierendes EFB. Die GPU-Displays funktionieren mit
+**USE DISPLAY SAFE MODE aus** in der Fenix-App; CPU bleibt als Rückfall verfügbar.
+Diese Community-Ergebnisse werden durch 64 unabhängige native Vergleiche der
+Prozessnamen auf allen vier gepatchten Runnern ergänzt.
+
+Der frühere lokale Xodus-/MSFS-2024-Test erreichte funktionierende Cockpitanzeigen
+und bestand einen neuen Start sowie fünf Backend-Neustarts. Eine frühere Wine-
+`create_view`-Assertion bleibt ungeklärt; vollständige v3-Flüge sind nicht validiert.
+Das separate System-Speicherwachstum von Fenix 2 bleibt offen.
+[Gateway-Fix und Geltungsbereich](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0/docs/gateway-loader-case.md).
+
+Zuvor getestet wurden Fenix 2.4.0.4720 und MSFS 2024 1.8.16.0 auf Hyprland. Die
 Cockpitanzeigen inklusive MCDU, FCU, Funk und Uhr sind geprüft; ein vollständiger
-Testflug steht noch aus. Wetterradar ist im verwendeten CPU-Modus nicht verfügbar.
+Testflug steht noch aus. Der GPU-Modus wurde auf AMD im Xodus-Cockpit mit PFD,
+ND, ECAM und bewegter Geschwindigkeitsanzeige geprüft. NVIDIA außerhalb des gemeldeten Systems und GPU-Wetterradar
+sind noch nicht geprüft; im CPU-Modus ist Wetterradar nicht verfügbar.
+Eine bisher automatisch gesetzte CPU-Konfiguration wechselt auf unterstützten
+Versionen zu GPU. Eine gespeicherte CPU-Präferenz bleibt bei Updates erhalten.
+[GPU-Prüfstand und CPU-Rückfall](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0/docs/gpu-displays.md).
 Das Fenix-Binärpaket benötigt x86_64 Linux und glibc 2.38+; für Flightdecks
 vollständiges natives Paket gilt weiterhin glibc 2.39+. Ab 0.1.20 gibt es passende
-Fenix-Patches für Proton Experimental 11.0 (20260924) und CachyOS Proton 10.0
+Fenix-Patches für Proton Experimental 11.0 (20260924), CachyOS Proton 11.0
+(20261005) und CachyOS Proton 10.0
 sunset. Die nativen Prüfungen bestehen; ein vollständiger Flug mit diesen
 Versionen ist noch nicht bestätigt. Weitere Builds brauchen einen passenden
 Patch. Steam-Prefixe und MSFS 2020 bleiben außerhalb des unterstützten Umfangs.

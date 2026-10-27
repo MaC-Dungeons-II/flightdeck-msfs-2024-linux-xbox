@@ -8,7 +8,7 @@ state; the direct launcher did not run it. An OpenXR runtime on Linux therefore
 was insufficient by itself.
 
 `native/vr.rs` discovers native runtime manifests without loading their
-libraries. Explicit checks and enabled game starts run `vr_probe.py` in a child
+libraries. Explicit checks and enabled game starts run the launcher's own probe in a child
 process, with bounded output and a 15-second deadline. The probe uses the
 OpenXR loader, `XR_KHR_vulkan_enable`, the runtime's required Vulkan extensions
 and its selected physical device. It returns required extensions, native
@@ -61,18 +61,20 @@ SteamVR device support, NVIDIA hardware performance or motion-controller input.
 
 ## Reproduce the Windows test
 
-`scripts/check-vr.py` creates a new disposable prefix, compiles the Windows
-test, calls the real Flightdeck preparation path and checks both DirectX APIs.
-Pass `--bundle` to also test the hash-verified packaged graphics libraries:
+The maintainer tool's `probe vr` command creates a new disposable prefix,
+compiles the Windows test, calls the real Flightdeck preparation path and checks
+both DirectX APIs. Pass `--bundle` to also test the hash-verified packaged
+graphics libraries:
 
 ```sh
-python scripts/check-vr.py --runner /path/to/runner \
+cargo run --locked -p flightdeck-tools -- probe vr --runner /path/to/runner \
   --runtime-json /path/to/openxr_monado-dev.json --simulate \
   --bundle /path/to/graphics --output /tmp/new-flightdeck-vr-check
 ```
 
-The output directory must not already exist. The script needs MinGW-w64,
-OpenXR headers, a working native runtime, and access to the graphical session.
+The output directory must not already exist. The command needs MinGW-w64,
+OpenXR headers, a working native runtime, access to the graphical session and
+the built [`runtime-lab` executable](../BUILDING.md#synthetic-native-checks).
 It stores individual logs and a machine-readable result in the output directory.
 
 Use a native OpenXR runtime that is already working. For a hardware-free test,

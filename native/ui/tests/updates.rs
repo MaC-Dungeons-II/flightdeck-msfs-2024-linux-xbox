@@ -5,7 +5,7 @@ use iced::{Size, Task};
 use serde_json::json;
 use std::time::Duration;
 
-const NOTES: &str = "## Improvements\n\nA **clear release summary** with a second sentence.\n\n- The Start button responds during background checks.\n- Both simulator editions can be selected.\n\n[Release details](https://example.com/releases/1)\n\n### Installation\n\n1. Check the available version.\n2. Choose when to download.\n\n```text\nflightdeck --version\n```\n\n### More changes\n\n";
+const NOTES: &str = "## Improvements\n\nA **clear release summary** with a second sentence.\n\n- The Start button responds during background checks.\n- Both simulator editions\n  can be selected.\n\n[Release details](https://example.com/releases/1)\n\n### Installation\n\n1. Check the available version.\n2. Choose when to download.\n\n```text\nflightdeck --version\n```\n\n### More changes\n\n";
 
 fn notes_fixture(language: Language) -> App {
     let mut app = common::localized_fixture(language);
@@ -36,6 +36,8 @@ fn release_notes_render_headings_and_lists_with_an_explicit_safe_link_action() {
         .expect("readable paragraph");
     ui.find("The Start button responds during background checks.")
         .expect("separate bullet text");
+    ui.find("Both simulator editions can be selected.")
+        .expect("hard-wrapped bullet stays one item");
     assert!(ui.find("## Improvements").is_err());
     ui.click("Release details ↗")
         .expect("clickable explicit release link");

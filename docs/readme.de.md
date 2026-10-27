@@ -10,6 +10,7 @@
   <a href="index.md">Dokumentation</a> &nbsp;·&nbsp;
   <a href="known-issues.de.md">Bekannte Probleme</a> &nbsp;·&nbsp;
   <a href="changelog.md">Änderungen</a> &nbsp;·&nbsp;
+  <a href="https://discord.gg/fAhHR2DkqN">Discord</a> &nbsp;·&nbsp;
   <a href="../README.md">English</a>
 </p>
 
@@ -21,18 +22,25 @@ Microsoft-Konto an, lade das lizenzierte Spiel herunter und starte es über die
 native Rust-Oberfläche. Windows, die Xbox-App und eine bestehende MSFS-Installation
 sind dafür nicht erforderlich.
 
-**Aktuelle stabile Version: [Flightdeck 0.2.7](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.7).**
+**Aktuelle stabile Version: [Flightdeck 0.3.0](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.3.0).**
 Launcher, Installer und Updater benötigen kein Python.
 
-**Neu in 0.2.7:** Fenix und GSX zeigen den nächsten Einrichtungsschritt und Fehler
-direkt oben; zusätzliche Wartungsaktionen bleiben unter **Verwalten & reparieren**
-eingeklappt. Der lizenzierte GSX-Betrieb im Simulator bleibt unbestätigt.
-[Änderungsübersicht](changelog.md) · [Add-on-Anleitung](addons.de.md)
+**Neu in 0.3.0:** Steam-MSFS 2020/2024 lässt sich neben Xbox-Installationen
+auswählen. Fenix verwendet den gemeinsamen Rust-Code des eigenständigen
+Installers. Steam-Unterstützung ist Beta; echte Simulatorflüge müssen Tester
+noch bestätigen. Siehe [Steam-Anleitung](steam.de.md) und [Änderungen](changelog.md).
+
+In der [Flightdeck-Community auf Discord](https://discord.gg/fAhHR2DkqN) kannst du
+Fragen stellen, dein Linux-Setup teilen und an Flightdeck mitarbeiten.
+Reproduzierbare Fehler bitte über [GitHub Issues](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues) melden.
+
+[Credits und Danksagungen](credits.md) nennen die Mitwirkenden und Projekte
+hinter Flightdeck. Im Launcher gibt es außerdem eine eigene **Credits**-Seite.
 
 ## Loslegen
 
 1. Lade **Flightdeck-Linux-x86_64.tar.gz** aus der
-   [0.2.7-Veröffentlichung](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.7),
+   [0.3.0-Veröffentlichung](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.3.0),
    entpacke es und öffne **Install Flightdeck.desktop**. Eventuell musst du den
    lokalen Starter im Dateimanager freigeben. Alternativ dort `./install.sh` ausführen.
 2. Wähle **MSFS installieren**, die Edition 2024 oder 2020 und einen Zielordner.
@@ -41,6 +49,9 @@ eingeklappt. Der lizenzierte GSX-Betrieb im Simulator bleibt unbestätigt.
 3. Öffne **Flightdeck** über dein Anwendungsmenü und starte den Simulator.
    Auf der Übersicht wechselst du zwischen installierten Editionen. Jede behält
    ihre eigene Runtime, ihr Wine-Profil, ihre Updates und lokalen Spielstände.
+
+**Bazzite:** Im Desktop-Modus installieren. Meldet der Installer einen
+symbolischen Link im Pfad, hilft die [Installationsanleitung mit Ausweichlösung](install.md#bazzite-and-symbolic-link-errors).
 
 Du benötigst eine Internetverbindung und eine gekaufte PC-Lizenz. Plane mindestens
 **100 GiB freien Speicher** ein, auch für gestreamte Inhalte, Caches und aufbewahrte
@@ -51,10 +62,10 @@ einen Wayland- oder X11-Desktop und einen Linux-Secret-Service-Schlüsselbund.
 Zur vollständigen Runtime gehören außerdem GTK 3, WebKitGTK 4.1, OpenSSL 3 und
 GStreamer Good/Bad/Libav. Der Launcher benötigt außerdem liblzma, libgcc_s,
 libxkbcommon und die Bibliotheken des verwendeten Wayland-/X11-Desktops.
-Setup prüft fehlende Voraussetzungen. Ein noch unveröffentlichter Paketkandidat
-bestand am 8. Oktober 2026 die Launcher-Prüfungen auf Ubuntu 24.04, Debian 13,
-Fedora 44, Arch Linux und openSUSE Tumbleweed. Der geprüfte Umfang steht in der
-[Linux-Testmatrix](install.md#linux-test-matrix-unreleased).
+Setup prüft fehlende Voraussetzungen. Die Launcher-Prüfungen auf Ubuntu 24.04,
+Debian 13, Fedora 44, Arch Linux und openSUSE Tumbleweed bestanden am
+8. Oktober 2026. Der geprüfte Umfang steht in der
+[Linux-Testmatrix](install.md#linux-test-matrix).
 Diese Containerprüfungen bestätigen keine Simulator- oder Grafiktreiber-Kompatibilität.
 [Voraussetzungen und Installationsoptionen](install.md)
 
@@ -68,7 +79,7 @@ bleiben erhalten. [Update und Rollback](install.md#update-and-rollback) ·
 
 | Bereich | Funktionen |
 | --- | --- |
-| **Installation und Updates** | Lizenzierte Downloads, Pause/Fortsetzen, Dateiprüfung, vollständige Reparatur und Rollback. [Details](game-updates.md) |
+| **Installation und Updates** | Lizenzierte Downloads, erneute Versuche, Pause/Fortsetzen, Dateiprüfung, vollständige Reparatur und Rollback. [Details](game-updates.md) |
 | **Mods** | Community-Ordner verwalten sowie Fenix und GSX über ihre offiziellen Installer einrichten. [Anleitung](addons.de.md) |
 | **Spielstände** | Lokale Backups und experimenteller automatischer Xbox-Cloud-Abgleich mit Konfliktbehandlung. [Anleitung](cloud-saves.de.md) |
 | **Grafik und VR** | Automatische GPU-Einrichtung, NVIDIA-Kompatibilitätsoptionen und optionale OpenXR-Einrichtung. [Grafik](graphics.de.md) · [VR](vr.de.md) |
@@ -78,14 +89,17 @@ Die Oberfläche unterstützt Deutsch und Englisch. Der lokale Hintergrunddienst
 startet automatisch; kein Terminal muss geöffnet bleiben. Das Schließen von
 Flightdeck beendet einen laufenden Simulator nicht. Ein Download lässt sich nach
 einem Dienst- oder Linux-Neustart noch nicht wiederaufnehmen.
-[Grenzen von Pause/Fortsetzen](download-pause.md)
+[Grenzen von Pause/Fortsetzen](download-pause.de.md)
 
 ## Kompatibilität
 
 **Experimentell.** Cockpit-Zugriff und Flugzeugstart in MSFS 2024 wurden auf AMD
 getestet. **Die NVIDIA-Darstellung ist durch Nutzertests bestätigt**;
 kleinere Probleme und das Startvideo bleiben offen. Das bestätigt keine allgemeine
-Unterstützung aller GPUs und Treiber. Für MSFS 2020 sind Installation und
+Unterstützung aller GPUs und Treiber. Mit CachyOS 11.0-20261015 und 0.2.20
+erreicht ein Melder nach schwarzem Ladebildschirm das gerenderte Menü und eine
+Szene in MSFS 2024. Startvideo und die VSync-Begrenzung auf 48 FPS bleiben offen.
+[Gemeldeter Prüfumfang](known-issues.de.md). Für MSFS 2020 sind Installation und
 Lizenzprüfung implementiert; erfolgreicher Simulatorstart und vollständige Flüge
 bleiben unbestätigt.
 
@@ -94,6 +108,9 @@ VR-Headsets und geräteübergreifendes Spielen mit Cloud-Saves stehen noch aus.
 Marketplace-Sitzungsfehler und unvollständig geprüfte DLC-/Kauffunktionen sind
 separat dokumentiert. Vorhandene Dateien bestätigen weder Aktivierung noch
 funktionierende Flugzeugsysteme.
+Fenix 0.1.0 behält GPU-Anzeigen für die festgelegten Xodus- und
+Proton-11-Versionen mit CPU-Rückfall sowie die Direct2D-Speicherkorrektur bei.
+Fenix v3 bleibt experimentell; siehe den [Prüfumfang](addons.de.md#kompatibilität-und-wiederherstellung).
 [Bekannte Probleme](known-issues.de.md) · [Add-on-Umfang](addons.de.md) ·
 [Marketplace-Umfang](marketplace-collections.md)
 

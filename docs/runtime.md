@@ -33,25 +33,73 @@ The selector includes **Flightdeck (Xodus, default)** and preselects the active
 environment when available. Choose the default entry to return from another
 Proton build; the separate recovery button remains available as well.
 
-Starting with 0.1.20, switching copies the **current** Windows profile and the
-chosen runner into `local/proton-tests/`. Aircraft, installed add-ons, sign-ins
-and settings carry forward, including changes made under another Proton build.
-Returning to Flightdeck also carries the current profile forward. Earlier
-profiles remain in their `previous-prefix` backup directories; they are not
-silently restored over newer add-on installations. The game files and
-Flightdeck-managed saves remain in place. Store/account helpers retain the
-original Flightdeck runner.
+Switching carries the **current** Windows profile forward, including new
+aircraft, add-ons, sign-ins and settings. Returning to Flightdeck does the same.
+Each unchanged Proton build now has one reusable private runner copy under
+`local/proton-tests/`; selecting the already active build is a no-op. Updating
+that build's files, or changing its Fenix overlay, creates a separate cache
+entry. The base game and Flightdeck-managed saves remain in place, and
+Store/account helpers retain the original Flightdeck runner.
+
+Preparation still stages the current profile so a failed preparation cannot
+damage the active one. After a successful switch, Flightdeck keeps the last
+profile backup and reclaims older, unreferenced generated profiles. It also
+audits recognized copies from earlier releases when idle at startup. Fenix
+restore points and references from other configured simulators remain
+protected. Changed profiles, unknown files, mounted subdirectories and an
+incomplete process/reference audit defer cleanup. Deletion uses a private
+quarantine and never follows package-directory links. Never delete
+`proton-tests` wholesale: active runners or restore points may still be inside.
 
 Preparation verifies the selected files, updates Wine and installs that runner's
 graphics libraries for both architectures. Steam updates cannot modify the
 private runner copy; select the updated build again to adopt it. Failure or
 cancellation during preparation leaves the active profile untouched. A journal
 blocks launch after an interrupted commit; **Return to Flightdeck environment**
-recovers it. Close MSFS and all profile applications before switching.
+recovers it. Filesystems such as `ntfs3` that reject atomic directory exchange
+use three journaled, identity-checked renames instead. An interruption after any
+rename can be resumed without discarding either profile. **Check session**
+remains available when missing runner files disable the cloud transport; then
+use **Return to Flightdeck environment** to repair the runner selection.
+Close MSFS and all profile applications before switching.
+
+For bundled media stacks, Flightdeck checks whether the H.264 decoder loads in
+a separate process. If it fails, a working host decoder and the runner's ability
+to start with that environment must both be verified before using the host
+stack. Explicit GStreamer plugin/rank settings are preserved. This checks
+loading dependencies, not every video or GPU configuration.
+
+The Xbox user bridge also needs working WinRT JSON parsing. Some stock Proton
+builds expose its factories but return `E_NOTIMPL` from `Parse` or `GetObject`,
+causing sign-in error `000-2000-0x80004001` even after a successful HTTP response.
+Flightdeck copies the matching default runner's `windows.web.dll` and
+`wintypes.dll` into the private profile as `fd-json.dll` and `fd-types.dll`,
+including unique internal PE export names. Only the three JSON classes and
+`Windows.Foundation.Collections.PropertySet` are registered to those copies.
+The chosen runner's system libraries remain intact. Existing selected profiles
+receive this repair before the next launch; source hashes, private-copy hashes
+and registrations are checked so interrupted preparation or a Wine registry
+update can be repaired. Real MSFS 2024 sign-in and token/signature requests were
+verified with Experimental `experimental-11.0-20261001-x86_64`; this does not
+establish a complete flight. The isolated CachyOS 10 game test still exited
+with code 84 before authentication completed, despite passing the synthetic
+JSON, graphics and profile-return checks.
+
+With Flightdeck **0.2.20** and CachyOS **11.0-20261015**, the
+[issue #4 reporter](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4#issuecomment-6377721086)
+reaches Start after waiting through a black loading screen with music, then
+sees the rendered menu and a scene in the simulator. The earlier log from that
+runner reported missing H.264 decoding and unresolved dependencies for bundled
+media plugins. A current media diagnosis is still needed to establish whether
+the same failures persist. Waiting is a reported startup workaround; it does
+not repair video playback, qualify a complete flight or resolve the separate
+one-third-rate VSync report. See [known issues](known-issues.md).
 
 Fenix uses a separate overlay compiled for each exact supported Wine build.
-The first additional builds are Experimental `experimental-11.0-20260924-x86_64`
-and CachyOS `cachyos-10.0-sunset-slr`. The menu marks compatible versions and
+The additional builds are Experimental `experimental-11.0-20260924-x86_64`,
+CachyOS `cachyos-10.0-sunset-slr` and CachyOS `cachyos-11.0-20261005-slr`. The
+last one passed the overlay's regression probes and a fresh profile setup; its
+switch inside Flightdeck has not been run with the simulator. The menu marks compatible versions and
 Flightdeck applies their patch automatically. An unknown or modified Wine build
 is rejected before switching a Fenix installation. Known legacy Fenix profiles
 can migrate without reinstalling aircraft. GSX setup and its official installer
@@ -71,19 +119,33 @@ The 0.2.1 default loader also exposes mapped DLLs through this view and
 uses it as the working directory. Its executable still uses the native Wine
 mapping and a header-only stub. The pinned native mapping handles the main
 image, so ordinary delayed DLL loads cannot rely on map aliases alone.
-Maintainers can exercise that exact path with `scripts/check-proton.py
---runtime /path/to/runtime --default-runner --native-launcher
-target/debug/flightdeck-rust --output /path/to/new-results`; use `--runner
-/path/to/proton` instead for selection and return tests. Both use own synthetic
-programs in fresh prefixes and leave the source runtime unchanged.
+Maintainers can exercise that exact path with `cargo run --locked -p
+flightdeck-tools -- probe proton --runtime /path/to/runtime --default-runner
+--native-launcher target/debug/flightdeck-rust --output /path/to/new-results`;
+use `--runner /path/to/proton` instead for selection and return tests. Both use
+own synthetic programs in fresh prefixes and leave the source runtime unchanged.
+Build the launcher and the `runtime-lab` executable first, as described in
+[BUILDING.md](../BUILDING.md#synthetic-native-checks).
 
 This is experimental compatibility support. Native overlay, loader, graphics and
 profile-switch checks do not establish a complete Fenix/GSX flight or fix the
 reported NVIDIA black view. Return to Flightdeck before resetting or removing an
 environment. Diagnostics record the chosen version and loader. Maintainers can
-run `scripts/check-proton.py --fenix-bundle /path/to/patch` to verify the matching
-overlay, synthetic Store loading, rendering and add-on-preserving return without
-starting a game or signing in.
+add `--fenix-bundle /path/to/patch` to that `probe proton` command to verify the
+matching overlay, synthetic Store loading, rendering and add-on-preserving
+return without starting a game or signing in.
+
+The Proton probe also initializes the real Xbox runtime with synthetic title
+metadata, obtains its user interface, parses synthetic Xbox response JSON
+(including nested identity arrays) and shuts it down. A local broker accepts
+only ping requests; the probe does not sign in or contact Xbox services. Its
+`xbox_initialization_passed` and `xbox_json_passed` results do not establish
+in-game authentication.
+Safe diagnostics schema 7 preserves runtime initialization, user-load stages
+and authentication-stage/user API result codes in exported JSON and problem reports. Existing game
+logs can be re-exported with `flightdeck diagnose-run --runtime /path/to/runtime`.
+These are distinct observed results, not a chronological event trace; missing
+entries do not establish that an API was never called.
 
 ## Advanced: prepare a runtime from existing files
 
@@ -139,6 +201,36 @@ compatible GStreamer codecs for startup video. The media-plugin directory field
 adds an already prepared plugin directory without modifying the system. Codec
 ABI and driver availability are host-specific. The source builder does not
 download or install graphics, multimedia or system packages.
+
+Flightdeck configures media only in the actual game's Wine child. The default
+Xodus runner uses system GStreamer codecs: MP4 needs the ISO/QuickTime demuxer
+and a working H.264 decoder, normally `qtdemux` and `avdec_h264`. Its bundled
+Steam media converter depends on a transcoded-video cache that Flightdeck does
+not have; adding its plugin paths can replace real video with a small test
+pattern. The optional local plugin directory is used only with this host-codec
+path and must match the system GStreamer ABI.
+
+A selected Proton that supplies its own FFmpeg codec library receives its
+library directories in `LD_LIBRARY_PATH` and its GStreamer plugin directories
+when present. This
+also makes GE-Proton's FFmpeg-backed Media Foundation implementation available.
+Stock Steam builds without this library retain the host-codec path. The
+original library path is retained for Wine's native-program handoff. These
+settings do not reach the Store service, broker or companion applications.
+
+On NVIDIA, H.264 decoding prefers `avdec_h264` with rank 512 when no explicit
+H.264 feature rank was supplied. It leaves hardware decoders available if the
+software decoder is missing. This changes video decoding, independently of the
+simulator's NVIDIA graphics mode. Explicit media paths, debug levels and decoder
+choices are retained. GStreamer registries are separate for host codecs and
+each bundled runner, so switching cannot reuse another build's registry.
+
+The local game log records the intended media source and decoder preference.
+Safe diagnostics export only these categories and counts of known decode,
+missing-plugin and placeholder-video messages; they contain no raw media paths
+or codec data. Configuration is not proof of decoded or displayed frames. The
+maintainer `probe media` check described in `BUILDING.md` reads a real local
+video, validates its decoded dimensions and rewinds it without starting MSFS.
 
 ## Authentication and launch
 
@@ -233,8 +325,10 @@ device indices and ambiguous matches are preserved without guessing.
 Explicit name filters must match the names visible inside Wine. Remove custom
 name filters before comparing modes if diagnostics reports that the
 desired adapter was excluded.
-NVIDIA starts default to `DXVK_LOG_LEVEL=info` and `VKD3D_DEBUG=warn` so the local
-game log includes renderer versions, adapter decisions and swapchain warnings.
+Every start defaults to `DXVK_LOG_LEVEL=info` and `VKD3D_DEBUG=warn` so the local
+game log includes renderer versions, adapter decisions, the created Direct3D 11
+device and each swapchain. Until 0.2.11 only NVIDIA starts did, and the log of a
+Direct3D 11 game on other hardware could not show whether anything was drawn.
 VKD3D orders `info` below `warn`; earlier launcher defaults suppressed warnings. Explicit logging
 preferences remain effective. These settings do not enable per-call tracing.
 

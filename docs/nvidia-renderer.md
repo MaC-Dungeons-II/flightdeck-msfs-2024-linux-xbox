@@ -136,7 +136,8 @@ black login dialogs and missing aircraft instruments are separate symptoms.
 
 Included in the 0.2.0-dev.1 native prerelease and its Python reference source.
 
-Extending `scripts/check-proton.py` with `--default-runner` exposed a separate
+Extending the Proton probe (then a Python script, now `cargo run --locked -p
+flightdeck-tools -- probe proton`) with `--default-runner` exposed a separate
 reproducible failure: the synthetic main EXE receives `-FastLaunch`, but
 `LoadLibraryW` of a mapped working-directory DLL fails with Windows error 193.
 The exact pinned Wine source at `b1dd32734a34472a28eb5be9922df06e07ac0834`
@@ -314,7 +315,7 @@ bundle license. The corresponding DXVK source archive contains all pinned
 submodules, original notices, the patch and graphics lock. The 0.1.11 DXVK build
 used MinGW GCC 16.2.0, Meson 1.10.0 and Ninja 1.13.2.
 
-Create the checked launcher source archive and use `scripts/native-release.py`
+Create the checked launcher source archive and use the `package` command of `tools/`
 with the component archive selected by the current `compat/bootstrap.lock.json`
 and this matching graphics bundle. See [native package commands](../BUILDING.md#native-packages). The full installer also contains
 the [Store session recovery correction](store-session-refresh.md).
@@ -324,8 +325,8 @@ original licenses with the release, separately from the WineGDK/Xodus sources.
 ## Validation
 
 ```sh
-python3 scripts/check-graphics-rendering.py --runner /path/to/runner \
-  --bundle /path/to/graphics --output build/new-render-check
+cargo run --locked -p flightdeck-tools -- probe graphics-rendering \
+  --runner /path/to/runner --bundle /path/to/graphics --output build/new-render-check
 ```
 
 This creates an isolated prefix and compares the original libraries, the patched
@@ -346,18 +347,21 @@ The earlier VKD3D-only probe also passed the upstream
 ### Volume layout regression
 
 With a Vulkan driver supporting maintenance9, the Khronos validation layer,
-MinGW and a working graphical session:
+MinGW, a working graphical session and the built
+[`runtime-lab` executable](../BUILDING.md#synthetic-native-checks):
 
 ```sh
-python3 scripts/check-volume-layout.py --runner /path/to/runner \
+cargo run --locked -p flightdeck-tools -- probe volume-layout \
+  --runner /path/to/runner \
   --baseline /path/to/released-graphics --bundle /path/to/candidate-graphics \
   --output build/volume-layout-check
 ```
 
 Use `--validation-layer-path /path/to/layer-json-directory` if the validation
-layer is supplied outside the system loader's search path. The script creates
+layer is supplied outside the system loader's search path. The probe creates
 an isolated prefix, enables validation only for its child processes, and uses
-no game or account. Its result records the loaded bundle's hashes.
+no game or account. Its result records the loaded bundle's hashes. It exits
+with 0 for a pass, 1 for a failure and 2 for an inconclusive run.
 
 `tests/graphics/volume-copy.c` uploads a pattern varying across all three axes
 to a 32 × 16 × 4 render-target-capable volume, copies the whole texture, and

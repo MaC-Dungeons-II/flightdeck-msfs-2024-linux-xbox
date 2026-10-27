@@ -2,25 +2,34 @@
 
 ## Rust application and native desktop
 
-The launcher, all six desktop screens, installer, updater and runtime helpers
+The launcher, all desktop screens, installer, updater and runtime helpers
 use Rust. The desktop is an iced 0.14 window with a software renderer, Wayland
 and X11 support. It embeds the existing artwork, Manrope font and icons. It does
 not need Chromium, JavaScript, Node or Python. Wine/Store ABI components retain
-their C/C++ implementation. Python 3.11+ is maintainer build and test tooling.
+their C/C++ implementation. Maintainer build and test tooling is the Rust crate in `tools/`.
 
 Build with Rust/Cargo 1.98 and `woff2_decompress` (Debian/Ubuntu package `woff2`).
 Linux development packages include `libxkbcommon-dev`, `libwayland-dev`,
-`libx11-dev`, `libxrandr-dev`, `libxi-dev` and `pkg-config`:
+`libx11-dev`, `libxrandr-dev`, `libxi-dev` and `pkg-config`. The Steam process-
+namespace regression also requires `bwrap` (package `bubblewrap`) and permitted
+unprivileged user namespaces on the test host. On the disposable Ubuntu GitHub
+runner, `scripts/native-ci-tests.sh` temporarily permits UID-map creation and
+restores the original AppArmor namespace setting after the suite:
 
 ```sh
 cargo build --locked
 cargo test --locked --workspace
 cargo fmt --all -- --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
-python3 scripts/check-rust-http.py --binary target/debug/flightdeck-rust
+cargo run --locked -p flightdeck-tools -- http-contract --binary target/debug/flightdeck-rust
 ICED_TEST_BACKEND=tiny-skia cargo test --locked -p flightdeck-ui capture_ -- --ignored
 target/debug/flightdeck-rust
 ```
+
+Checks, packaging and release steps are commands of the maintainer tool in
+`tools/`, a workspace member that is not part of the launcher.
+`cargo run --locked -p flightdeck-tools -- --help` lists them; its own tests run
+with the workspace suite.
 
 Native UI event/rendering tests and the real local-service integration test use
 isolated synthetic data. Screenshot capture works without a desktop or GPU and
@@ -34,34 +43,86 @@ longer kept as a second implementation in the source tree. Native controller,
 interaction and rendering tests cover the migrated workflows; the historical
 synthetic response fixture in `native/ui/tests/fixtures/` supports comparisons.
 
-```sh
-python3 -m unittest discover -s tests/compat -p 'test_*.py'
-```
-
 There is no Python application or pip package in the current source tree.
+The tests of the release tooling, of the installer's shell entry point and of
+the ConnectedStorage protocol validators are part of `cargo test --workspace`.
 The Store sign-in and purchase windows are separate Xodus compatibility
 components; their own webview tests below remain relevant.
 
 ### Native packages
 
+Full releases embed a separately loaded LGPL Wine GStreamer module with the
+system-memory negotiation fix from OnlyCrayZ-Labs. Its source and ABI pins are
+in `compat/media.lock.json`; see [media provenance](compat/media/README.md).
+Build it before enabling `bundled-media`:
+
+```sh
+cargo build --locked -p flightdeck-tools
+target/debug/flightdeck-tools media-build --download \
+  --sources build/media-inputs --work build/media-work --output build/media --jobs 2
+cargo build --locked --bin flightdeck-rust --example runtime-lab --features bundled-media
+```
+
+Use Ubuntu 24.04 and the prerequisites/image in `compat/media/native-build.Dockerfile`.
+The output must match the pinned module hash. Build without the feature for
+launcher-only development. A full package rejects a binary missing the verified
+payload. `FLIGHTDECK_MEDIA_SYSTEM_MEMORY=0` opts out for comparisons.
+The media probe below reports `overlay: system_memory` for a matching runner.
+
+
+Before changing a Wine runner's media setup, test the actual video through the
+launcher's media configuration. Build the driver and tool, then use a new output
+directory (the video and runner are read only):
+
+```sh
+cargo build --locked --bin flightdeck-rust --example runtime-lab -p flightdeck-linux
+cargo build --locked -p flightdeck-tools
+target/debug/flightdeck-tools probe media \
+  --runner /path/to/installed/proton \
+  --video /path/to/PressStartVideo-4K.mp4 \
+  --width 3840 --height 2160 --frames 120 \
+  --prefer-software --output build/media-default
+```
+
+Add `--runner-media` for selected Proton builds such as GE-Proton; omit it for
+the default Xodus runner's host codecs. `--prefer-software` exercises the NVIDIA
+H.264 preference on any GPU. The check creates a private prefix, decodes NV12
+frames, seeks the same reader back to the beginning and repeats. Both passes
+must have the requested dimensions, number of frames and decoded bytes, and a
+placeholder-video message rejects the run even when Wine returns zero. The
+reader then drains the rest of the video to EOS before closing. Results
+and local logs are kept in the output directory. No account or game is started;
+passing proves decoding and seeking, not NVIDIA presentation or a full MSFS run.
+An exit or cleanup timeout remains a failure even if both decoding passes worked.
+The JSON report keeps decoding, EOS and completed shutdown as separate facts.
+
+Local MSFS 2024 media checks on 20 October 2026: the pinned Xodus runner with
+system GStreamer 1.28.8 decodes the 3840×2160 H.264 loading video and rewinds it.
+GE-Proton 11-10 with its bundled FFmpeg also decodes and rewinds it and reaches
+EOS, but then hangs in its process-wide `MFShutdown`; this is not a passing
+runner qualification. GE-Proton 10-32 fails this direct-Wine probe and also has
+unresolved older Steam-runtime dependencies on this host. Neither experiment
+proves the RTX 5080 game launch from issue #3. Keep the tested default runner
+and its host-codec path as the default; selected runners remain experimental.
+
 Build the release with local checkout, Cargo-cache and toolchain paths remapped:
 
 ```sh
-python3 scripts/build-native.py
+cargo run --locked -p flightdeck-tools -- build-native --bundled-media
 mkdir -p build
 cargo metadata --locked --filter-platform x86_64-unknown-linux-gnu --format-version 1 > build/cargo-metadata.json
-python3 scripts/native-release.py \
+cargo run --locked -p flightdeck-tools -- package \
   --binary target/release/flightdeck-rust \
   --cargo-metadata build/cargo-metadata.json \
   --rust-notices "$(rustc --print sysroot)/share/doc/rust/COPYRIGHT-library.html" \
   --native build/flightdeck-compat-0.1.16-linux-x86_64.tar.gz \
   --graphics build/graphics \
   --output build/native-package
-python3 scripts/source-release.py --output build/native-package/flightdeck-source-0.2.7.tar.gz
+cargo run --locked -p flightdeck-tools -- source-release --media-sources build/media-inputs --output build/native-package/flightdeck-source-VERSION.tar.gz
 ```
 
 Install the toolchain's `rust-docs` component if its standard-library notices
-are missing. `--offline` on `build-native.py` uses the existing Cargo cache.
+are missing. `--offline` on `build-native` uses the existing Cargo cache.
 The full package requires the exact component archive in
 `compat/bootstrap.lock.json` and the seven files from the pinned graphics
 bundle. Hashes, binary architecture/version, dependency licenses and payload
@@ -99,16 +160,22 @@ docker build -t flightdeck-native-build:ubuntu24.04 -f scripts/native-build.Dock
 mkdir -p build/native-baseline
 flightdeck_rust_root="$(rustc --print sysroot)"
 flightdeck_registry="${CARGO_HOME:-$HOME/.cargo}/registry"
+flightdeck_git="${CARGO_HOME:-$HOME/.cargo}/git"
 docker run --rm --network none --read-only --user "$(id -u):$(id -g)" \
   --tmpfs /tmp:rw,mode=1777 --tmpfs /cargo:rw,mode=1777 \
   --mount "type=bind,src=$PWD,dst=/src,readonly" \
   --mount "type=bind,src=$PWD/build/native-baseline,dst=/build" \
   --mount "type=bind,src=$flightdeck_rust_root,dst=/opt/rust,readonly" \
   --mount "type=bind,src=$flightdeck_registry,dst=/cargo/registry,readonly" \
-  flightdeck-native-build:ubuntu24.04 python3 scripts/build-native.py --offline
+  --mount "type=bind,src=$flightdeck_git,dst=/cargo/git,readonly" \
+  flightdeck-native-build:ubuntu24.04 \
+  cargo run --offline --locked -p flightdeck-tools -- build-native --offline
 ```
 
-Populate the Cargo registry on the host first with `cargo fetch --locked`.
+Populate the Cargo registry and Git dependency cache on the host first with
+`cargo fetch --locked`. The Steam Fenix engine is pinned to the exact Git
+revision in `Cargo.toml` and `Cargo.lock`; do not replace it with an unreviewed
+local checkout.
 Package `build/native-baseline/target/release/flightdeck-rust` in place of the
 host release binary. The build mounts source, toolchain and registry read-only,
 runs without network and writes only to the explicit build output.
@@ -120,10 +187,14 @@ Fedora 44, Arch Linux and openSUSE Tumbleweed. To reproduce one matrix entry
 with Docker and an extracted package:
 
 ```sh
-python3 scripts/check-linux-distro.py --distribution ubuntu \
+cargo run --locked -p flightdeck-tools -- distro-check --distribution ubuntu \
   --package build/native-package/flightdeck-linux \
   --output build/linux-check-ubuntu
 ```
+
+The tool itself runs inside the container, so the test images need no
+interpreter. A tool built on a host with a newer glibc than the image cannot
+start there; build it on the baseline image in that case.
 
 Choose a new output directory for each run. Base images are pinned in
 `compat/linux-test-images.json`; package installation uses the distribution's
@@ -158,7 +229,7 @@ authenticated service response. Linux x86-64 is the tested host architecture.
 
 ## Toolchain
 
-Use Python 3.12+, Git, GNU Make, GCC/G++, a POSIX-threaded x86-64 MinGW toolchain,
+Use Git, GNU Make, GCC/G++, a POSIX-threaded x86-64 MinGW toolchain,
 Rust/Cargo 1.98+, protobuf `protoc`, pkg-config and the development packages
 required by Xodus's GTK/WebKit login and Store windows and OpenSSL. The original native
 build used MinGW GCC 16.2 and the pinned Wine source's WIDL 11.8. The builtin
@@ -177,7 +248,7 @@ curl --fail --location \
   --output build/downloads/winegdk.tar.gz
 git clone https://github.com/xodus-gaming/xodus.git build/downloads/xodus
 git -C build/downloads/xodus fetch origin 0670e25aeb0e0e9f800f8f2f4968ae3b681842a7
-python3 scripts/stage-compat.py \
+cargo run --locked -p flightdeck-tools -- compat-stage \
   --winegdk-archive build/downloads/winegdk.tar.gz \
   --xodus-repo build/downloads/xodus \
   --destination build/compat
@@ -192,7 +263,7 @@ generated from the pinned WineGDK IDLs during the build.
 
 ```sh
 BUILD_JOBS=8 bash scripts/build-compat.sh build/compat
-python3 -m unittest discover -s tests/compat -p 'test_*.py'
+cargo test --locked -p flightdeck-tools
 ```
 
 The build produces `build/compat/artifacts/manifest.json` and six files:
@@ -231,34 +302,41 @@ Results and private setup logs stay under `build/`. No Fenix license or game is
 needed. This check takes several minutes and is separate from the synthetic CI
 suite.
 
-The hardware and C++ interchange harnesses invoke `examples/runtime-lab.rs` to
-use the actual Rust prefix, graphics, VR, Fenix and save implementations. Build
-this development-only executable before running them:
+The hardware probes of the maintainer tool (`cargo run --locked -p
+flightdeck-tools -- probe --help` lists them) and the C++ interchange harnesses
+invoke `examples/runtime-lab.rs` to use the actual Rust prefix, graphics, VR,
+Fenix and save implementations. Build this development-only executable before
+running them:
 
 ```sh
 cargo build --locked --bin flightdeck-rust --example runtime-lab
 ```
 
 It is not shipped in installer packages. `FLIGHTDECK_PROBE_BINARY` can select
-another built copy. Each mutating probe requires a new synthetic runtime; it
+another built copy. The integration tests start stand-ins for the programs the
+launcher supervises (`examples/test-programs.rs`). Cargo builds them with the
+whole suite; before running a single test target, build them once with
+`cargo build --locked --example test-programs`. Each mutating probe requires a new synthetic runtime; it
 cannot use an ordinary game runtime as its test destination.
 
 With a separately supplied compatible Wine runner:
 
 ```sh
-python3 tests/compat/run-native.py --stage build/compat \
+cargo run --locked -p flightdeck-tools -- driver run-native --stage build/compat \
   --wine "$RUNNER/files/bin/wine"
 # Run just one family when investigating a change:
-python3 tests/compat/run-native.py --suite store --stage build/compat \
+cargo run --locked -p flightdeck-tools -- driver run-native --suite store --stage build/compat \
   --wine "$RUNNER/files/bin/wine"
 # --suite gamesave selects local storage and Rust/C++ interchange tests.
 # --suite catalog selects only the three catalog/mapper tests.
 # --suite user selects authenticated-user lookup and handle lifetime tests.
+# --suite queue selects concurrent queue and termination/lifetime tests.
 ```
 
 The default `--suite all` builds and runs the core, synchronous bridge and
 asynchronous GameSave tests, the Rust/C++ save-format interchange test,
-plus seven Store tests and the user-lookup/cache test. Each test uses its own new
+plus seven Store tests, the user-lookup/cache test and the task-queue lifecycle
+checks adapted from OnlyCrayZ-Labs. Each test uses its own new
 Wine prefix. `--suite gamesave` selects storage and interchange tests; `--suite store`
 selects explicit product queries, Durable license handles, base-package update
 queries, purchase-dialog lifecycle and three catalog/mapper tests. The narrower
@@ -285,7 +363,7 @@ signed licenses, Microsoft-hosted checkout or in-game content availability.
 To exercise the built Wine broker transport with delayed synthetic responses:
 
 ```sh
-python3 tests/compat/ipc-timeout-test.py --stage build/compat \
+cargo run --locked -p flightdeck-tools -- driver ipc-timeout --stage build/compat \
   --wine "$RUNNER/files/bin/wine"
 ```
 
@@ -298,14 +376,14 @@ The purchase host also has browser and native Linux window checks:
 
 ```sh
 node tests/compat/purchase-ui-test.mjs build/compat
-python3 tests/compat/store-window-test.py --stage build/compat --backend x11
-python3 tests/compat/store-navigation-test.py --stage build/compat --backend x11
+cargo run --locked -p flightdeck-tools -- driver store-window --stage build/compat --backend x11
+cargo run --locked -p flightdeck-tools -- driver store-navigation --stage build/compat --backend x11
 # On a Hyprland desktop, also check the native Wayland attachment:
-python3 tests/compat/store-window-test.py --stage build/compat --backend wayland
+cargo run --locked -p flightdeck-tools -- driver store-window --stage build/compat --backend wayland
 ```
 
 The browser check requires Chromium. The window check uses the native build's
-Cargo environment, a running desktop, Pillow and ImageMagick; its Wayland
+Cargo environment, a running desktop and ImageMagick; its Wayland
 screenshot check also uses Hyprland and grim. Both use synthetic content and
 block external requests. The native check renders the production host, captures
 its window and verifies cancellation without opening a real Microsoft checkout.
@@ -321,7 +399,7 @@ the built artifacts and user-owned runner, package and Wine prefix.
 The Microsoft sign-in browser handoff has a separate native regression check:
 
 ```sh
-python3 tests/compat/login-flow-test.py --stage build/compat \
+cargo run --locked -p flightdeck-tools -- driver login-flow --stage build/compat \
   --output build/login-flow-check --backend x11
 # Use --backend wayland to check the native Wayland attachment as well.
 ```
@@ -342,12 +420,13 @@ It requires the Khronos Vulkan validation layer and compares the previous
 bundle, the corrected bundle, and controls with maintenance9 disabled. Passing
 pixel readback alone does not pass this check.
 
-With a graphical session, a working Vulkan driver, one discrete GPU and the
-MinGW toolchain, check the runner's actual DXGI/DirectX 12 adapter handoff:
+With a graphical session, a working Vulkan driver, one discrete GPU, the
+MinGW toolchain and the built `runtime-lab` executable from above, check the
+runner's actual DXGI/DirectX 12 adapter handoff:
 
 ```sh
-python3 scripts/check-graphics-adapter.py --runner "$RUNNER" \
-  --output build/graphics-adapter-check
+cargo run --locked -p flightdeck-tools -- probe graphics-adapter \
+  --runner "$RUNNER" --output build/graphics-adapter-check
 ```
 
 The output directory must be new. The check creates an isolated Wine prefix,
@@ -392,7 +471,8 @@ After building and verifying a new patch release, maintainers import its license
 and manifests with:
 
 ```sh
-python3 scripts/sync-fenix.py /absolute/path/to/fenix-a320-linux-patch
+cargo run --locked -p flightdeck-tools -- probe sync-fenix \
+  /absolute/path/to/fenix-a320-linux-patch
 cargo test --locked --test native_addons --test native_framework --test native_proton
 cargo test --locked -p flightdeck-ui fenix
 ```

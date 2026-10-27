@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 //! Development-only driver for synthetic Wine probes. Never shipped or used by
-//! the launcher. The Python harnesses compile probes and collect their logs;
+//! the launcher. The probes of `tools/` compile test programs and collect their logs;
 //! prefix, graphics, VR, Fenix and save logic comes from the Rust library.
 use flightdeck::{
     Error, Result,
@@ -136,6 +136,34 @@ fn run(input: Value) -> Result<Value> {
                 &root.join("runner")
             )))
         }
+        "media-env" => {
+            let root = synthetic(&input)?;
+            let mut env = wine::environment(&root.join("local/msfs-prefix"), &root.join("runner"))
+                .into_iter()
+                .map(|(key, value)| (key.into(), value.into()))
+                .collect();
+            let (source, decoder) = flightdeck::media::configure_verified(
+                &root,
+                &root.join("runner"),
+                input["runner_media"] == true,
+                input["prefer_software"] == true,
+                &mut env,
+            )?;
+            let wine = root.join("runner/files/bin/wine").canonicalize()?;
+            let (media_wine, overlay) =
+                flightdeck::media_overlay::prepare(&root, &root.join("runner"), &wine, &mut env)?;
+            env.insert("WINE".into(), media_wine.into_os_string());
+            let env: std::collections::BTreeMap<String, String> = env
+                .into_iter()
+                .map(|(key, value)| {
+                    (
+                        key.to_string_lossy().into_owned(),
+                        value.to_string_lossy().into_owned(),
+                    )
+                })
+                .collect();
+            Ok(json!({"environment":env,"source":source,"h264":decoder,"overlay":overlay}))
+        }
         "fenix" => fenix_fixture(&synthetic(&input)?, &path(&input, "bundle")?),
         "fenix-check" => {
             let root = synthetic(&input)?;
@@ -185,6 +213,7 @@ fn main() -> std::process::ExitCode {
         if args.first().is_some_and(|v| v == "--native-probe") {
             return match args.get(1).map(String::as_str) {
                 Some("graphics") => native_probe::graphics(),
+                Some("media") => Ok(native_probe::media()),
                 Some("vr") => Ok(native_probe::vr()),
                 Some("nvidia-directory") => native_probe::nvidia_directory(),
                 _ => Err(Error::Invalid("Unknown native probe.")),

@@ -13,6 +13,7 @@ use std::{
 /// Explorer or a shortcut, which may not inherit the Unix launch environment.
 /// This registry belongs to this Wine profile, never the Linux host.
 pub fn prepare(wine: &Wine<'_>) -> Result<()> {
+    crate::fenix_environment::prepare(wine)?;
     for (name, value) in crate::wine::DOTNET_COMPATIBILITY {
         if wine.cancel.load(std::sync::atomic::Ordering::Acquire) {
             return Err(Error::Cancelled);
@@ -31,6 +32,8 @@ pub struct Hooks {
     pub hook: Option<&'static str>,
     pub exit_code: Option<i32>,
     pub package_version: Option<String>,
+    pub managed_exception_types: Vec<&'static str>,
+    pub clr_exception_code: Option<&'static str>,
     package_is_fenix: bool,
 }
 impl Hooks {
@@ -84,12 +87,47 @@ impl Hooks {
         if line.contains("Cannot get symbol") && line.contains("libicu") {
             self.icu = true;
         }
+        // Retain only allowlisted symbols from exception headers/chains. An
+        // exit status alone never identifies a managed exception or its cause.
+        for found in crate::log_reader::regex(
+            r"(?:Unhandled [Ee]xception[.:]|Exception [Ii]nfo:|Exception [Tt]ype:|--->)\s*([A-Za-z][A-Za-z0-9_.]*)",
+        )
+        .captures_iter(line)
+        {
+            self.exception_type(&found[1]);
+        }
+        if let Some((kind, _)) = line.trim_start().split_once(':') {
+            self.exception_type(kind);
+        }
+        if crate::log_reader::regex(
+            r"(?i)(?:\bunhandled exception(?: code)?\s*[:=]?\s+|\bexception code\s*[:=]\s*)(?:0x)?e0434352\b",
+        )
+        .is_match(line)
+        {
+            self.clr_exception_code = Some("e0434352");
+        }
+    }
+    fn exception_type(&mut self, value: &str) {
+        if self.managed_exception_types.len()
+            < crate::fenix_diagnostics::MAX_MANAGED_EXCEPTION_TYPES
+            && let Some(kind) = crate::fenix_diagnostics::managed_exception_type(value)
+            && !self.managed_exception_types.contains(&kind)
+        {
+            self.managed_exception_types.push(kind);
+        }
+    }
+    pub fn has_managed_exception(&self) -> bool {
+        !self.managed_exception_types.is_empty() || self.clr_exception_code.is_some()
     }
     pub fn failure(&self) -> Option<&'static str> {
         if self.icu {
             Some("icu_symbol_missing")
         } else if self.timed_out {
             Some("hook_timeout")
+        } else if self.has_managed_exception()
+            && (self.failed || self.pending || self.exit_code.is_some_and(|code| code != 0))
+        {
+            Some("managed_exception")
         } else if self.exit_code.is_some_and(|code| code != 0) {
             Some("hook_nonzero")
         } else if self.failed {
@@ -348,6 +386,138 @@ mod tests {
     }
 
     #[test]
+    fn managed_exception_evidence_does_not_infer_a_cause_from_exit_82() {
+        let mut hooks = Hooks::default();
+        hooks.line("[WARN] Hook exited with non-zero exit code: 82");
+        assert_eq!(hooks.failure(), Some("hook_nonzero"));
+        assert!(!hooks.has_managed_exception());
+        for line in [
+            "Unhandled exception. System.TypeInitializationException: Initializer for 'PRIVATE_TYPE' failed.",
+            " ---> System.IO.FileNotFoundException: Could not load C:\\PRIVATE_PATH\\account@example.test.dll",
+            "   at System.IO.FileNotFoundException.ToString()",
+            " ---> Private.CustomerException: PRIVATE_MESSAGE",
+            " ---> System.IO.FileNotFoundException: duplicated detail",
+        ] {
+            hooks.line(line);
+        }
+        assert_eq!(
+            hooks.managed_exception_types,
+            [
+                "System.TypeInitializationException",
+                "System.IO.FileNotFoundException"
+            ]
+        );
+        assert_eq!(hooks.clr_exception_code, None);
+        assert_eq!(hooks.failure(), Some("managed_exception"));
+        let evidence = format!("{hooks:?}");
+        for private in [
+            "PRIVATE_TYPE",
+            "PRIVATE_PATH",
+            "PRIVATE_MESSAGE",
+            "account@example.test",
+            "Private.CustomerException",
+        ] {
+            assert!(!evidence.contains(private));
+        }
+    }
+
+    #[test]
+    fn official_startup_hook_failure_shape_keeps_types_without_the_private_message() {
+        let mut hooks = Hooks::default();
+        // Shape observed from official FenixApp 1.0.286 with a deliberately
+        // invalid startup hook in an isolated profile. Message data is synthetic.
+        for line in [
+            "Unhandled exception. System.ArgumentException: The startup hook simple assembly name 'PRIVATE_STARTUP_HOOK' is invalid.",
+            " ---> System.IO.FileNotFoundException: Could not load file or assembly 'PRIVATE_STARTUP_HOOK'.",
+            "   at System.Reflection.RuntimeAssembly.InternalLoad(AssemblyName assemblyName)",
+            "   --- End of inner exception stack trace ---",
+        ] {
+            hooks.line(line);
+        }
+        assert_eq!(
+            hooks.managed_exception_types,
+            [
+                "System.ArgumentException",
+                "System.IO.FileNotFoundException"
+            ]
+        );
+        assert!(hooks.clr_exception_code.is_none());
+        assert_eq!(hooks.failure(), None);
+        hooks.line("Hook exited with non-zero exit code: 82");
+        assert_eq!(hooks.failure(), Some("managed_exception"));
+        assert!(!format!("{hooks:?}").contains("PRIVATE_STARTUP_HOOK"));
+    }
+
+    #[test]
+    fn clr_code_requires_an_explicit_exception_log_and_canonicalizes_only_that_code() {
+        for line in [
+            "wine: Unhandled exception 0xe0434352 in thread 0100 at address 000000007B00ABCD (thread 0100), starting debugger...",
+            "0100:err:seh:NtRaiseException Unhandled exception code E0434352 flags 1 addr 0x1234",
+            "Exception code: 0xE0434352",
+        ] {
+            let mut hooks = Hooks::default();
+            hooks.line("Hook exited with non-zero exit code: 82");
+            hooks.line(line);
+            assert_eq!(hooks.clr_exception_code, Some("e0434352"));
+            assert!(hooks.managed_exception_types.is_empty());
+            assert_eq!(hooks.failure(), Some("managed_exception"));
+        }
+        for line in [
+            "Hook exited with non-zero exit code: 82",
+            "note: file /private/e0434352/customer.txt",
+            "code=e0434352",
+            "Exception code: 0xe04343520",
+            "Exception code: 0xc0000005",
+            "Unhandled exception. Private.CustomerException: account@example.test",
+            "Unhandled exception. System.IO.FileNotFoundExceptionPrivate: secret",
+            "   at System.IO.FileNotFoundException.ToString()",
+        ] {
+            let mut hooks = Hooks::default();
+            hooks.line("Hook exited with non-zero exit code: 82");
+            hooks.line(line);
+            assert!(
+                !hooks.has_managed_exception(),
+                "unexpected evidence from {line}"
+            );
+            assert_eq!(hooks.failure(), Some("hook_nonzero"));
+        }
+    }
+
+    #[test]
+    fn managed_exception_symbols_are_deduplicated_and_bounded() {
+        let mut hooks = Hooks::default();
+        for kind in crate::fenix_diagnostics::MANAGED_EXCEPTION_TYPES {
+            for _ in 0..3 {
+                hooks.line(&format!("Exception Info: {kind}"));
+            }
+        }
+        assert_eq!(hooks.managed_exception_types.len(), 8);
+        assert_eq!(
+            hooks.managed_exception_types,
+            crate::fenix_diagnostics::MANAGED_EXCEPTION_TYPES[..8]
+        );
+        // Observed symbols are not by themselves a failed-hook result.
+        assert_eq!(hooks.failure(), None);
+    }
+
+    #[test]
+    fn observed_exception_symbols_do_not_change_a_successful_hook_result() {
+        let mut hooks = Hooks::default();
+        for line in [
+            "Running --veloapp-install hook...",
+            "Exception Info: System.InvalidOperationException",
+            "Exception code: 0xe0434352",
+            "Hook executed successfully (took 100ms)",
+        ] {
+            hooks.line(line);
+        }
+        assert!(hooks.has_managed_exception());
+        assert_eq!(hooks.exit_code, Some(0));
+        assert_eq!(hooks.failure(), None);
+        assert!(hooks.check().is_ok());
+    }
+
+    #[test]
     fn oversized_line_cannot_hide_a_failed_hook() {
         use std::io::Write;
         let temp = tempfile::tempdir().expect("fixture");
@@ -397,7 +567,7 @@ mod tests {
         let runner = temp.path().join("runner");
         files::private_dir(&runner.join("files/bin")).expect("runner");
         let executable = runner.join("files/bin/wine");
-        files::atomic(&executable, b"#!/bin/sh\nprintf '%s\\n' \"$*\"\n[ \"$DOTNET_SYSTEM_GLOBALIZATION_USENLS\" = 1 ] && [ \"$DOTNET_ReadyToRun\" = 0 ]\n").expect("fixture executable");
+        files::atomic(&executable, b"#!/bin/sh\nif [ \"$1\" = reg ] && [ \"$2\" = query ]; then exit 1; fi\nprintf '%s\\n' \"$*\"\n[ \"$DOTNET_SYSTEM_GLOBALIZATION_USENLS\" = 1 ] && [ \"$DOTNET_ReadyToRun\" = 0 ]\n").expect("fixture executable");
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700))
             .expect("mode");
         let log = temp.path().join("repair.log");

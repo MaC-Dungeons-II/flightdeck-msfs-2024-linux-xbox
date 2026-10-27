@@ -85,7 +85,7 @@ fn recover(app: &Arc<Launcher>, data: &Value) -> Result<Value> {
     state.cloud["phase"] = json!("recovery");
     state.cloud["request_id"] = json!(ctx.id);
     state.cloud["message"] =
-        json!("Vorherige Spielsitzung wird geprüft und lokale Spielstände werden gesichert …");
+        json!("Vorherige Spielsitzung wird beendet und lokale Spielstände werden gesichert …");
     drop(state);
     let id = ctx.id.clone();
     std::thread::spawn(move || {
@@ -234,8 +234,25 @@ fn start(app: &Arc<Launcher>, action: Option<(&str, &Value)>) -> Result<Value> {
 }
 fn attention(ctx: &Context, phase: &str, error: Attention) {
     let code = error.error.code;
+    let process = error.error.detail.as_ref().map(|d| &d["blocking_process"]);
     let message = if code == "unsafe_session" {
-        "Die vorherige Spielsitzung ist noch nicht freigegeben. Erneut versuchen prüft, ob alle zugehörigen Prozesse beendet sind, und sichert die lokalen Spielstände."
+        match process {
+            Some(p) if p["identified"] == false => {
+                "Ein Prozess lässt sich der vorherigen Spielsitzung nicht sicher zuordnen. Beende ihn und versuche es erneut."
+            }
+            Some(p) if p["spared"] == true => {
+                "Eine andere Windows-Anwendung verwendet dieses Profil noch. Schließe sie oder beende sie mit Sitzung prüfen."
+            }
+            Some(p) if p["unkillable"] == true => {
+                "Ein Prozess der vorherigen Spielsitzung hängt im Kernel und lässt sich nicht beenden. Erst ein Neustart von Linux gibt den Start wieder frei."
+            }
+            Some(_) => {
+                "Ein Prozess der vorherigen Spielsitzung ließ sich nicht beenden. Beende ihn und versuche es erneut."
+            }
+            None => {
+                "Die vorherige Spielsitzung ist noch nicht freigegeben. Sitzung prüfen beendet ihre verbliebenen Prozesse und sichert die lokalen Spielstände."
+            }
+        }
     } else if error.plan.is_some() {
         "Auf diesem Rechner und in der Cloud gibt es unterschiedliche Änderungen. Welchen Stand möchtest du verwenden?"
     } else if matches!(code, "authentication" | "auth_required" | "unauthorized") {
@@ -260,6 +277,12 @@ fn attention(ctx: &Context, phase: &str, error: Attention) {
     if let Some(hr) = error.error.native_hresult {
         details["native_hresult"] = json!(hr);
     }
+    if let (Some(target), Some(extra)) = (
+        details.as_object_mut(),
+        error.error.detail.as_ref().and_then(Value::as_object),
+    ) {
+        target.extend(extra.clone());
+    }
     set(
         ctx,
         if code == "cancelled" && phase == "before_start" {
@@ -275,6 +298,20 @@ fn attention(ctx: &Context, phase: &str, error: Attention) {
     {
         ctx.launcher.lock().cloud_data.review = Some(Review::new(root.clone(), *plan));
     }
+}
+/// Backups and snapshots the running launcher itself still refers to: a plan
+/// under review and the import that can be undone.
+fn held_history(ctx: &Context) -> Vec<String> {
+    let state = ctx.launcher.lock();
+    let data = &state.cloud_data;
+    let snapshots = [&data.plan, &data.review]
+        .into_iter()
+        .flatten()
+        .filter_map(|review| review.plan.snapshot.path.file_name())
+        .map(|name| name.to_string_lossy().into_owned());
+    snapshots
+        .chain(data.restore.iter().map(|(_, id)| id.clone()))
+        .collect()
 }
 fn connect(ctx: &Context, lease: &std::fs::File, phase: &str) -> cloud::Result<Client> {
     let start = Instant::now();
@@ -329,6 +366,14 @@ fn run(
             }
             ctx.interrupted()?;
             flow::offline(root, &lease, true)?;
+            // Nothing else uses the profile now: older save history goes.
+            // A failure here is no reason to hold up the start.
+            let _ = crate::save_history::prune(
+                root,
+                &lease,
+                std::time::SystemTime::now(),
+                &held_history(ctx),
+            );
             set(
                 ctx,
                 "syncing",

@@ -7,6 +7,14 @@ use crate::{
 use serde_json::{Value, json};
 use std::sync::Arc;
 pub fn get(app: &Arc<Launcher>, path: &str) -> Option<Result<Value>> {
+    if path == "/api/installations" {
+        return Some(Ok(crate::installations::snapshot(app)));
+    }
+    if crate::steam::selected(app)
+        && let Some(result) = crate::steam::get(app, path)
+    {
+        return Some(result);
+    }
     Some(match path {
         "/api/status" => Ok(app.status()),
         "/api/diagnostics" => Ok(crate::diagnostics::snapshot(app)),
@@ -29,6 +37,18 @@ pub fn get(app: &Arc<Launcher>, path: &str) -> Option<Result<Value>> {
     })
 }
 pub fn post(app: &Arc<Launcher>, path: &str, data: &Value, locale: &str) -> Option<Result<Value>> {
+    if path == "/api/installations/select" {
+        return Some(crate::installations::select(app, data));
+    }
+    if path == "/api/installations/xbox-setup" {
+        return Some(crate::installations::xbox_setup(app));
+    }
+    if path == "/api/installations/add-steam-root" {
+        return Some(crate::installations::add_root(app, data));
+    }
+    if let Some(result) = crate::steam::post(app, path, data) {
+        return Some(result);
+    }
     Some(match path {
         "/api/preferences" => {
             let language = string(data, "language");
@@ -67,6 +87,7 @@ pub fn post(app: &Arc<Launcher>, path: &str, data: &Value, locale: &str) -> Opti
             crate::cloud_sync::post(app, path.rsplit('/').next().unwrap_or(""), data)
         }
         "/api/fenix/pick" => crate::fenix::pick(app, data),
+        "/api/fenix/check-update" => crate::fenix_update::check(app, true),
         path if path.starts_with("/api/gsx/") => {
             crate::gsx::start(app, path.rsplit('/').next().unwrap_or(""), data)
         }
@@ -97,9 +118,10 @@ pub fn post(app: &Arc<Launcher>, path: &str, data: &Value, locale: &str) -> Opti
         "/api/setup/check" => crate::setup::check(app, data),
         "/api/setup/start" => string(data, "check_id").and_then(|id| crate::setup::start(app, id)),
         "/api/setup/cancel" => string(data, "job_id").and_then(|id| app.cancel("setup", id)),
-        "/api/setup/pause" | "/api/setup/resume" => string(data, "job_id").and_then(|id| {
-            crate::setup::download_action(app, id, path.rsplit('/').next().unwrap_or(""))
-        }),
+        "/api/setup/pause" | "/api/setup/resume" | "/api/setup/retry" => string(data, "job_id")
+            .and_then(|id| {
+                crate::setup::download_action(app, id, path.rsplit('/').next().unwrap_or(""))
+            }),
         "/api/setup/pick" => crate::setup::pick(app, data, locale),
         "/api/config" => string(data, "runtime_path").and_then(|p| app.configure(p)),
         "/api/game/register" => string(data, "runtime_path").and_then(|p| app.register(p)),

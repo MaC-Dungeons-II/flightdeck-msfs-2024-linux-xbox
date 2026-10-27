@@ -96,11 +96,11 @@ fn matches(pattern: &str, value: &Value) -> bool {
 }
 pub fn retryable(root: &Path, state: &Value) -> bool {
     (|| -> Result<bool> {
-        if state["state"] != "preparing"
-            || state.get("upgrade_backup").is_some()
-            || state["migrated"] == true
-        {
+        if state["state"] != "preparing" || state["migrated"] == true {
             return Ok(false);
+        }
+        if state.get("upgrade_backup").is_some() {
+            return retry_upgrade(root, state).map(|_| true);
         }
         for (key, pattern) in [
             ("work", r"^local/fenix-patch-[0-9]{8}T[0-9]{6}-[0-9a-f]{8}$"),
@@ -142,16 +142,90 @@ pub fn retryable(root: &Path, state: &Value) -> bool {
     })()
     .unwrap_or(false)
 }
+// Preparation never publishes the copied prefix or launch scripts. Recover an
+// update by reinstating its verified installed marker, not the pre-Fenix profile.
+fn retry_upgrade(root: &Path, state: &Value) -> Result<Value> {
+    let work_name = string(state, "work")?;
+    require(
+        matches(
+            r"^local/fenix-patch-[0-9]{8}T[0-9]{6}-[0-9a-f]{8}$",
+            &state["work"],
+        ),
+        "Invalid Fenix update staging path.",
+    )?;
+    let stamp = work_name.trim_start_matches("local/fenix-patch-");
+    require(
+        state["upgrade_backup"] == format!("private/fenix-patch-backup-{stamp}")
+            && state["upgrade_previous_prefix"]
+                == format!("local/msfs-prefix.before-fenix-update-{stamp}")
+            && !files::exists(&root.join(string(state, "upgrade_previous_prefix")?)),
+        "The Fenix update has already started publishing its profile.",
+    )?;
+    let work = bundle::contained(root, work_name)?;
+    let backup = bundle::contained(root, string(state, "upgrade_backup")?)?;
+    files::directory(&work, false)?;
+    files::directory(&backup, false)?;
+    let previous = runtime::value(&backup.join("previous-patch.json"))?;
+    require(
+        previous["state"] == "installed"
+            && previous["work"] != state["work"]
+            && previous["variant"] == state["variant"]
+            && crate::fenix_update::version(string(&previous, "version")?)?
+                < crate::fenix_update::version(string(state, "version")?)?,
+        "Invalid previous Fenix installation.",
+    )?;
+    for key in [
+        "backup",
+        "previous_prefix",
+        "previous_runner",
+        "original_prefix_id",
+    ] {
+        require(
+            previous.get(key).is_some() && previous[key] == state[key],
+            "The previous Fenix restore point changed.",
+        )?;
+    }
+    let runner = bundle::contained(root, string(&previous, "work")?)?.join("runner");
+    require(
+        root.join("runner").canonicalize()? == runner,
+        "The active Fenix runner changed.",
+    )?;
+    let prefix_id = identity(&root.join("local/msfs-prefix"))?;
+    if files::exists(&work.join("prefix")) {
+        require(
+            identity(&work.join("prefix"))? != prefix_id,
+            "The staging profile is active.",
+        )?;
+    }
+    for name in bundle::LAUNCH_FILES {
+        require(
+            tx::digest(&root.join("tools").join(name))? == tx::digest(&backup.join(name))?,
+            "The active Fenix launch scripts changed.",
+        )?;
+    }
+    Ok(previous)
+}
 fn retry(root: &Path, state: &Value, ctx: &Context) -> Result<()> {
     require(
         retryable(root, state),
         "A previous patch transaction exists. Restore it before reinstalling.",
     )?;
     ctx.progress(
-        "Retrying interrupted Fenix preparation automatically; the original profile is retained …",
+        "Retrying interrupted Fenix preparation; the current profile and settings are retained …",
     );
     let work = bundle::contained(root, string(state, "work")?)?;
-    let backup = bundle::contained(root, string(state, "backup")?)?;
+    let upgrading = state.get("upgrade_backup").is_some();
+    let backup = bundle::contained(
+        root,
+        string(
+            state,
+            if upgrading {
+                "upgrade_backup"
+            } else {
+                "backup"
+            },
+        )?,
+    )?;
     if work.join("prefix").exists() {
         let staged = StagedWine::new(
             root,
@@ -167,13 +241,20 @@ fn retry(root: &Path, state: &Value, ctx: &Context) -> Result<()> {
         retryable(root, state),
         "The original profile changed; automatic retry was stopped.",
     )?;
-    files::atomic_json(&backup.join("interrupted.json"), state)?;
-    fs::remove_file(root.join(MARKER))?;
+    if upgrading {
+        let previous = retry_upgrade(root, state)?;
+        verify_installed(root, &previous)?;
+        files::atomic_json(&backup.join("interrupted.json"), state)?;
+        files::atomic_json(&root.join(MARKER), &previous)?;
+    } else {
+        files::atomic_json(&backup.join("interrupted.json"), state)?;
+        fs::remove_file(root.join(MARKER))?;
+    }
     files::directory(&root.join("private"), false)?.sync_all()?;
     Ok(())
 }
 pub fn verify_installed(root: &Path, state: &Value) -> Result<()> {
-    let current = bundle::manifest(state["variant"].as_str())?;
+    let current = crate::fenix_update::installed_manifest(state, state["variant"].as_str())?;
     let lock = if state["version"] == current["version"] {
         &current
     } else {
@@ -228,16 +309,21 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     host_check()?;
     validate(root, false)?;
     wine_processes::idle(&root.join("local/msfs-prefix"))?;
-    bundle::verify(payload)?;
-    let current = bundle::manifest(None)?;
+    bundle::verify_payload(payload)?;
+    let current = bundle::payload_manifest(payload, None)?;
     let marker = root.join(MARKER);
     let mut upgrade = None;
     if files::exists(&marker) {
         let state = runtime::value(&marker)?;
         if retryable(root, &state) {
             retry(root, &state, ctx)?;
-        } else if state["state"] == "installed" && state["version"] == current["version"] {
+        }
+    }
+    if files::exists(&marker) {
+        let state = runtime::value(&marker)?;
+        if state["state"] == "installed" && state["version"] == current["version"] {
             verify_installed(root, &state)?;
+            crate::resources::ensure_helper(root)?;
             crate::framework_maintenance::ensure(ctx)?;
             ctx.progress("This patch version is already installed.");
             return Ok(());
@@ -255,20 +341,38 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
         }
     }
     let original_runner = root.join("runner").canonicalize()?;
+    let legacy = if upgrade.is_none()
+        && !files::exists(&marker)
+        && files::exists(&root.join(crate::fenix_legacy::MARKER))
+    {
+        Some(crate::fenix_legacy::inspect(root, &current)?)
+    } else {
+        None
+    };
     let variant = if let Some(upgrade) = &upgrade {
         upgrade["variant"].as_str().map(str::to_string)
+    } else if let Some(legacy) = &legacy {
+        legacy.variant.clone()
     } else {
         bundle::runner_variant(&original_runner, false)?
     };
-    let lock = bundle::manifest(variant.as_deref())?;
+    let lock = bundle::payload_manifest(payload, variant.as_deref())?;
+    let renderer = match &upgrade {
+        Some(previous) => setup::DisplayRenderer::for_state(&lock, previous)?,
+        None => match &legacy {
+            Some(plan) => plan.renderer,
+            None => setup::DisplayRenderer::from_manifest(&lock)?,
+        },
+    };
     for name in bundle::LAUNCH_FILES {
         require(
-            bundle::accepted_script(
-                name,
-                &tx::digest(&root.join("tools").join(name))?,
-                &lock,
-                upgrade.as_ref().and_then(|v| v["version"].as_str()),
-            )?,
+            legacy.is_some()
+                || bundle::accepted_script(
+                    name,
+                    &tx::digest(&root.join("tools").join(name))?,
+                    &lock,
+                    upgrade.as_ref().and_then(|v| v["version"].as_str()),
+                )?,
             "Custom Flightdeck launch script detected; it will not be overwritten.",
         )?;
         bundle::script(name)?;
@@ -292,6 +396,26 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     files::private_dir(&backup)?;
     files::private_dir(&work)?;
     let mut state = json!({"format":1,"version":lock["version"],"state":"preparing","work":work.strip_prefix(root).map_err(|_|Error::Invalid("Invalid staging path."))?,"backup":backup.strip_prefix(root).map_err(|_|Error::Invalid("Invalid backup path."))?,"previous_runner":fs::read_link(root.join("runner"))?,"previous_prefix":format!("local/msfs-prefix.before-fenix-{stamp}"),"configured":false,"original_prefix_id":identity(&prefix)?,"variant":variant,"proton_before":optional(&root.join("private/proton-selection.json"))?});
+    let selected = crate::fenix_update::selected(ctx)?;
+    require(
+        selected["bundle"] == current,
+        "The selected Fenix release changed. Please retry.",
+    )?;
+    state["bundle_manifest"] = current;
+    state["bundle_release"] = selected["release"].clone();
+    if let Some(legacy) = &legacy {
+        tx::copy_path(
+            &root.join(crate::fenix_legacy::MARKER),
+            &backup.join("legacy-patch.json"),
+            None,
+            &ctx.cancel,
+        )?;
+        state["adopted_legacy"] = json!(true);
+        if legacy.renderer_saved {
+            state["display_renderer_override"] = json!(legacy.renderer.as_str());
+        }
+        state["readouts_preference_retained"] = json!(legacy.readouts_saved);
+    }
     if let Some(previous) = &upgrade {
         files::atomic_json(&backup.join("previous-patch.json"), previous)?;
         for key in [
@@ -301,9 +425,13 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
             "original_prefix_id",
             "configured",
             "proton_before",
+            "display_renderer",
+            "display_renderer_override",
+            "readouts_preference_retained",
         ] {
             state[key] = previous[key].clone();
         }
+        state["readouts"] = json!(readouts(previous));
         state["upgrade_backup"] = json!(
             backup
                 .strip_prefix(root)
@@ -331,6 +459,7 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     files::atomic_json(&marker, &state)?;
     let staged = work.join("prefix");
     let runner = work.join("runner");
+    ctx.update(json!({"phase":"copy_profile","transfer":null}));
     ctx.progress(if upgrade.is_some() {
         "Updating the Fenix patch; installed aircraft and settings are retained …"
     } else {
@@ -352,6 +481,8 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     }
     symlink("../drive_c", &drive)?;
     process::copy_tree(&original_runner, &runner, &ctx.cancel)?;
+    ctx.update(json!({"phase":"prepare_windows","transfer":null}));
+    ctx.progress("Checking Windows dependencies in the copied Fenix profile …");
     let mut wine = StagedWine::new(root, &staged, &runner, &backup.join("setup.log"), ctx)?;
     let setup_result = (|| {
         framework_repair::prepare(
@@ -368,16 +499,33 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
             |message| ctx.progress(message),
         )?;
         crate::fenix_installer::prepare(&wine.wine)?;
-        if upgrade.is_none() {
+        if upgrade.is_none() && legacy.is_none() {
             ctx.progress("Preparing fonts, graphics dependencies and Fenix settings …");
             setup::graphics_fonts(&wine)?;
-            state["configured"] = json!(setup::configure_prefix(&staged)?);
         }
-        setup::geometry(&wine, &root.join("private/fenix-downloads"), payload, ctx)
+        setup::geometry(&wine, &root.join("private/fenix-downloads"), payload, ctx)?;
+        crate::fenix_desktop::ensure(&wine.wine, &root.join("private/fenix-downloads"), ctx)
     })();
     let stopped = wine.stop();
     setup_result.and(stopped)?;
     bundle::overlay(&staged, &runner, payload, variant.as_deref(), ctx)?;
+    if let Some(legacy) = &legacy {
+        setup::configure_autostart(&staged)?;
+        state["configured"] = json!(legacy.configured);
+        state["readouts"] = json!(legacy.readouts);
+        state["display_renderer"] = json!(legacy.renderer.as_str());
+        legacy.revalidate(root, &state["bundle_manifest"])?;
+    } else if upgrade.is_none() {
+        setup::apply_settings(&mut state, &staged, renderer)?;
+    } else if setup::migrate_renderer(
+        &mut state,
+        &staged,
+        &backup.join("settings-before-update"),
+        renderer,
+        &ctx.cancel,
+    )? {
+        ctx.progress("Updating the display renderer for this Proton build …");
+    }
     wine_processes::idle(&prefix)?;
     ctx.begin_commit(
         "publish_runtime",
@@ -408,6 +556,9 @@ pub fn install(ctx: &Context, payload: &Path) -> Result<()> {
     }
     state["state"] = json!("installed");
     files::atomic_json(&marker, &state)?;
+    if legacy.is_some() {
+        crate::fenix_legacy::resume_automatic(root)?;
+    }
     Ok(())
 }
 pub fn update_script_manifest(root: &Path) -> Result<()> {
@@ -504,6 +655,9 @@ pub fn restore(ctx: &Context) -> Result<()> {
     }
     state["state"] = json!("restored");
     files::atomic_json(&backup.join("restored.json"), &state)?;
+    if files::exists(&root.join(crate::fenix_legacy::MARKER)) {
+        crate::fenix_legacy::pause_automatic(root)?;
+    }
     fs::remove_file(marker)?;
     files::directory(&root.join("private"), false)?.sync_all()?;
     Ok(())
@@ -519,22 +673,25 @@ pub fn configure(ctx: &Context) -> Result<()> {
         "Finish patch installation first.",
     )?;
     verify_installed(root, &state)?;
+    let lock = crate::fenix_update::installed_manifest(&state, state["variant"].as_str())?;
+    let renderer = setup::DisplayRenderer::for_state(&lock, &state)?;
     let backup = tx::new_directory(
         &bundle::contained(root, string(&state, "backup")?)?,
         "settings-",
     )?;
-    for name in ["fenixConfig.xml", "persistancy.xml"] {
-        let path = bundle::contained(&prefix, &format!("{}/{name}", setup::CONFIG))?;
-        if files::exists(&path) {
-            tx::copy_path(&path, &backup.join(name), None, &ctx.cancel)?;
-        }
-    }
-    state["configured"] = json!(setup::configure_prefix(&prefix)?);
+    setup::backup_settings(&prefix, &backup, &ctx.cancel)?;
+    setup::apply_settings(&mut state, &prefix, renderer)?;
     files::atomic_json(&root.join(MARKER), &state)?;
     require(
         state["configured"] == true,
-        "Start Fenix once and sign in, then close it and apply settings again. CPU rendering and Legacy readouts need its initial settings files.",
+        "Start Fenix once and sign in, then close it and apply settings again. Display rendering needs its initial settings file.",
     )
+}
+// Before this key existed, "configured" already required the readout setting.
+fn readouts(state: &Value) -> bool {
+    state
+        .get("readouts")
+        .map_or(state["configured"] == true, |v| v == true)
 }
 fn invocation_log(
     wine: &Wine<'_>,
@@ -542,42 +699,16 @@ fn invocation_log(
     offset: u64,
     attempt: &mut Option<crate::fenix_diagnostics::Attempt>,
 ) -> Result<crate::fenix_installer::Hooks> {
-    let result = crate::fenix_installer::scan_log(path, &wine.log, offset);
-    if let Some(attempt) = attempt {
-        match &result {
-            Ok(hooks) => {
-                attempt.evidence_complete = true;
-                if let Some(kind) = hooks.hook {
-                    attempt.hook = Some(kind.into());
-                }
-                if let Some(code) = hooks.exit_code {
-                    attempt.hook_exit_code = Some(code);
-                }
-                if let Some(version) = &hooks.package_version {
-                    attempt.package_version = Some(version.clone());
-                }
-                if let Some(failure) = hooks.failure() {
-                    attempt.failure = Some(failure.into());
-                }
-            }
-            Err(error) => {
-                attempt.failure = Some(match error {
-                    Error::Invalid("Das Fenix-Protokoll wurde während der Installation verändert.") => "log_changed",
-                    Error::Invalid("Das Fenix-Protokoll ist zu groß. Bitte den lokalen Installationsfehler prüfen.") => "log_too_large",
-                    _ => "log_unavailable",
-                }.into());
-            }
-        }
-    }
-    result
+    crate::fenix_diagnostics::invocation_log(&wine.log, path, offset, attempt)
 }
+
 fn windows_app(ctx: &Context, operation: &str, data: &Value) -> Result<()> {
     let root = ctx.root()?;
     let mut attempt = if ["installer", "manager", "repair"].contains(&operation) {
         let runner = match bundle::runner_variant(&root.join("runner"), true) {
             Ok(None) => "flightdeck",
             Ok(Some(ref variant)) if variant == "experimental-11" => "experimental",
-            Ok(Some(ref variant)) if variant == "cachyos-10" => "cachyos",
+            Ok(Some(ref variant)) if variant.starts_with("cachyos-") => "cachyos",
             _ => "unknown",
         };
         Some(crate::fenix_diagnostics::begin(root, operation, runner)?)
@@ -676,6 +807,7 @@ fn windows_app_run(
         &root.join("private/fenix-app.log"),
         &ctx.cancel,
     )?;
+    crate::fenix_desktop::ensure(&wine, &root.join("private/fenix-downloads"), ctx)?;
     if operation == "repair" {
         let version = crate::fenix_installer::installed_version(&prefix).inspect_err(|_| {
             if let Some(attempt) = attempt {
@@ -727,9 +859,11 @@ fn windows_app_run(
         "0",
         "REG_DWORD",
     )?;
-    ctx.progress(
-        "Fenix is open. Complete its setup or sign-in, then close the application to continue.",
-    );
+    ctx.progress(if ["installer", "manager"].contains(&operation) {
+        "The official Fenix Installer is open. Sign in and install the A320 for your simulator. Wait until the aircraft installation has finished, then close the official installer to continue."
+    } else {
+        "Fenix is open. Sign in and activate your aircraft, then close the application to continue."
+    });
     let mut c = wine.command()?;
     c.arg(&app).current_dir(
         app.parent()
@@ -794,7 +928,7 @@ fn windows_app_run(
     result
 }
 pub fn snapshot(app: &Launcher) -> Value {
-    let (root, busy, owned, closing, job) = {
+    let (root, busy, owned, closing, job, update_status, candidate, can_check_updates) = {
         let mut s = app.lock();
         Launcher::poll(&mut s);
         (
@@ -809,41 +943,102 @@ pub fn snapshot(app: &Launcher) -> Value {
                     j["runtime_path"].as_str() == s.runtime.as_ref().and_then(|p| p.to_str())
                 })
                 .unwrap_or(Value::Null),
+            s.fenix_updates.status.clone(),
+            s.fenix_updates.candidate.clone(),
+            !s.closing && s.fenix_updates.worker.is_none(),
         )
     };
-    let mut value = json!({"state":"unavailable","version":bundle::manifest(None).ok().map(|v|v["version"].clone()),"configured":false,"installed":false,"fenix_installed":false,"can_restore":false,"can_retry":false,"manager_installed":false,"idle":false,"message":"Zuerst MSFS 2024 in Flightdeck einrichten.","job":job,"runtime_path":root,"busy":busy||owned,"fenix_running":false,"can_stop":false,"can_change":false,"project":"https://github.com/marselnenaj/fenix-a320-linux-patch"});
+    let mut value = json!({"state":"unavailable","version":bundle::manifest(None).ok().map(|v|v["version"].clone()),"configured":false,"installed":false,"fenix_installed":false,"can_restore":false,"can_retry":false,"manager_installed":false,"idle":false,"message":"Zuerst MSFS 2024 in Flightdeck einrichten.","job":job,"last_attempt":null,"runtime_path":root,"busy":busy||owned,"fenix_running":false,"can_stop":false,"can_change":false,"project":"https://github.com/marselnenaj/fenix-a320-linux-patch"});
+    value["patch_update"] = update_status;
+    value["can_check_updates"] = json!(can_check_updates);
+    if !candidate.is_null() {
+        value["version"] = candidate["bundle"]["version"].clone();
+    }
     if let Some(root) = root {
+        // Jobs are intentionally transient. Keep only the selected runtime's
+        // validated, structured evidence visible after a service restart too.
+        value["last_attempt"] = crate::fenix_diagnostics::load(&root);
+        // A terminal in-memory job can belong to an older invocation. Compare
+        // parsed timestamps here, without making the UI parse backend dates.
+        let job_time = job["completed_at"]
+            .as_str()
+            .or_else(|| job["started_at"].as_str())
+            .and_then(|time| chrono::DateTime::parse_from_rfc3339(time).ok());
+        let attempt_time = value["last_attempt"]["completed_at"]
+            .as_str()
+            .or_else(|| value["last_attempt"]["started_at"].as_str())
+            .and_then(|time| chrono::DateTime::parse_from_rfc3339(time).ok());
+        value["last_attempt_superseded"] = json!(
+            job_time
+                .zip(attempt_time)
+                .is_some_and(|(job, attempt)| job >= attempt)
+        );
         let result = (|| -> Result<()> {
             validate(&root, true)?;
             let prefix = root.join("local/msfs-prefix");
             value["fenix_installed"] =
                 json!(prefix.join(setup::PROGRAM).join("Fenix.exe").is_file());
             value["manager_installed"] = json!(setup::manager(&prefix).is_ok());
+            // Fenix writes this file at sign-in; persistancy.xml can follow later.
             value["settings_ready"] = json!(
                 value["fenix_installed"] == true
-                    && ["fenixConfig.xml", "persistancy.xml"]
-                        .iter()
-                        .all(|name| prefix.join(setup::CONFIG).join(name).is_file())
+                    && prefix.join(setup::CONFIG).join("fenixConfig.xml").is_file()
             );
             if files::exists(&root.join(MARKER)) {
                 let state = runtime::value(&root.join(MARKER))?;
                 value["state"] = state["state"].clone();
                 value["installed"] = json!(state["state"] == "installed");
                 value["configured"] = json!(state["configured"] == true);
+                value["readouts"] = json!(readouts(&state));
+                value["readouts_preference_retained"] =
+                    state["readouts_preference_retained"].clone();
+                value["display_renderer"] = if state["configured"] == true {
+                    json!(setup::DisplayRenderer::from_state(&state).as_str())
+                } else {
+                    Value::Null
+                };
+                value["display_renderer_override"] = state["display_renderer_override"].clone();
                 value["can_restore"] = json!(state["migrated"] != true);
                 value["can_retry"] = json!(retryable(&root, &state));
-                value["installed_version"] = state["version"].clone();
+                value["installed_version"] = if state["state"] == "installed" {
+                    state["version"].clone()
+                } else {
+                    Value::Null
+                };
+                let mut target = bundle::manifest(None)?;
+                if !candidate.is_null()
+                    && crate::fenix_update::version(string(&candidate["bundle"], "version")?)?
+                        > crate::fenix_update::version(string(&target, "version")?)?
+                    && (crate::fenix_update::version(string(&state, "version")?)?.1 != u32::MAX
+                        || crate::fenix_update::version(string(&candidate["bundle"], "version")?)?
+                            .1
+                            == u32::MAX)
+                {
+                    target = candidate["bundle"].clone();
+                }
+                if crate::fenix_update::version(string(&state, "version")?)?
+                    > crate::fenix_update::version(string(&target, "version")?)?
+                {
+                    value["version"] = state["version"].clone();
+                } else {
+                    value["version"] = target["version"].clone();
+                }
+                let target = bundle::select_variant(target, state["variant"].as_str())?;
                 value["update_available"] = json!(
                     state["state"] == "installed"
-                        && state["version"]
-                            .as_str()
-                            .is_some_and(|v| bundle::manifest(None)
-                                .is_ok_and(|l| l["previous_releases"].get(v).is_some()))
+                        && crate::fenix_update::version(string(&target, "version")?)?
+                            > crate::fenix_update::version(string(&state, "version")?)?
+                        && target["previous_releases"]
+                            .get(string(&state, "version")?)
+                            .is_some()
                 );
-            } else if root.join("private/fenix-compat.json").exists() {
+            } else if root.join(crate::fenix_legacy::MARKER).exists() {
                 value["state"] = json!("legacy");
+                value["migration_required"] = json!(true);
+                value["automatic_adoption_paused"] =
+                    json!(!crate::fenix_legacy::automatic_allowed(&root));
                 value["message"] = json!(
-                    "An earlier local Fenix patch is active. Keep using it; automatic replacement is disabled."
+                    "The local Fenix patch is not managed yet. Flightdeck can verify and update a known installation while retaining its aircraft, settings and previous profile."
                 );
             } else {
                 host_check()?;
@@ -881,12 +1076,14 @@ pub fn snapshot(app: &Launcher) -> Value {
             value["message"] = json!(error.to_string());
         }
     }
+    value["available_version"] = value["version"].clone();
     value
 }
 pub fn start(app: &Arc<Launcher>, operation: &str, data: &Value) -> Result<Value> {
     require(
         [
             "install",
+            "migrate",
             "configure",
             "restore",
             "installer",
@@ -929,9 +1126,14 @@ pub fn start(app: &Arc<Launcher>, operation: &str, data: &Value) -> Result<Value
     let data = data.clone();
     let operation = operation.to_string();
     app.start_job("fenix",&operation.clone(),true,move|ctx|{
-        if ["configure","installer","open","manager"].contains(&operation.as_str())&&snapshot(&ctx.launcher)["update_available"]==true{let payload=bundle::obtain(&ctx.launcher.state_dir.join("fenix-bundles"),None,ctx)?;install(ctx,&payload)?;}
-        match operation.as_str(){"install"=>{let payload=bundle::obtain(&ctx.launcher.state_dir.join("fenix-bundles"),data["bundle_path"].as_str(),ctx)?;install(ctx,&payload)?;},"restore"=>restore(ctx)?,"configure"=>configure(ctx)?,"stop"=>{validate(ctx.root()?,true)?;wine_processes::stop(ctx.root()?,wine_processes::FENIX)?;},_=>windows_app(ctx,&operation,&data)?,}
-        Ok(json!({"state":"complete","stopping":false,"message":match operation.as_str(){"install"=>"Fenix-Patch eingerichtet. Die nächsten Schritte stehen oben.","configure"=>"Anzeigen und automatischer Fenix-Start sind eingerichtet.","restore"=>"Das Profil vor dem Patch wurde wiederhergestellt.","installer"=>"Installer beendet. Prüfe die nächsten Schritte oben; die Fenix-Einrichtung ist noch nicht automatisch abgeschlossen.","repair"=>"Der Fenix-Einrichtungsschritt wurde erfolgreich repariert. Öffne die Fenix-App, um die Flugzeuginstallation fortzusetzen.",_=>"Fenix wurde beendet."}}))
+        if operation=="migrate" {
+            validate(ctx.root()?,false)?;
+            wine_processes::idle(&ctx.root()?.join("local/msfs-prefix"))?;
+            crate::fenix_legacy::inspect(ctx.root()?,&crate::fenix_update::selected(ctx)?["bundle"])?;
+        }
+        if ["configure","installer","open","manager"].contains(&operation.as_str()){crate::fenix_update::ensure(ctx)?;}
+        match operation.as_str(){"install"|"migrate"=>{let payload=bundle::obtain(&ctx.launcher.state_dir.join("fenix-bundles"),data["bundle_path"].as_str(),ctx)?;install(ctx,&payload)?;},"restore"=>restore(ctx)?,"configure"=>configure(ctx)?,"stop"=>{validate(ctx.root()?,true)?;wine_processes::stop(ctx.root()?,wine_processes::FENIX)?;},_=>windows_app(ctx,&operation,&data)?,}
+        Ok(json!({"state":"complete","stopping":false,"message":match operation.as_str(){"install"=>"Fenix-Patch eingerichtet. Die nächsten Schritte stehen oben.","migrate"=>"Fenix-Einrichtung übernommen und Patch aktualisiert. Der vorherige Stand bleibt wiederherstellbar.","configure"=>"Anzeigen und automatischer Fenix-Start sind eingerichtet.","restore"=>"Das Profil vor dem Patch wurde wiederhergestellt.","installer"=>"Installer beendet. Prüfe die nächsten Schritte oben; die Fenix-Einrichtung ist noch nicht automatisch abgeschlossen.","repair"=>"Der Fenix-Einrichtungsschritt wurde erfolgreich repariert. Öffne die Fenix-App, um die Flugzeuginstallation fortzusetzen.",_=>"Fenix wurde beendet."}}))
     })
 }
 
@@ -982,4 +1184,96 @@ pub fn pick(app: &Launcher, data: &Value) -> Result<Value> {
     } else {
         json!({"ok":true,"cancelled":true})
     })
+}
+
+#[cfg(test)]
+mod invocation_log_tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn direct_repair_exit_82_needs_current_log_evidence_for_managed_classification() {
+        let root = tempfile::tempdir().expect("fixture");
+        let prefix = root.path().join("prefix");
+        let runner = root.path().join("runner");
+        files::private_dir(&root.path().join("private")).expect("private evidence directory");
+        fs::create_dir_all(prefix.join("drive_c/windows/system32")).expect("prefix");
+        fs::create_dir(&runner).expect("runner");
+        let path = root.path().join("hook.log");
+        let cancel = std::sync::atomic::AtomicBool::new(false);
+        let mut wine = Wine::new(&prefix, &runner, &path, &cancel).expect("log-only Wine fixture");
+        writeln!(
+            wine.log,
+            "Unhandled exception. System.DllNotFoundException: old private path"
+        )
+        .expect("old log");
+        let offset = wine.log.metadata().expect("metadata").len();
+        writeln!(wine.log, "No exception information in this invocation").expect("current log");
+        let begin = || {
+            let mut value = crate::fenix_diagnostics::begin(root.path(), "repair", "flightdeck")
+                .expect("attempt");
+            value.failure = Some("hook_nonzero".into());
+            value.hook_exit_code = Some(82);
+            value.process_exit_code = Some(82);
+            Some(value)
+        };
+        let mut attempt = begin();
+        invocation_log(&wine, &path, offset, &mut attempt).expect("current log only");
+        let evidence = attempt.expect("attempt");
+        assert_eq!(evidence.failure.as_deref(), Some("hook_nonzero"));
+        assert!(evidence.evidence_complete);
+        assert!(evidence.managed_exception_types.is_empty());
+        assert!(evidence.clr_exception_code.is_none());
+
+        writeln!(wine.log, "Unhandled exception. System.ArgumentException: PRIVATE_STARTUP_HOOK\n ---> System.IO.FileNotFoundException: PRIVATE_PATH").expect("exception headers");
+        let mut attempt = begin();
+        invocation_log(&wine, &path, offset, &mut attempt).expect("exception evidence");
+        let mut evidence = attempt.expect("attempt");
+        assert_eq!(evidence.failure.as_deref(), Some("managed_exception"));
+        assert_eq!(
+            evidence.managed_exception_types,
+            [
+                "System.ArgumentException",
+                "System.IO.FileNotFoundException"
+            ]
+        );
+        evidence.status = "failed".into();
+        evidence.completed_at = Some(files::now());
+        crate::fenix_diagnostics::save(root.path(), &evidence).expect("persisted evidence");
+        let saved = crate::fenix_diagnostics::load(root.path());
+        assert_eq!(saved["failure"], "managed_exception");
+        assert_eq!(saved["evidence_complete"], true);
+        assert!(!saved.to_string().contains("PRIVATE_"));
+
+        // A successful direct repair may have handled an exception. Keep the
+        // observed symbols without turning that successful exit into failure.
+        let mut attempt = begin();
+        if let Some(value) = &mut attempt {
+            value.failure = None;
+            value.hook_exit_code = Some(0);
+            value.process_exit_code = Some(0);
+        }
+        invocation_log(&wine, &path, offset, &mut attempt).expect("handled exception evidence");
+        let mut evidence = attempt.expect("attempt");
+        assert!(evidence.failure.is_none());
+        assert!(!evidence.managed_exception_types.is_empty());
+        evidence.status = "succeeded".into();
+        evidence.completed_at = Some(files::now());
+        crate::fenix_diagnostics::save(root.path(), &evidence).expect("successful direct repair");
+        assert_eq!(
+            crate::fenix_diagnostics::load(root.path())["status"],
+            "succeeded"
+        );
+
+        let offset = wine.log.metadata().expect("metadata").len();
+        wine.log
+            .write_all(&[b'x'; 4097])
+            .expect("oversized new line");
+        let mut attempt = begin();
+        assert!(invocation_log(&wine, &path, offset, &mut attempt).is_err());
+        let evidence = attempt.expect("attempt");
+        assert_eq!(evidence.failure.as_deref(), Some("log_too_large"));
+        assert!(!evidence.evidence_complete);
+        assert!(evidence.managed_exception_types.is_empty());
+    }
 }

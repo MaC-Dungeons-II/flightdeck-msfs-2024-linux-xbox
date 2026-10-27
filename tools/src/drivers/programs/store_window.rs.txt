@@ -1,0 +1,65 @@
+
+// SPDX-License-Identifier: MIT
+#[allow(dead_code)]
+#[path = "../store_purchase.rs"]
+mod store_purchase;
+#[allow(dead_code)]
+#[path = "../store_window_check.rs"]
+mod store_window_check;
+use serde_json::{json, Value};
+use std::time::{Duration, Instant};
+use tao::{dpi::LogicalSize, event::Event, event_loop::{ControlFlow, EventLoopBuilder},
+    platform::run_return::EventLoopExtRunReturn, window::WindowBuilder};
+use wry::{WebViewBuilder, NewWindowResponse, raw_window_handle::{HasWindowHandle, RawWindowHandle}};
+
+fn main() {
+    let nonce = "a".repeat(32);
+    let config = json!({"productId":"ABCD1234EFGH","skuId":"0001","availabilityId":"AVAIL1234567",
+        "market":"AT","locale":"en-US","xToken":"SYNTHETIC-NOT-A-CREDENTIAL","expiresAt":4102444800_i64});
+    let health = std::env::args().any(|s| s == "--health");
+    let html = if health { store_window_check::html("de", &nonce) } else {store_purchase::render(&config, &nonce, "bootstrap")
+        .replace("frame-src https://www.microsoft.com", "frame-src about:")
+        .replace("form-action https://www.microsoft.com/store/purchase/buynowui/buynow", "form-action 'none'")
+        .replace("<iframe id=", "<iframe srcdoc=\"<h1>Offline Store window test</h1><p>No account or payment service.</p>\" id=")};
+    let mut events = EventLoopBuilder::<Value>::with_user_event().build();
+    let window = WindowBuilder::new().with_title("Flightdeck offline Store test")
+        .with_inner_size(LogicalSize::new(720., 820.)).build(&events).unwrap();
+    let raw = match window.window_handle().unwrap().as_raw() {
+        RawWindowHandle::Xlib(w) => Some(w.window), _ => None,
+    };
+    println!("{}", json!({"window":raw,"pid":std::process::id()}));
+    let proxy = events.create_proxy();
+    let builder = WebViewBuilder::new().with_incognito(true).with_html(html)
+        .with_devtools(false)
+        .with_navigation_handler(|url| url.starts_with("about:") || url.starts_with("data:"))
+        .with_new_window_req_handler(|_, _| NewWindowResponse::Deny)
+        .with_ipc_handler(move |request| {
+            if let Ok(value) = serde_json::from_str::<Value>(request.body()) {
+                let _ = proxy.send_event(value);
+            }
+        });
+    let webview = if std::env::args().any(|s| s == "--legacy") {
+        builder.build(&window).unwrap()
+    } else { store_purchase::attach_webview(&window, builder).unwrap() };
+    let start = Instant::now();
+    let mut checked = false; let mut cancelled = false; let mut passed = false;
+    events.run_return(|event, _, flow| {
+        *flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50));
+        if let Event::UserEvent(value) = event {
+            if value["probe"] == "render" { println!("{}", value); }
+            if value["nonce"] == nonce && (value["status"] == "cancel" || value["result"] == "cancelled") {
+                passed = true; *flow = ControlFlow::Exit;
+            }
+        }
+        if !checked && start.elapsed() > Duration::from_secs(3) {
+            checked = true;
+            webview.evaluate_script("window.ipc.postMessage(JSON.stringify({probe:'render',width:innerWidth,height:innerHeight,button:!!document.getElementById('cancel'),frame:!!document.getElementById('checkout')}))").unwrap();
+        }
+        if !cancelled && start.elapsed() > Duration::from_secs(8) {
+            cancelled = true; webview.evaluate_script("document.getElementById('cancel').click()").unwrap();
+        }
+        if start.elapsed() > Duration::from_secs(15) { *flow = ControlFlow::Exit; }
+    });
+    assert!(passed, "Cancellation did not reach the native event loop");
+    println!("{}", json!({"cancelled":true,"real_account_calls":0,"payment_requests":0}));
+}

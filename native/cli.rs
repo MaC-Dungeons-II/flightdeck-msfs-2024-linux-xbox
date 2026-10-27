@@ -302,7 +302,7 @@ pub fn diagnose(run: Option<&Path>, runtime: Option<&Path>, state_dir: &Path) ->
     summary["graphics"] = json!({"log":graphics});
     summary["store_session"] = crate::store_diagnostics::session(&run);
     let modified: chrono::DateTime<chrono::Utc> = info.modified()?.into();
-    summary["context"] = json!({"diagnostics_schema":5,"tool":"flightdeck-run-log-diagnostics-v1","run_log_modified_at":modified.to_rfc3339(),"cloud_sync_scope":"not_collected"});
+    summary["context"] = json!({"diagnostics_schema":crate::run_diagnostics::SCHEMA,"tool":"flightdeck-run-log-diagnostics-v1","run_log_modified_at":modified.to_rfc3339(),"cloud_sync_scope":"not_collected"});
     Ok(json!({"summary":summary,"generated_at":files::now()}))
 }
 pub fn output(value: &Value, path: Option<&Path>) -> Result<()> {

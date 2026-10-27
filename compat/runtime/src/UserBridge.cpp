@@ -23,7 +23,19 @@ struct UserState {
     bool stopping = false;
     bool needs_cleanup = false;
     HRESULT last_error = CO_E_NOTINITIALIZED;
+    // Results of interface queries that were already logged.
+    HRESULT logged_results[16] = {};
+    unsigned logged_count = 0;
 };
+// The game queries its user interfaces constantly. Each distinct result is
+// logged once: a line per call filled most of a session's log.
+bool first_result(UserState &user, HRESULT hr) {
+    for (unsigned i = 0; i < user.logged_count; ++i)
+        if (user.logged_results[i] == hr) return false;
+    if (user.logged_count == sizeof(user.logged_results) / sizeof(user.logged_results[0])) return false;
+    user.logged_results[user.logged_count++] = hr;
+    return true;
+}
 UserState &state() {
     // The library and its interface vtables stay loaded for process lifetime.
     // Explicit uninitialization shuts down resources, not the DLL's code pages.
@@ -91,7 +103,8 @@ HRESULT QueryUserRuntime(const GUID *clsid, REFIID iid, void **out) {
     std::lock_guard<std::mutex> guard(user.lock);
     if (!user.active) return user.last_error;
     HRESULT hr = user.query(clsid, iid, out);
-    std::fprintf(stderr, "xodus-user-bridge: query result=%08lx\n", static_cast<ULONG>(hr));
+    if (first_result(user, hr))
+        std::fprintf(stderr, "xodus-user-bridge: query result=%08lx\n", static_cast<ULONG>(hr));
     return hr;
 }
 

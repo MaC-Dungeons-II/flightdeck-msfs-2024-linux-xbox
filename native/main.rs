@@ -28,7 +28,7 @@ struct Arguments {
     language: Option<String>,
     #[arg(long)]
     refresh_components: bool,
-    #[arg(long, hide=true, value_parser=["host","graphics","vr","nvidia-directory","hip"])]
+    #[arg(long, hide=true, value_parser=["host","graphics","vr","nvidia-directory","hip","media","media-bundle"])]
     native_probe: Option<String>,
     #[command(subcommand)]
     command: Option<Command>,
@@ -289,6 +289,8 @@ fn main() -> ExitCode {
     if let Some(probe) = arguments.native_probe.as_deref() {
         let result = match probe {
             "host" => Ok(flightdeck::native_probe::host()),
+            "media" => Ok(flightdeck::native_probe::media()),
+            "media-bundle" => Ok(flightdeck::media_overlay::payload_status()),
             "graphics" => flightdeck::native_probe::graphics(),
             "vr" => Ok(flightdeck::native_probe::vr()),
             "hip" => std::env::var_os("FLIGHTDECK_HIP_LIBRARY")
@@ -345,10 +347,12 @@ fn main() -> ExitCode {
                 );
                 return Ok(());
             }
-            if matches!(
-                flightdeck::components::state(launcher.lock().runtime.as_deref()),
-                "pending" | "interrupted" | "current"
-            ) && let Err(error) = flightdeck::components::refresh(&launcher)
+            if !flightdeck::steam::selected(&launcher)
+                && matches!(
+                    flightdeck::components::state(launcher.lock().runtime.as_deref()),
+                    "pending" | "interrupted" | "current"
+                )
+                && let Err(error) = flightdeck::components::refresh(&launcher)
             {
                 eprintln!(
                     "Flightdeck: {}",

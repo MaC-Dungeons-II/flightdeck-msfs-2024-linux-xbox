@@ -248,6 +248,7 @@ impl App {
         for (title, op) in [
             ("Download pausieren", "pause"),
             ("Download fortsetzen", "resume"),
+            ("Download erneut versuchen", "retry"),
             ("Abbrechen", "cancel"),
         ] {
             if self.request(&SetupControl(op)).is_some() {
@@ -294,6 +295,11 @@ impl App {
             MUTED
         )]
         .spacing(24);
+        if self.request(&SetupControl("retry")).is_some()
+            && self.data("setup")["job"]["mode"] != "update"
+        {
+            return page.push(self.download_retry_view()).into();
+        }
         let busy = model::active(&self.data("setup")["job"])
             && self.data("setup")["job"]["mode"] != "update";
         if yes(&status["runtime"], "configured") && !busy {
@@ -401,7 +407,7 @@ impl App {
                 guide_row("database","Verbinden","Bei der Neuinstallation meldest du dich mit deinem Microsoft-Konto an. Flightdeck lädt deine lizenzierte Spielversion."),separator(),
                 guide_row("play","Simulator starten","Danach startest du deinen Simulator direkt aus Flightdeck.")].spacing(20));
             row![container(self.setup_form()).width(Length::FillPortion(23)),container(guide).width(Length::FillPortion(10))].spacing(22).into()
-        })).into()
+        })).push(self.installations_card()).into()
     }
     fn proton_card(&self) -> Element<'_, Message> {
         let data = self.data("proton");

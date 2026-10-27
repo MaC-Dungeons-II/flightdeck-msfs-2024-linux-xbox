@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
-//! Pinned overlay payloads; never execute or import downloaded installer scripts.
+//! Verified overlay payloads; never execute or import downloaded installer scripts.
 use crate::{
     Error, Result,
     backend::{Context, string},
-    bootstrap,
     error::require,
     files, resources, runtime, transaction as tx,
 };
@@ -19,7 +18,9 @@ pub const LAUNCH_FILES: [&str; 2] = ["launch-msfs.sh", "xodus-wine-launch"];
 // Kept in upstream manifests for old launchers; Rust owns display refresh now.
 pub const LEGACY_DISPLAY_HELPER: &str = "fenix-display-refresh.py";
 pub fn manifest(variant: Option<&str>) -> Result<Value> {
-    let mut lock = resources::json("compat/fenix/bundle.json")?;
+    select_variant(resources::json("compat/fenix/bundle.json")?, variant)
+}
+pub fn select_variant(mut lock: Value, variant: Option<&str>) -> Result<Value> {
     if let Some(variant) = variant {
         let entry = lock["variants"][variant]
             .as_object()
@@ -27,9 +28,16 @@ pub fn manifest(variant: Option<&str>) -> Result<Value> {
                 "No Fenix compatibility build is available for this Proton version.",
             ))?
             .clone();
-        lock.as_object_mut()
-            .ok_or(Error::Invalid("Invalid Fenix bundle."))?
-            .extend(entry);
+        let merged = lock
+            .as_object_mut()
+            .ok_or(Error::Invalid("Invalid Fenix bundle."))?;
+        if !entry.contains_key("dxvk") {
+            merged.remove("dxvk");
+        }
+        if !entry.contains_key("display_renderer") {
+            merged.remove("display_renderer");
+        }
+        merged.extend(entry);
         lock["variant"] = variant.into();
     }
     Ok(lock)
@@ -112,15 +120,35 @@ pub fn verify_runner(runner: &Path, lock: &Value, patched: bool) -> Result<()> {
     Ok(())
 }
 pub fn runner_variant(runner: &Path, patched: bool) -> Result<Option<String>> {
-    if verify_runner(runner, &manifest(None)?, patched).is_ok() {
+    runner_variant_with(runner, patched, &manifest(None)?)
+}
+fn supported_runner(runner: &Path, lock: &Value, patched: bool) -> bool {
+    if verify_runner(runner, lock, patched).is_ok() {
+        return true;
+    }
+    // A preserved default runner can predate an independently applied patch.
+    // Accept only an exact recorded payload before copying and overlaying it.
+    patched
+        && lock["previous_releases"]
+            .as_object()
+            .into_iter()
+            .flat_map(|v| v.values())
+            .any(|snapshot| {
+                let mut previous = lock.clone();
+                previous["files"] = snapshot["files"].clone();
+                verify_runner(runner, &previous, true).is_ok()
+            })
+}
+pub fn runner_variant_with(runner: &Path, patched: bool, lock: &Value) -> Result<Option<String>> {
+    if supported_runner(runner, lock, patched) {
         return Ok(None);
     }
-    for name in manifest(None)?["variants"]
+    for name in lock["variants"]
         .as_object()
         .into_iter()
         .flat_map(|v| v.keys())
     {
-        if verify_runner(runner, &manifest(Some(name))?, patched).is_ok() {
+        if supported_runner(runner, &select_variant(lock.clone(), Some(name))?, patched) {
             return Ok(Some(name.clone()));
         }
     }
@@ -147,14 +175,24 @@ fn wanted(lock: &Value) -> Result<BTreeMap<String, Option<String>>> {
     Ok(wanted)
 }
 pub fn verify(bundle: &Path) -> Result<PathBuf> {
+    verify_with(bundle, &manifest(None)?)
+}
+pub fn payload_manifest(bundle: &Path, variant: Option<&str>) -> Result<Value> {
+    let lock = runtime::value(&bundle.join("bundle.json"))?;
+    crate::fenix_update::compatible_manifest(&lock)?;
+    select_variant(lock, variant)
+}
+pub fn verify_payload(bundle: &Path) -> Result<PathBuf> {
+    verify_with(bundle, &payload_manifest(bundle, None)?)
+}
+fn verify_with(bundle: &Path, lock: &Value) -> Result<PathBuf> {
     let bundle = bundle.canonicalize()?;
     files::directory(&bundle, false)?;
-    let lock = manifest(None)?;
     require(
-        runtime::value(&bundle.join("bundle.json"))? == lock,
+        runtime::value(&bundle.join("bundle.json"))? == *lock,
         "The patch bundle does not match this installer version.",
     )?;
-    for (name, hash) in wanted(&lock)? {
+    for (name, hash) in wanted(lock)? {
         if let Some(hash) = hash {
             let file = tx::owned_file(&bundle, &bundle.join(name))?;
             require(
@@ -166,37 +204,37 @@ pub fn verify(bundle: &Path) -> Result<PathBuf> {
     Ok(bundle)
 }
 pub fn obtain(cache: &Path, supplied: Option<&str>, ctx: &Context) -> Result<PathBuf> {
+    ctx.interrupted()?;
+    let selected = crate::fenix_update::selected(ctx)?;
+    let lock = &selected["bundle"];
+    let release = &selected["release"];
     if let Some(supplied) = supplied.filter(|s| !s.is_empty()) {
         let path = files::expand(supplied);
         require(
             path.is_absolute() && supplied.len() <= 4096,
             "Select the extracted Fenix patch release directory.",
         )?;
-        return verify(&path);
+        return verify_with(&path, lock);
     }
-    let lock = manifest(None)?;
-    let release = resources::json("compat/fenix/release.json")?;
     files::private_dir(cache)?;
-    let target = cache.join(string(&lock, "version")?);
+    let target = cache.join(string(lock, "version")?);
     if files::exists(&target) {
-        return verify(&target);
+        return verify_with(&target, lock);
     }
     ctx.progress("Das geprüfte Fenix-Paket wird heruntergeladen …");
-    let archive = bootstrap::download(
-        string(&release, "url")?,
-        string(&release, "sha256")?,
-        &cache.join(format!("{}.zip", string(&lock, "version")?)),
-        &ctx.cancel,
-        |_| {},
+    let archive = crate::fenix_update::download(
+        release,
+        &cache.join(format!("{}.zip", string(lock, "version")?)),
+        ctx,
     )?;
     let stage = tx::new_directory(cache, ".fenix-extract-")?;
     let result = (|| {
-        let wanted = wanted(&lock)?;
+        let wanted = wanted(lock)?;
         let mut zipped = zip::ZipArchive::new(File::open(&archive)?)
             .map_err(|_| Error::Invalid("Invalid Fenix release archive."))?;
         require(zipped.len() < 10000, "Invalid Fenix release archive.")?;
         let mut seen = BTreeSet::new();
-        let prefix = format!("{}/", string(&release, "archive_root")?);
+        let prefix = format!("{}/", string(release, "archive_root")?);
         for i in 0..zipped.len() {
             ctx.interrupted()?;
             let mut entry = zipped
@@ -231,7 +269,7 @@ pub fn obtain(cache: &Path, supplied: Option<&str>, ctx: &Context) -> Result<Pat
             seen == wanted.keys().cloned().collect(),
             "Incomplete Fenix release archive.",
         )?;
-        verify(&stage)?;
+        verify_with(&stage, lock)?;
         tx::publish(&stage, &target)?;
         Ok(target.clone())
     })();
@@ -278,25 +316,43 @@ pub fn overlay(
     variant: Option<&str>,
     ctx: &Context,
 ) -> Result<()> {
-    let lock = manifest(variant)?;
+    let lock = payload_manifest(bundle, variant)?;
     let payload = if let Some(v) = variant {
         bundle.join("payload/variants").join(v)
     } else {
         bundle.join("payload")
     };
+    overlay_payload(prefix, runner, bundle, &payload, &lock, &|| {
+        ctx.interrupted()
+    })
+}
+
+fn overlay_payload(
+    prefix: &Path,
+    runner: &Path,
+    bundle: &Path,
+    payload: &Path,
+    lock: &Value,
+    interrupted: &dyn Fn() -> Result<()>,
+) -> Result<()> {
     for (name, hash) in map(&lock["files"])? {
-        ctx.interrupted()?;
-        let bytes = files::read(&contained(&payload, &name)?, 32 * 1024 * 1024)?;
+        interrupted()?;
+        let bytes = files::read(&contained(payload, &name)?, 32 * 1024 * 1024)?;
         require(
             files::sha256(&bytes) == hash,
             "Fenix patch checksum mismatch.",
         )?;
-        write(
-            &contained(runner, &name)?,
-            &bytes,
-            if name.contains("/bin/") { 0o755 } else { 0o644 },
-        )?;
-        if name.starts_with("files/lib/wine/x86_64-windows/") {
+        let destination = contained(runner, &name)?;
+        if !destination.is_file() || tx::digest(&destination)? != hash {
+            write(
+                &destination,
+                &bytes,
+                if name.contains("/bin/") { 0o755 } else { 0o644 },
+            )?;
+        }
+        if name.starts_with("files/lib/wine/x86_64-windows/")
+            || name == crate::fenix_setup::DXGI_FILE
+        {
             write(
                 &contained(
                     prefix,
@@ -313,7 +369,11 @@ pub fn overlay(
             )?;
         }
     }
-    for name in ["FenixWindowGuard.exe", "FenixMCDURefresh.exe"] {
+    for name in [
+        "FenixWindowGuard.exe",
+        "FenixMCDURefresh.exe",
+        "fenix-runtime",
+    ] {
         if let Some(hash) = lock["integration"][name].as_str() {
             let bytes = files::read(&bundle.join("integration").join(name), 32 * 1024 * 1024)?;
             require(
@@ -323,9 +383,59 @@ pub fn overlay(
             write(
                 &contained(prefix, &format!("drive_c/windows/system32/{name}"))?,
                 &bytes,
-                0o644,
+                if name == "fenix-runtime" {
+                    0o755
+                } else {
+                    0o644
+                },
             )?;
         }
     }
-    verify_runner(runner, &lock, true)
+    verify_runner(runner, lock, true)
+}
+
+#[cfg(test)]
+mod renderer_tests {
+    use super::*;
+    use serde_json::json;
+    use std::os::unix::fs::symlink;
+
+    fn put(path: &Path, bytes: &[u8]) {
+        files::private_dir(path.parent().expect("parent")).expect("directory");
+        files::atomic(path, bytes).expect("write");
+    }
+
+    #[test]
+    fn native_dxgi_is_published_to_the_prefix_without_following_a_file_symlink() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let root = temp.path();
+        let runner = root.join("runner");
+        let prefix = root.join("prefix");
+        let bundle = root.join("bundle");
+        let payload = bundle.join("payload");
+        let name = crate::fenix_setup::DXGI_FILE;
+        let bytes = b"patched native DXGI";
+        put(&runner.join("version"), b"fixture version");
+        put(&payload.join(name), bytes);
+        let outside = root.join("original-shared-dxgi.dll");
+        put(&outside, b"original shared DXGI");
+        let native = prefix.join("drive_c/windows/system32/dxgi.dll");
+        files::private_dir(native.parent().expect("system32")).expect("prefix");
+        symlink(&outside, &native).expect("native DXGI link");
+        let lock = json!({
+            "runner_version":"fixture version", "runner_files":{},
+            "files":{name:files::sha256(bytes)}, "integration":{},
+        });
+        overlay_payload(&prefix, &runner, &bundle, &payload, &lock, &|| Ok(())).expect("overlay");
+        assert!(!native.is_symlink());
+        assert_eq!(fs::read(&native).expect("prefix DXGI"), bytes);
+        assert_eq!(fs::read(runner.join(name)).expect("runner DXGI"), bytes);
+        assert_eq!(
+            fs::read(&outside).expect("original"),
+            b"original shared DXGI"
+        );
+        put(&payload.join(name), b"tampered DXGI");
+        assert!(overlay_payload(&prefix, &runner, &bundle, &payload, &lock, &|| Ok(())).is_err());
+        assert_eq!(fs::read(&native).expect("retained verified DXGI"), bytes);
+    }
 }

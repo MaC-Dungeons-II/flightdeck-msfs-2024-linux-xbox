@@ -1,7 +1,7 @@
-# Native desktop and add-on management (0.2.7)
+# Native desktop and add-on management
 
-All six Flightdeck views now use Rust and iced 0.14: overview, setup, updates,
-saves, mods and diagnostics. The previous artwork, Manrope font, icons, colors
+The six main Flightdeck views and the Credits page use Rust and iced 0.14:
+overview, setup, updates, saves, mods, diagnostics and credits. The previous artwork, Manrope font, icons, colors
 and navigation remain. Layout and native controls are reproduced directly;
 this is not a webview and does not promise identical browser text rasterization.
 German and English work at the supported minimum of 960 × 700 and larger sizes.
@@ -24,8 +24,17 @@ performance inside MSFS; that needs a separate simulator test.
 The executable embeds the production interface in `native/ui/`. `ui/` contains
 only shared artwork, font and icon assets. The old web implementation is available
 in Git history (`v0.2.2:ui/`); it is no longer duplicated in the working tree.
-Python remains only in maintainer build/test tools. The
+Maintainer build and test tools are Rust as well (`tools/`). The
 Windows add-ons themselves still require their own .NET/Wine components.
+
+## Credits
+
+The bottom of the sidebar opens **Credits**, with an info button in the compact
+icon rail. It works without a game installation or local-service connection.
+German and English credits name collaborators and the upstream compatibility,
+rendering, media, UI and artwork projects, including OnlyCrayZ-Labs’ specific
+contributions. Local license documents and version-specific dependency/source
+links provide the complete records. See [credits](credits.md).
 
 ## Compact add-on controls in 0.2.7
 
@@ -64,11 +73,13 @@ blocked until its warning is resolved. Synchronization, recovery and running
 work continue to prevent edition switching.
 
 An interrupted session shows **Sitzung prüfen / Check session** beside the launch
-button. This checks that the previous session's processes have ended and backs
-up local saves before clearing the block. It does not start the game or upload
-saves. While the check runs, the button shows its progress and launch and edition
-selection remain unavailable. If a check or backup fails, the block stays in
-place and the reason remains visible.
+button. This ends the previous session's remaining runtime-bound processes
+(since 0.2.9), including another Windows application still open in the profile,
+verifies they have ended and backs up local saves before clearing the block. It does not start the game or upload saves. While the check runs, the
+button shows its progress and launch and edition selection remain unavailable.
+If a process survives or a backup fails, the block stays in place and the launch
+note names the blocking process with its PID; a process stuck in the kernel
+(state D) requires a Linux restart.
 
 Disabled controls have a muted appearance. A blocked launch shows a warning
 instead of a ready checkmark. An abnormal simulator exit shows a failure hint
@@ -111,7 +122,9 @@ avoids a separate framebuffer-sized clipping mask. Partially clipped text keeps
 the explicit mask needed by the software renderer.
 
 See the [measured 0.2.4/0.2.5 UI comparison](performance.md#native-page-switching-025).
-`scripts/check-edition-update.py` also exercises a real service against a
+`cargo run --locked -p flightdeck-tools -- probe edition-update --package
+/path/to/package --previous-package /path/to/previous-package` also exercises a
+real service against a
 synthetic inactive edition built with the historical package's pinned components;
 it verifies automatic migration, the new helper, repeat switching and retained
 synthetic saves without launching a game or accessing an account.
@@ -166,6 +179,26 @@ simulator log: operation, timestamps, validated package version, runner category
 exit codes and finite failure signatures. Raw logs, paths and account data are
 excluded. Missing evidence stays unknown; a new attempt replaces the old result.
 
+**In 0.2.8:** Install and repair commands discard inherited host .NET runtime
+paths, dependency/loading overrides and startup hooks before launching Wine. In
+a controlled test with official FenixApp 1.0.286, an invalid inherited
+`DOTNET_STARTUP_HOOKS` caused exit 82 before the application hook ran. The same
+input succeeds with exit 0 through the updated Wine environment. This establishes
+one preventable cause; resolution of users’ reported exit-82 failures remains
+unconfirmed. Prefix registry values are separate and are not cleared by this
+filter.
+
+Diagnostics now retain up to eight recognized .NET exception type identifiers
+and the CLR exception code only when explicitly observed in the current log.
+Messages, stack traces and paths stay local. Exit 82 alone remains `hook_nonzero`.
+The latest validated failed attempt remains visible after a launcher restart;
+a failed repair leads to diagnostics before another attempt. An eligible repair
+or selection of the official installer remains under **Manage & repair**,
+including when the manager cannot be identified. Active jobs take precedence;
+an older completed job cannot hide a newer persisted failure. The green
+**Fenix Linux patch** check validates that patch, not the official app's install
+hook.
+
 Validation used official FenixApp 1.0.286 in isolated, account-free profiles:
 
 - A fresh full bootstrapper install with `--silent` and newly installed .NET,
@@ -188,6 +221,12 @@ FLIGHTDECK_TEST_OUTPUT="$PWD/build/fenix-hook-check" \
 cargo test --locked --test native_live_fenix \
   official_fenix_hook_with_persisted_wine_environment -- --ignored --nocapture
 ```
+
+To exercise the inherited-environment regression, set
+`DOTNET_STARTUP_HOOKS='C:\flightdeck-repro\missing.dll'` on that test command and
+use another fresh output directory. The application should still exit 0. Keep
+these opt-in checks in an isolated process and network namespace; they need only
+the cached official files and do not perform activation or login.
 
 The separate `official_fenix_hook_failure_is_repaired_by_persisted_compatibility_settings`
 check exercises failure and recovery; give it a different, unused output directory.

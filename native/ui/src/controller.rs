@@ -64,7 +64,7 @@ impl App {
         let heavy =
             self.poll_interval() == Duration::from_secs(10) || self.poll_count.is_multiple_of(5);
         self.poll_count = self.poll_count.wrapping_add(1);
-        let mut keys = vec!["setup", "launcher-update"];
+        let mut keys = vec!["setup", "launcher-update", "installations"];
         match self.page {
             Page::Overview => keys.push("game-update"),
             Page::Setup => {
@@ -87,6 +87,7 @@ impl App {
                     keys.push("mods");
                 }
             }
+            Page::Credits => {}
             Page::Diagnostics => {
                 keys.push("store-check");
                 if heavy || !self.snapshot.contains_key("diagnostics") {
@@ -392,6 +393,11 @@ impl App {
                             Action::SetupCheck if self.forms.get("mode") == "existing" => {
                                 self.connect_after_check =
                                     value["job"]["id"].as_str().map(str::to_string);
+                            }
+                            Action::XboxSetup => {
+                                self.page = Page::Setup;
+                                self.forms.text.insert("mode", "install".into());
+                                self.forms.text.remove("destination_path");
                             }
                             Action::Launcher("restart") => {
                                 self.restarting = true;
@@ -718,7 +724,12 @@ impl App {
         self.proton_active = Some(active);
     }
     pub fn launch_label(&self) -> &str {
-        if self.pending_action == Some(Action::Launch) {
+        if self.status()["game"]["state"] == "starting" && self.is_steam() {
+            self.tr(
+                "Steam startet den Simulator …",
+                "Steam is starting the simulator …",
+            )
+        } else if self.pending_action == Some(Action::Launch) {
             self.tr("Start wird vorbereitet …", "Preparing launch …")
         } else if self.pending_action == Some(Action::Stop)
             || self.status()["game"]["state"] == "stopping"
@@ -762,7 +773,37 @@ impl App {
                 .as_i64()
                 .is_some_and(|code| ![0, 130, 143].contains(&code))
     }
-    pub fn launch_note(&self) -> &str {
+    /// The launch note, naming the process that still blocks a fenced session.
+    pub fn launch_note(&self) -> std::borrow::Cow<'_, str> {
+        let note = self.launch_note_text();
+        let process = &self.status()["cloud"]["error_details"]["blocking_process"];
+        if self.status()["cloud"]["state"] == "attention"
+            && self.status()["cloud"]["error_code"] == "unsafe_session"
+            && let (Some(name), Some(pid)) = (process["name"].as_str(), process["pid"].as_u64())
+        {
+            return format!(
+                "{note} {}: {name} (PID {pid}{})",
+                self.tr("Prozess", "Process"),
+                if process["unkillable"] == true {
+                    self.tr(", Zustand D", ", state D")
+                } else {
+                    ""
+                }
+            )
+            .into();
+        }
+        note.into()
+    }
+    fn launch_note_text(&self) -> &str {
+        if self.is_steam() {
+            if !s(&self.status()["game"], "message").is_empty() {
+                return s(&self.status()["game"], "message");
+            }
+            return self.tr(
+                "Start und Spielupdates werden von Steam verwaltet.",
+                "Steam manages game launch and updates.",
+            );
+        }
         if self.pending_action == Some(Action::Launch) {
             self.tr(
                 "Dein Start wurde angefordert. Flightdeck bereitet den Simulator vor.",
@@ -978,7 +1019,15 @@ async fn open_draft(uri: String) -> Result<Option<String>, String> {
 }
 
 async fn open_help(link: HelpLink) -> Result<Option<String>, String> {
-    open_url(link.url().to_string()).await
+    let local = link
+        .document()
+        .and_then(|name| credits::installed_document(&std::env::current_exe().ok()?, name));
+    open_url(
+        local
+            .map(|path| path.to_string_lossy().into_owned())
+            .unwrap_or_else(|| link.url().to_string()),
+    )
+    .await
 }
 
 async fn open_url(url: String) -> Result<Option<String>, String> {

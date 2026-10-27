@@ -9,15 +9,124 @@ use crate::{
     wine::{StagedWine, Wine},
     xml::{self, Element, Item},
 };
+use serde_json::{Value, json};
 use std::{
     fs,
     path::{Path, PathBuf},
+    sync::atomic::AtomicBool,
     time::Duration,
 };
 pub const PROGRAM: &str = "drive_c/Program Files/FenixSim A320";
 pub const CONFIG: &str = "drive_c/ProgramData/Fenix/FenixSim A320";
 pub const GEOMETRY_HASH: &str = "663f1d59ec1c014b9ea47a6cef71b3d43579e9759a82f3ee2cbd80b8c6d9e85f";
 pub const GEOMETRY_PATH: &str = "drive_c/windows/system32/d2d1_geometry.dll";
+pub const DXGI_FILE: &str = "files/lib/wine/dxvk/x86_64-windows/dxgi.dll";
+const GPU_FILES: [&str; 8] = [
+    "files/lib/wine/x86_64-windows/ntdll.dll",
+    "files/lib/wine/x86_64-unix/ntdll.so",
+    "files/bin/wineserver",
+    "files/lib/wine/x86_64-windows/gdi32.dll",
+    "files/lib/wine/x86_64-windows/win32u.dll",
+    "files/lib/wine/x86_64-unix/win32u.so",
+    "files/lib/wine/x86_64-windows/wow64win.dll",
+    DXGI_FILE,
+];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DisplayRenderer {
+    Cpu,
+    Gpu,
+}
+impl DisplayRenderer {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Cpu => "CPU",
+            Self::Gpu => "GPU",
+        }
+    }
+    pub fn from_manifest(lock: &Value) -> Result<Self> {
+        match lock.get("display_renderer") {
+            None => Ok(Self::Cpu),
+            Some(value) if value == "CPU" => Ok(Self::Cpu),
+            Some(value) if value == "GPU" => {
+                require(
+                    lock["dxvk"]
+                        .as_object()
+                        .is_some_and(|dxvk| !dxvk.is_empty())
+                        && GPU_FILES
+                            .iter()
+                            .all(|name| lock["files"].get(name).is_some()),
+                    "GPU displays require the complete matched Wine and DXGI overlay for this Proton build.",
+                )?;
+                Ok(Self::Gpu)
+            }
+            _ => Err(Error::Invalid(
+                "Unknown display renderer in the Fenix bundle.",
+            )),
+        }
+    }
+    pub fn from_state(state: &Value) -> Self {
+        if state["display_renderer"] == "GPU" {
+            Self::Gpu
+        } else {
+            Self::Cpu
+        }
+    }
+    pub fn for_state(lock: &Value, state: &Value) -> Result<Self> {
+        let supported = Self::from_manifest(lock)?;
+        let saved = match state.get("display_renderer_override") {
+            None | Some(Value::Null) => None,
+            Some(value) if value == "CPU" => Some(Self::Cpu),
+            Some(value) if value == "GPU" => Some(Self::Gpu),
+            _ => return Err(Error::Invalid("Unknown saved display renderer preference.")),
+        };
+        require(
+            saved != Some(Self::Gpu) || supported == Self::Gpu,
+            "This Proton overlay supports CPU displays only. Install a GPU-capable Fenix patch first.",
+        )?;
+        Ok(saved.unwrap_or(supported))
+    }
+}
+
+pub fn backup_settings(prefix: &Path, backup: &Path, cancel: &AtomicBool) -> Result<()> {
+    for name in ["fenixConfig.xml", "persistancy.xml"] {
+        let path = bundle::contained(prefix, &format!("{CONFIG}/{name}"))?;
+        if files::exists(&path) {
+            tx::copy_path(&path, &backup.join(name), None, cancel)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn apply_settings(state: &mut Value, prefix: &Path, renderer: DisplayRenderer) -> Result<()> {
+    let (configured, readouts) = configure_prefix(prefix, renderer)?;
+    state["configured"] = json!(configured);
+    state["readouts"] = json!(readouts);
+    state["display_renderer"] = if configured {
+        json!(renderer.as_str())
+    } else {
+        Value::Null
+    };
+    Ok(())
+}
+
+/// Keep an explicit CPU fallback, while automatically migrating older CPU-only
+/// states when their exact Proton overlay gains GPU support.
+pub fn migrate_renderer(
+    state: &mut Value,
+    prefix: &Path,
+    backup: &Path,
+    renderer: DisplayRenderer,
+    cancel: &AtomicBool,
+) -> Result<bool> {
+    if DisplayRenderer::from_state(state) == renderer {
+        return Ok(false);
+    }
+    files::private_dir(backup)?;
+    backup_settings(prefix, backup, cancel)?;
+    apply_settings(state, prefix, renderer)?;
+    Ok(true)
+}
 pub fn geometry(wine: &StagedWine<'_>, cache: &Path, payload: &Path, ctx: &Context) -> Result<()> {
     wine.check()?;
     let target = bundle::contained(&wine.wine.prefix, GEOMETRY_PATH)?;
@@ -49,7 +158,8 @@ pub fn geometry(wine: &StagedWine<'_>, cache: &Path, payload: &Path, ctx: &Conte
     }
     let helper = payload.join("integration/FenixGeometrySetup.exe");
     require(
-        tx::digest(&helper)? == bundle::manifest(None)?["integration"]["FenixGeometrySetup.exe"],
+        tx::digest(&helper)?
+            == bundle::payload_manifest(payload, None)?["integration"]["FenixGeometrySetup.exe"],
         "Fenix geometry helper checksum mismatch.",
     )?;
     let work = tx::new_directory(cache, ".fenix-geometry-")?;
@@ -136,6 +246,21 @@ pub fn geometry(wine: &StagedWine<'_>, cache: &Path, payload: &Path, ctx: &Conte
     let _ = fs::remove_dir_all(&work);
     result
 }
+fn ui_font(prefix: &Path, runner: &Path, name: &str) -> Result<()> {
+    let target = bundle::contained(prefix, &format!("drive_c/windows/Fonts/{name}"))?;
+    if target.is_symlink() || !files::exists(&target) {
+        let fallback = runner.join("files/share/wine/fonts").join(name);
+        // Preserve readable linked fonts; replace broken links from the runner.
+        // Read the resolved source and atomically replace only the profile entry.
+        let source = if target.is_file() { &target } else { &fallback };
+        let bytes = files::read_public(&source.canonicalize()?, 32 * 1024 * 1024)?;
+        bundle::write(&target, &bytes, 0o644)?;
+    }
+    // Fonts are public resources, including existing hard-linked files.
+    files::read_public(&target, 32 * 1024 * 1024)?;
+    Ok(())
+}
+
 pub fn ui_fonts(wine: &Wine<'_>) -> Result<()> {
     let registry = String::from_utf8_lossy(&files::read(
         &wine.prefix.join("system.reg"),
@@ -156,16 +281,7 @@ pub fn ui_fonts(wine: &Wine<'_>) -> Result<()> {
         {
             continue;
         }
-        let target = bundle::contained(&wine.prefix, &format!("drive_c/windows/Fonts/{name}"))?;
-        if !files::exists(&target) {
-            let source = wine.runner.join("files/share/wine/fonts").join(name);
-            bundle::write(
-                &target,
-                &files::read_public(&source, 32 * 1024 * 1024)?,
-                0o644,
-            )?;
-        }
-        files::open_at(rustix::fs::CWD, &target, false, false)?;
+        ui_font(&wine.prefix, &wine.runner, name)?;
         wine.run(
             &[
                 "reg",
@@ -281,22 +397,42 @@ pub fn user_folders(prefix: &Path) -> Result<Vec<PathBuf>> {
     }
     Ok(found)
 }
-pub fn configure_prefix(prefix: &Path) -> Result<bool> {
+/// Whether the display settings with auto-start, and the Legacy readouts, could
+/// be written. Fenix can create persistancy.xml later than fenixConfig.xml.
+pub fn configure_prefix(prefix: &Path, renderer: DisplayRenderer) -> Result<(bool, bool)> {
     if !prefix.join(PROGRAM).join("Fenix.exe").is_file() {
-        return Ok(false);
+        return Ok((false, false));
     }
     let settings = bundle::contained(prefix, &format!("{CONFIG}/fenixConfig.xml"))?;
     let persisted = bundle::contained(prefix, &format!("{CONFIG}/persistancy.xml"))?;
     let ready = settings_file(
         &settings,
         &[
-            ("displayMode", "CPU"),
-            ("newRender", "false"),
-            ("preferCPU", "true"),
+            ("displayMode", renderer.as_str()),
+            (
+                "newRender",
+                if renderer == DisplayRenderer::Gpu {
+                    "true"
+                } else {
+                    "false"
+                },
+            ),
+            (
+                "preferCPU",
+                if renderer == DisplayRenderer::Gpu {
+                    "false"
+                } else {
+                    "true"
+                },
+            ),
             ("multithread", "true"),
         ],
     )?;
     let legacy = settings_file(&persisted, &[("fcuReadoutsType", "0")])?;
+    configure_autostart(prefix)?;
+    Ok((ready, ready && legacy))
+}
+pub fn configure_autostart(prefix: &Path) -> Result<()> {
     let mut candidates = Vec::new();
     for user in user_folders(prefix)? {
         let path = user.join("AppData/Roaming/Microsoft Flight Simulator 2024");
@@ -372,7 +508,7 @@ pub fn configure_prefix(prefix: &Path) -> Result<bool> {
         entry.set(key, value);
     }
     files::atomic(&path, &root.bytes()?)?;
-    Ok(ready && legacy)
+    Ok(())
 }
 pub fn manager(prefix: &Path) -> Result<PathBuf> {
     let mut candidates = Vec::new();
@@ -388,4 +524,92 @@ pub fn manager(prefix: &Path) -> Result<PathBuf> {
         "Install the official Fenix Installer first.",
     )?;
     Ok(candidates.remove(0))
+}
+
+#[cfg(test)]
+mod font_tests {
+    use super::*;
+    use std::os::unix::fs::symlink;
+
+    fn put(path: &Path, bytes: &[u8]) {
+        fs::create_dir_all(path.parent().expect("parent")).expect("directory");
+        fs::write(path, bytes).expect("font fixture");
+    }
+
+    #[test]
+    fn readable_and_dangling_font_links_become_private_copies() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let prefix = temp.path().join("prefix");
+        let runner = temp.path().join("runner");
+        let fonts = prefix.join("drive_c/windows/Fonts");
+        fs::create_dir_all(&fonts).expect("fonts");
+        let shared = temp.path().join("shared.ttf");
+        put(&shared, b"custom shared Tahoma");
+        symlink(&shared, fonts.join("tahoma.ttf")).expect("font link");
+        symlink("missing.ttf", fonts.join("tahomabd.ttf")).expect("broken font link");
+        put(
+            &runner.join("files/share/wine/fonts/tahomabd.ttf"),
+            b"runner bold",
+        );
+        for name in ["tahoma.ttf", "tahomabd.ttf"] {
+            ui_font(&prefix, &runner, name).expect("repair linked font");
+            assert!(!fonts.join(name).is_symlink());
+        }
+        assert_eq!(
+            fs::read(fonts.join("tahoma.ttf")).expect("font"),
+            b"custom shared Tahoma"
+        );
+        assert_eq!(
+            fs::read(fonts.join("tahomabd.ttf")).expect("bold"),
+            b"runner bold"
+        );
+        assert_eq!(
+            fs::read(&shared).expect("shared source"),
+            b"custom shared Tahoma"
+        );
+    }
+
+    #[test]
+    fn runner_font_links_and_existing_hardlinks_are_valid_public_fonts() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let prefix = temp.path().join("prefix");
+        let runner = temp.path().join("runner");
+        fs::create_dir(&prefix).expect("prefix");
+        let source = runner.join("files/share/wine/fonts/tahoma.ttf");
+        fs::create_dir_all(source.parent().expect("parent")).expect("source directory");
+        let shared = temp.path().join("system font.ttf");
+        put(&shared, b"system Tahoma");
+        symlink(&shared, &source).expect("runner font link");
+        ui_font(&prefix, &runner, "tahoma.ttf").expect("copy runner font");
+        let target = prefix.join("drive_c/windows/Fonts/tahoma.ttf");
+        assert!(!target.is_symlink());
+        assert!(source.is_symlink());
+        fs::hard_link(&target, target.with_file_name("custom.ttf")).expect("hard link");
+        ui_font(&prefix, &runner, "tahoma.ttf").expect("preserve existing font");
+        assert_eq!(fs::read(target).expect("font"), b"system Tahoma");
+    }
+
+    #[test]
+    fn font_parent_escape_and_non_file_sources_remain_rejected() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let prefix = temp.path().join("prefix");
+        let runner = temp.path().join("runner");
+        let fonts = prefix.join("drive_c/windows/Fonts");
+        fs::create_dir_all(fonts.parent().expect("parent")).expect("windows");
+        let outside = temp.path().join("outside");
+        fs::create_dir(&outside).expect("outside");
+        symlink(&outside, &fonts).expect("escaped font directory");
+        assert!(ui_font(&prefix, &runner, "tahoma.ttf").is_err());
+        assert!(
+            fs::read_dir(&outside)
+                .expect("outside contents")
+                .next()
+                .is_none()
+        );
+        fs::remove_file(&fonts).expect("unlink escaped directory");
+        fs::create_dir_all(runner.join("files/share/wine/fonts/tahoma.ttf"))
+            .expect("invalid source");
+        assert!(ui_font(&prefix, &runner, "tahoma.ttf").is_err());
+        assert!(!files::exists(&fonts.join("tahoma.ttf")));
+    }
 }

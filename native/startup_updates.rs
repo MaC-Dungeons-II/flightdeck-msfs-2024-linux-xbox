@@ -52,8 +52,12 @@ pub fn discover(root: &Path, cancel: &AtomicBool) -> Result<Value> {
 }
 pub fn check(app: &Arc<Launcher>) -> Result<Value> {
     crate::launcher_update::check_on_startup(app)?;
+    crate::fenix_update::check(app, false)?;
     let mut s = app.lock();
     Launcher::open(&s)?;
+    if s.steam.is_some() {
+        return Ok(json!({"ok":true,"managed_by":"steam"}));
+    }
     let Some(root) = s.runtime.clone() else {
         return Ok(json!({"ok":true}));
     };
@@ -93,6 +97,7 @@ pub fn check(app: &Arc<Launcher>) -> Result<Value> {
         },
     );
     drop(s);
+    crate::proton_storage::on_startup(app)?;
     let app = Arc::clone(app);
     std::thread::spawn(move || {
         let result =

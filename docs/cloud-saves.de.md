@@ -117,16 +117,23 @@ weiteren automatischen Sitzung ein Linux-Neustart erforderlich sein. Dadurch
 werden Spielstände nicht verändert, während ein verwaister Spielprozess noch
 laufen könnte. Nach normalem Beenden oder dem Stoppknopf ist kein Neustart nötig.
 
-**In 0.2.6:** **Sitzung prüfen** kann diese Sperre
-ohne Linux-Neustart lösen. Flightdeck prüft zunächst, ob die zugehörigen Prozesse
-beendet sind, und sichert lokale Spielstände. Scheitert die Prüfung, bleibt die
-Sperre bestehen. Die Aktion startet MSFS nicht und lädt keine Spielstände hoch;
+**Seit 0.2.6:** **Sitzung prüfen** kann diese Sperre
+ohne Linux-Neustart lösen. Seit 0.2.9 beendet Flightdeck dabei die verbliebenen
+Prozesse der Runtime (SIGTERM, dann SIGKILL), prüft, dass sie weg sind, und
+sichert lokale Spielstände. Beim Ende des Simulators geschieht dasselbe
+automatisch für das Spiel, Fenix, GSX und die Wine-Dienste; eine andere
+Windows-Anwendung im Profil, etwa ein Installer, läuft weiter und wird genannt,
+**Sitzung prüfen** beendet sie auf Wunsch. Prozesse, die sich der Runtime nicht
+zuordnen lassen, werden nie signalisiert. Überlebt ein Prozess, bleibt die Sperre
+bestehen und die Meldung nennt ihn mit PID; ein im Kernel hängender Prozess
+(Zustand D, meist nach einem GPU-Geräteverlust) endet nur mit einem
+Linux-Neustart. Die Aktion startet MSFS nicht und lädt keine Spielstände hoch;
 der nächste normale Start gleicht ausstehende lokale und Cloud-Änderungen ab.
 [Details](native-ui.md#session-and-control-fixes-in-026).
 
 Die Prüfung schützt auch den normalen Beendigungspfad. Verwendet noch eine
-Windows-Anwendung dasselbe Profil, schließe sie vor der erneuten Sitzungsprüfung
-und dem Abgleich.
+andere Windows-Anwendung dasselbe Profil, schließe sie oder beende sie mit
+**Sitzung prüfen**.
 
 ## Erweiterte Werkzeuge
 
@@ -153,7 +160,7 @@ heruntergeladene Cloud-Kopien ersetzen diese Nachweise nicht.
 | --- | --- |
 | `private/cloud-saves/` | Getrennte Cloud-Kopien, auch vom Stand vor einem Upload |
 | `private/cloud-cache/` | Profilgebundene Verweise auf geprüfte Kopien für schnellere Starts |
-| `private/cloud-helper-prefixes/` | Separate, versionsgebundene Wine-Umgebung des Cloud-Hilfsprozesses |
+| `private/cloud-helper-prefixes/` | Separate, versionsgebundene Wine-Umgebung des Cloud-Hilfsprozesses; die früherer Versionen werden nach einem abgeschlossenen Lauf entfernt |
 | `private/cloud-import-backups/` | Lokale Spielstände vor Übernahme und Rücknahme |
 | `private/cloud-import-receipts/` | Nachweise für geprüfte abgeschlossene Übertragungen |
 | `private/local-saves/` | Aktive lokale Spielstände und Vergleichsstand |
@@ -161,6 +168,14 @@ heruntergeladene Cloud-Kopien ersetzen diese Nachweise nicht.
 | `private/cloud-sessions/` | Profilgebundene ausstehende Übertragungen und Wiederherstellungsnachweise |
 | `private/cloud-offline.pending` | Schutz für unbestätigten Fortschritt, auch bei Kontowechseln im Spiel |
 | `private/connected-storage-device.seed` | Zufällige lokale Kennung für die Cloud-Sperre |
+
+Drei dieser Ordner wachsen mit jeder Sitzung: `cloud-saves/`,
+`cloud-import-backups/` und `save-backups/`. Vor einem Start entfernt Flightdeck
+daraus Einträge, die weder zu den 20 neuesten gehören noch jünger als 30 Tage
+sind, sofern weder der Cache der Cloud-Kopien, eine ausstehende Übertragung, der
+Vergleichsstand der lokalen Spielstände noch der laufende Launcher auf sie
+verweist. Der Nachweis einer entfernten Übernahme-Sicherung wird mit entfernt.
+Lässt sich ein gespeicherter Verweis nicht lesen, wird nichts entfernt.
 
 Diese Dateien enthalten private Daten und gehören nicht in Fehlerberichte,
 Quellcode-Exporte oder Releases. Kontotokens, Signaturen und temporäre

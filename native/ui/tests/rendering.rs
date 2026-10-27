@@ -150,7 +150,7 @@ fn failed_session_is_visible_but_start_remains_retryable() {
         let mut ui =
             iced_test::Simulator::with_size(settings(), Size::new(1061.0, 1125.0), app.view());
         ui.find(state).expect("session failure is visible");
-        ui.find(app.launch_note())
+        ui.find(&*app.launch_note())
             .expect("failure guidance is visible");
         ui.click(retry).expect("retry remains enabled");
         assert!(matches!(
@@ -178,6 +178,7 @@ fn cached_page_and_size_changes_match_a_fresh_full_render() {
         (Page::Setup, 750.0, 900.0, 1.5),
         (Page::Overview, 1061.0, 1125.0, 1.0),
         (Page::Mods, 960.0, 700.0, 2.0),
+        (Page::Credits, 750.0, 900.0, 1.5),
         (Page::Overview, 1280.0, 900.0, 1.0),
     ] {
         app.page = page;
@@ -337,4 +338,59 @@ fn launch_labels_stay_single_line_centered_and_clean_across_state_transitions() 
             }
         }
     }
+}
+
+#[test]
+#[ignore = "writes evidence for session recovery with unavailable cloud transport"]
+fn capture_recovery_without_transport() -> Result<(), Box<dyn std::error::Error>> {
+    let directory = std::env::var_os("FLIGHTDECK_UI_RENDER_CAPTURE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../build/native-ui")
+        });
+    std::fs::create_dir_all(&directory)?;
+    for (language, code) in [(Language::De, "de"), (Language::En, "en")] {
+        for width in [750, 1280] {
+            let mut app = launch_fixture(language, "attention");
+            app.snapshot.get_mut("status").expect("status")["runtime"]["ready"] = json!(false);
+            app.snapshot.get_mut("status").expect("status")["cloud"]["enabled"] = json!(false);
+            app.snapshot.get_mut("status").expect("status")["cloud"]["message"] = json!(
+                if language == Language::De {
+                    "Die vorherige Spielsitzung ist noch nicht freigegeben. Sitzung prüfen beendet ihre verbliebenen Prozesse und sichert die lokalen Spielstände."
+                } else {
+                    "The previous game session has not been released yet. Check session ends its remaining processes and backs up local saves."
+                }
+            );
+            let mut ui = iced_test::Simulator::with_size(
+                settings(),
+                Size::new(width as f32, 900.0),
+                app.view(),
+            );
+            ui.click(if language == Language::De {
+                "Sitzung prüfen"
+            } else {
+                "Check session"
+            })?;
+            assert!(matches!(
+                ui.into_messages().next(),
+                Some(Message::Action(Action::Automatic("retry")))
+            ));
+            let pixels = render(
+                &app,
+                Size::new(width as f32, 900.0),
+                1.0,
+                &mut renderer(),
+                Default::default(),
+            )
+            .0;
+            image::save_buffer(
+                directory.join(format!("recovery-no-transport-{code}-{width}.png")),
+                &pixels,
+                width,
+                900,
+                image::ColorType::Rgba8,
+            )?;
+        }
+    }
+    Ok(())
 }

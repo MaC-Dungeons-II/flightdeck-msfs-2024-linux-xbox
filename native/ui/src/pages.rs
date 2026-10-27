@@ -79,7 +79,7 @@ impl App {
                 .spacing(12)
                 .align_y(alignment::Vertical::Center);
         let badge = match section {
-            Disclosure::Fenix => Some("Community-Vorschau"),
+            Disclosure::Fenix => Some("Community-Patch"),
             Disclosure::Gsx => Some("Experimentell"),
             _ => None,
         };
@@ -200,6 +200,7 @@ impl App {
                 | Backup
                 | SetupCheck
                 | SetupStart
+                | SetupControl("retry")
                 | ModsOpen
                 | ModsRemove
                 | Report
@@ -209,7 +210,7 @@ impl App {
                 | MaintenanceStart
                 | Launcher("install" | "restart")
                 | Game("start" | "sign-in")
-                | Fenix("install" | "configure")
+                | Fenix("install" | "migrate" | "configure")
                 | Gsx("prepare" | "configure")
         );
         self.control(title, allowed.then_some(Message::Action(action)), primary)
@@ -406,6 +407,20 @@ impl App {
         }
         rows.into()
     }
+    pub(crate) fn download_retry_view(&self) -> Element<'_, Message> {
+        self.card(
+            "Download unterbrochen",
+            column![
+                self.job("setup"),
+                self.actions(&[
+                    ("Download erneut versuchen", SetupControl("retry")),
+                    ("Abbrechen", SetupControl("cancel"))
+                ]),
+                self.link(self.t("Diagnose öffnen"), Page::Diagnostics),
+            ]
+            .spacing(16),
+        )
+    }
     pub(crate) fn job<'a>(&self, key: &str) -> Element<'a, Message> {
         let data = self.data(key);
         let job = &data["job"];
@@ -433,7 +448,17 @@ impl App {
                     iced::color!(0xff9199),
                 ));
             }
-            if active(job) {
+            if job["state"] == "failed" {
+                for (key, de, en) in [
+                    ("download_exit_code", "Downloadcode", "Download code"),
+                    ("login_exit_code", "Anmeldecode", "Sign-in code"),
+                ] {
+                    if let Some(code) = job[key].as_i64().filter(|code| *code != 0) {
+                        out = out.push(self.paragraph(format!("{}: {code}", self.tr(de, en))));
+                    }
+                }
+            }
+            if active(job) || (yes(job, "can_retry") && job["transfer"].is_object()) {
                 let transfer = &job["transfer"];
                 if !transfer.is_null() {
                     let received = number(&transfer["received_bytes"]);
@@ -495,26 +520,31 @@ impl App {
         )
     }
     pub(crate) fn page_view(&self) -> Element<'_, Message> {
+        if self.is_steam() && !matches!(self.page, Page::Updates | Page::Credits) {
+            return self.steam_page();
+        }
         match self.page {
             Page::Setup => self.setup_page(),
             Page::Updates => self.updates_page(),
             Page::Saves => self.saves_page(),
             Page::Mods => self.mods_page(),
             Page::Diagnostics => self.diagnostics_page(),
+            Page::Credits => self.credits_page(),
             Page::Overview => Column::new().into(),
         }
     }
     pub(crate) fn overview_details(&self, width: f32, _compact: bool) -> Element<'_, Message> {
+        if self.is_steam() {
+            return self.steam_page();
+        }
         let updates = self.card(
             "Updates",
             column![
                 self.overview_update_status("launcher-update", "Flightdeck"),
                 self.overview_update_status("game-update", "Simulator"),
+                self.overview_fenix_update(),
                 label(
-                    self.tr(
-                        "Automatische Prüfung · Downloads startest du selbst.",
-                        "Automatic checks · You choose when to download."
-                    ),
+                    self.tr("Automatische Updateprüfung.", "Automatic update checks."),
                     13.0,
                     Weight::Normal,
                     MUTED
@@ -589,6 +619,69 @@ impl App {
                 Weight::Normal
             },
             if available {
+                self.edition.accent()
+            } else {
+                MUTED
+            },
+        )
+        .into()
+    }
+    fn overview_fenix_update(&self) -> Element<'_, Message> {
+        let data = self.data("fenix");
+        if !self.fresh("fenix")
+            || s(data, "runtime_path") != self.runtime()
+            || !(yes(data, "installed")
+                || data["state"] == "legacy"
+                || ["preparing", "committing"].contains(&s(data, "state"))
+                || model::active(&data["job"])
+                || data["job"]["state"] == "failed")
+        {
+            return Space::new().height(0).into();
+        }
+        let failed = data["job"]["state"] == "failed";
+        let interrupted = ["preparing", "committing"].contains(&s(data, "state"));
+        let attention = failed
+            || interrupted
+            || yes(data, "update_available")
+            || yes(data, "migration_required");
+        let status = if model::active(&data["job"]) {
+            self.tr("Einrichtung läuft …", "Setup in progress …")
+        } else if failed {
+            self.tr(
+                "Einrichtung fehlgeschlagen – siehe Updates",
+                "Setup failed – see Updates",
+            )
+        } else if interrupted {
+            self.tr(
+                "Einrichtung unterbrochen – siehe Updates",
+                "Setup interrupted – see Updates",
+            )
+        } else if yes(data, "migration_required") {
+            self.tr(
+                "Einrichtung übernehmen & aktualisieren",
+                "Adopt setup & update",
+            )
+        } else if yes(data, "update_available") {
+            self.tr("Update verfügbar", "Update available")
+        } else if data["patch_update"]["state"] == "checking" {
+            self.tr(
+                "Fenix-Updates werden geprüft …",
+                "Checking for Fenix updates …",
+            )
+        } else if data["patch_update"]["state"] == "failed" {
+            self.tr("Updateprüfung fehlgeschlagen", "Update check failed")
+        } else {
+            s(data, "installed_version")
+        };
+        label(
+            format!("Fenix: {status}"),
+            15.0,
+            if attention {
+                Weight::Semibold
+            } else {
+                Weight::Normal
+            },
+            if attention {
                 self.edition.accent()
             } else {
                 MUTED
@@ -758,6 +851,11 @@ impl App {
         .into()
     }
     fn updates_page(&self) -> Element<'_, Message> {
+        if self.request(&SetupControl("retry")).is_some()
+            && self.data("setup")["job"]["mode"] == "update"
+        {
+            return self.download_retry_view();
+        }
         let launcher = self.data("launcher-update");
         let game = self.data("game-update");
         let mut launcher_actions = vec![];
@@ -782,10 +880,8 @@ impl App {
             }
         }
         let mut launcher_view=column![self.paragraph(self.t("Lade neue Flightdeck-Versionen direkt von GitHub. Deine Einstellungen bleiben erhalten.").to_string()),self.job("launcher-update"),self.actions(&launcher_actions)].spacing(16);
-        for key in ["unavailable_reason"] {
-            if !s(launcher, key).is_empty() {
-                launcher_view = launcher_view.push(self.paragraph(s(launcher, key)));
-            }
+        if !s(launcher, "unavailable_reason").is_empty() {
+            launcher_view = launcher_view.push(self.paragraph(s(launcher, "unavailable_reason")));
         }
         if !s(launcher, "notes").is_empty() {
             launcher_view = launcher_view
@@ -812,6 +908,25 @@ impl App {
         } else {
             self.t(presentation::launcher_update(launcher)).into()
         };
+        if self.is_steam() {
+            return column![
+                self.heading(self.tr(
+                    "Updates für Flightdeck & Simulator",
+                    "Flightdeck & simulator updates"
+                )),
+                self.update_panel(
+                    self.t("Flightdeck · GitHub-Releases"),
+                    "refresh",
+                    &launcher_title,
+                    launcher,
+                    launcher_view
+                ),
+                self.steam_page(),
+                self.steam_fenix_card()
+            ]
+            .spacing(20)
+            .into();
+        }
         let mut game_actions = vec![];
         if !active(&game["job"]) {
             game_actions.push(if yes(game, "auth_required") {
@@ -826,6 +941,7 @@ impl App {
         for (title, op) in [
             ("Download pausieren", "pause"),
             ("Download fortsetzen", "resume"),
+            ("Download erneut versuchen", "retry"),
             ("Abbrechen", "cancel"),
         ] {
             if self.request(&SetupControl(op)).is_some() {
@@ -875,22 +991,28 @@ impl App {
             ])
         ]
         .spacing(16);
-        let mut page = column![
-            self.heading(self.tr(
-                "Updates für Flightdeck & Simulator",
-                "Flightdeck & simulator updates"
-            )),
-            self.paragraph(
-                self.t("Aktualisiere Flightdeck und deinen Simulator direkt hier im Launcher.")
-                    .to_string()
-            ),
-            self.update_panel(
-                self.t("Flightdeck · GitHub-Releases"),
-                "refresh",
-                &launcher_title,
-                launcher,
-                launcher_view
-            ),
+        let fenix = self.data("fenix");
+        let fenix_view: Element<'_, Message> = if self.fresh("fenix")
+            && s(fenix, "runtime_path") == self.runtime()
+            && (yes(fenix, "installed")
+                || fenix["state"] == "legacy"
+                || ["preparing", "committing"].contains(&s(fenix, "state"))
+                || model::active(&fenix["job"])
+                || fenix["job"]["state"] == "failed")
+        {
+            self.card(
+                "Fenix Linux-Patch",
+                column![
+                    self.fenix_update_controls(fenix),
+                    self.job("fenix"),
+                    self.link(
+                        self.tr("Fenix-Patch verwalten", "Manage Fenix patch"),
+                        Page::Mods
+                    )
+                ]
+                .spacing(12),
+            )
+        } else {
             row![
                 column![
                     label(
@@ -915,7 +1037,26 @@ impl App {
                 )
             ]
             .spacing(20)
-            .align_y(alignment::Vertical::Center),
+            .align_y(alignment::Vertical::Center)
+            .into()
+        };
+        let mut page = column![
+            self.heading(self.tr(
+                "Updates für Flightdeck & Simulator",
+                "Flightdeck & simulator updates"
+            )),
+            self.paragraph(
+                self.t("Aktualisiere Flightdeck und deinen Simulator direkt hier im Launcher.")
+                    .to_string()
+            ),
+            self.update_panel(
+                self.t("Flightdeck · GitHub-Releases"),
+                "refresh",
+                &launcher_title,
+                launcher,
+                launcher_view
+            ),
+            fenix_view,
             self.update_panel(
                 &self.edition.name(),
                 "download",
@@ -1064,11 +1205,12 @@ impl App {
         .spacing(20)
         .into()
     }
-    fn diagnostic_summary<'a>(&self, summary: &Value) -> Element<'a, Message> {
+    pub(crate) fn diagnostic_summary<'a>(&self, summary: &Value) -> Element<'a, Message> {
         let mut out = Column::new().spacing(14);
         for (key, title) in [
             ("graphics", "Grafik und Vulkan"),
             ("proton", "Proton-Version"),
+            ("fenix", "Fenix-Einrichtung"),
             ("audio", "Audio und Medien"),
             ("vr", "Virtual Reality"),
             ("cloud_sync", "Xbox-Cloud-Abgleich"),
@@ -1213,6 +1355,10 @@ impl App {
             self.heading(self.t("Einblick ohne private Rohlogs").to_string()),
             self.paragraph(self.t("Dieser Bericht enthält die vom lokalen Dienst freigegebenen Status- und Prüfdaten. Er enthält keine Anmeldetokens oder privaten Spielprotokolle.").to_string()),
             self.card("Problem melden",report_card),
+            self.card("Community", column![
+                self.paragraph(self.tr("Fragen stellen, Erfahrungen teilen und gemeinsam an Flightdeck arbeiten.", "Ask questions, share experiences and work on Flightdeck together.")),
+                self.help_link("Discord-Community", HelpLink::Discord)
+            ].spacing(12)),
             self.card("Store prüfen", store_view),
             diagnostics
         ]

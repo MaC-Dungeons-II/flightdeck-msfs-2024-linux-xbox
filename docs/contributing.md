@@ -71,15 +71,15 @@ account identifiers, authentication responses and raw game logs stay in local
 private directories. Use Flightdeck's diagnostic export for a report that omits
 those details; screenshots still need a separate check for personal information.
 
-Run `python3 scripts/check-source-export.py` before committing. Source archives
+Run `cargo run --locked -p flightdeck-tools -- source-check` before committing. Source archives
 use the same explicit allowlist and record every included file's hash:
 
 ```sh
-python3 scripts/source-release.py --output build/flightdeck-source.tar.gz
+cargo run --locked -p flightdeck-tools -- source-release --output build/flightdeck-source.tar.gz
 ```
 
-Build and package the Rust launcher with `scripts/build-native.py` and
-`scripts/native-release.py` as described in [BUILDING.md](../BUILDING.md#native-packages).
+Build and package the Rust launcher with the `build-native` and `package`
+commands of the same tool as described in [BUILDING.md](../BUILDING.md#native-packages).
 The full package combines the native launcher with the component archive
 matching `compat/bootstrap.lock.json` and the [pinned renderer bundle](nvidia-renderer.md).
 These commands create local archives. Binary distributions also require the
@@ -90,23 +90,46 @@ listed in [the provenance notes](../compat/THIRD_PARTY_NOTICES.md).
 ### Fenix patch releases
 
 The separate [Fenix patch repository](https://github.com/marselnenaj/fenix-a320-linux-patch)
-owns the Wine overlay and standalone installer. Flightdeck implements the
-installer contract in Rust. `scripts/sync-fenix.py` imports only the payload and
-release manifests and license. Review protocol changes against the Rust
-implementation; no Python engine is copied into Flightdeck.
+owns the Wine overlay and standalone installer. Flightdeck implements Xbox transactions in Rust and uses the pinned shared Rust
+engine for Steam installations. The maintainer tool's `probe sync-fenix` command
+imports only the payload and release manifests and license. Review protocol
+changes against the Rust implementation; no Python engine is copied into
+Flightdeck.
 
 1. Build and test the patch with its documented upstream sources. Publish its
    Linux installer ZIP, complete corresponding sources and `SHA256SUMS` as a
-   public GitHub release. Keep already pinned release assets immutable.
-2. Run `python3 scripts/sync-fenix.py /absolute/path/to/patch-project` and review
-   the Rust integration, license and both imported manifests. The import command copies
-   files; it does not independently validate a published GitHub asset.
+   public GitHub release, including `flightdeck-update.json` from the release
+   tool. Keep already pinned release assets immutable.
+2. Run `cargo run --locked -p flightdeck-tools -- probe sync-fenix
+   /absolute/path/to/patch-project` and review the Rust integration, license and
+   both imported manifests. The import command copies files; it does not
+   independently validate a published GitHub asset.
 3. Verify the release can be downloaded without GitHub authentication and its
    SHA-256 matches `compat/fenix/release.json`. Run the native add-on/framework/Proton tests,
    installer checks and the native UI interaction tests.
 4. Update the English/German add-on guides and changelog, then include the
-   integration in the next Flightdeck source/full package. Publishing the patch
-   alone does not update an already installed Flightdeck launcher.
+   integration in the next Flightdeck source/full package as its verified
+   fallback. Flightdeck 0.2.20+ independently adopts compatible published patch
+   releases; a launcher release is needed when the installer contract, runner
+   identities, supported paths or setup policy change. See the
+   [update contract](fenix-updates.md).
+
+For a release-payload regression check, supply the current public ZIP, the
+preceding public ZIP and a JSON object mapping `xodus` and every manifest
+variant to its original runner directory:
+
+```sh
+FLIGHTDECK_TEST_FENIX_ARCHIVE=/path/to/current-linux.zip \
+FLIGHTDECK_TEST_FENIX_PREVIOUS_ARCHIVE=/path/to/previous-linux.zip \
+FLIGHTDECK_TEST_FENIX_RUNNERS=/path/to/original-runners.json \
+cargo test --locked --test native_fenix_release -- --ignored --nocapture
+```
+
+This explicitly enabled test uses the production archive reader and overlay
+code with isolated runner files. It checks the preceding module hashes,
+replacement of prefix DLL links and preservation of original runners. It
+starts no Wine process and does not qualify the complete installation
+transaction, the official application or simulator stability.
 
 The native launcher implements the installer contract in Rust. The installer
 extracts only fixed Wine/window-helper payloads named in the manifest and

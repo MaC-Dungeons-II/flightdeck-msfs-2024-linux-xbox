@@ -7,6 +7,40 @@ use std::path::Path;
 
 const FILE: &str = "fenix-installer-result.json";
 const MAXIMUM: usize = 4096;
+pub(crate) const MAX_MANAGED_EXCEPTION_TYPES: usize = 8;
+// Exact exception identifiers only. Messages, application-specific type names,
+// stack frames and file paths are never persisted or exported.
+pub(crate) const MANAGED_EXCEPTION_TYPES: &[&str] = &[
+    "System.Exception",
+    "System.ArgumentException",
+    "System.ArgumentNullException",
+    "System.ArgumentOutOfRangeException",
+    "System.BadImageFormatException",
+    "System.DllNotFoundException",
+    "System.EntryPointNotFoundException",
+    "System.InvalidOperationException",
+    "System.IO.DirectoryNotFoundException",
+    "System.IO.FileLoadException",
+    "System.IO.FileNotFoundException",
+    "System.IO.IOException",
+    "System.MissingMethodException",
+    "System.NotSupportedException",
+    "System.NullReferenceException",
+    "System.PlatformNotSupportedException",
+    "System.Reflection.ReflectionTypeLoadException",
+    "System.Runtime.InteropServices.COMException",
+    "System.Security.SecurityException",
+    "System.TypeInitializationException",
+    "System.TypeLoadException",
+    "System.UnauthorizedAccessException",
+];
+
+pub(crate) fn managed_exception_type(value: &str) -> Option<&'static str> {
+    MANAGED_EXCEPTION_TYPES
+        .iter()
+        .copied()
+        .find(|known| *known == value)
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -23,6 +57,10 @@ pub struct Attempt {
     pub process_exit_code: Option<i32>,
     pub evidence_complete: bool,
     pub runner: String,
+    #[serde(default)]
+    pub managed_exception_types: Vec<String>,
+    #[serde(default)]
+    pub clr_exception_code: Option<String>,
 }
 
 pub fn valid_version(version: &str) -> bool {
@@ -65,6 +103,22 @@ impl Attempt {
             ]
             .contains(&self.runner.as_str())
             && self.package_version.as_deref().is_none_or(valid_version)
+            && self.managed_exception_types.len() <= MAX_MANAGED_EXCEPTION_TYPES
+            && self
+                .managed_exception_types
+                .iter()
+                .enumerate()
+                .all(|(index, value)| {
+                    managed_exception_type(value).is_some()
+                        && !self.managed_exception_types[..index].contains(value)
+                })
+            && self
+                .clr_exception_code
+                .as_deref()
+                .is_none_or(|code| code == "e0434352")
+            && (self.failure.as_deref() != Some("managed_exception")
+                || !self.managed_exception_types.is_empty()
+                || self.clr_exception_code.is_some())
             && self
                 .hook
                 .as_deref()
@@ -72,6 +126,7 @@ impl Attempt {
             && self.failure.as_deref().is_none_or(|failure| {
                 [
                     "icu_symbol_missing",
+                    "managed_exception",
                     "hook_nonzero",
                     "hook_timeout",
                     "hook_incomplete",
@@ -113,6 +168,8 @@ pub fn begin(root: &Path, operation: &str, runner: &str) -> Result<Attempt> {
         process_exit_code: None,
         evidence_complete: false,
         runner: runner.into(),
+        managed_exception_types: Vec::new(),
+        clr_exception_code: None,
     };
     write(root, &attempt)?;
     Ok(attempt)
@@ -151,4 +208,57 @@ pub fn load(root: &Path) -> Value {
             value
         })
         .unwrap_or(Value::Null)
+}
+
+pub fn invocation_log(
+    original: &std::fs::File,
+    path: &Path,
+    offset: u64,
+    attempt: &mut Option<Attempt>,
+) -> Result<crate::fenix_installer::Hooks> {
+    let result = crate::fenix_installer::scan_log(path, original, offset);
+    if let Some(attempt) = attempt {
+        match &result {
+            Ok(hooks) => {
+                attempt.evidence_complete = true;
+                attempt.managed_exception_types = hooks
+                    .managed_exception_types
+                    .iter()
+                    .map(|kind| (*kind).into())
+                    .collect();
+                attempt.clr_exception_code = hooks.clr_exception_code.map(Into::into);
+                if let Some(kind) = hooks.hook {
+                    attempt.hook = Some(kind.into());
+                }
+                if let Some(code) = hooks.exit_code {
+                    attempt.hook_exit_code = Some(code);
+                }
+                if let Some(version) = &hooks.package_version {
+                    attempt.package_version = Some(version.clone());
+                }
+                if let Some(failure) = hooks.failure() {
+                    attempt.failure = Some(failure.into());
+                }
+                // A direct repair reports its exit status outside Velopack's
+                // log. Associate only observed exception symbols with that
+                // failure; evidence_complete describes reading, not causality.
+                if hooks.has_managed_exception()
+                    && matches!(
+                        attempt.failure.as_deref(),
+                        Some("hook_nonzero" | "hook_failed" | "hook_incomplete")
+                    )
+                {
+                    attempt.failure = Some("managed_exception".into());
+                }
+            }
+            Err(error) => {
+                attempt.failure = Some(match error {
+                    Error::Invalid("Das Fenix-Protokoll wurde während der Installation verändert.") => "log_changed",
+                    Error::Invalid("Das Fenix-Protokoll ist zu groß. Bitte den lokalen Installationsfehler prüfen.") => "log_too_large",
+                    _ => "log_unavailable",
+                }.into());
+            }
+        }
+    }
+    result
 }

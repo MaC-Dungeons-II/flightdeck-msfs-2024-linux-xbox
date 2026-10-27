@@ -2,7 +2,137 @@ use crate::*;
 use iced::widget::{column, progress_bar};
 use model::Action::*;
 
+pub(crate) fn fenix_hook_failure(data: &Value) -> Option<&str> {
+    let job = &data["job"];
+    // A persisted running record is not evidence that an app is still alive.
+    // Current work takes precedence over the previous invocation's result.
+    if model::active(job) || yes(data, "fenix_running") {
+        return None;
+    }
+    let attempt = &data["last_attempt"];
+    if (attempt.is_null() || yes(data, "last_attempt_superseded"))
+        && ["installer", "repair"].contains(&s(job, "operation"))
+    {
+        if job["state"] == "failed" {
+            return Some(s(job, "operation"));
+        }
+        if job["state"] == "complete" {
+            return None;
+        }
+    }
+    (attempt["scope"] == "latest_recorded_attempt"
+        && attempt["status"] == "failed"
+        && ["installer", "repair"].contains(&s(attempt, "operation")))
+    .then(|| s(attempt, "operation"))
+}
+
 impl App {
+    pub(crate) fn fenix_update_controls<'a>(&'a self, data: &'a Value) -> Element<'a, Message> {
+        let mut manage = column![].spacing(14);
+        if !model::active(&data["job"]) && ["preparing", "committing"].contains(&s(data, "state")) {
+            manage = manage.push(self.paragraph(if yes(data, "can_retry") {
+                self.tr(
+                    "Die Fenix-Einrichtung wurde unterbrochen. Du kannst sie erneut starten; dein bisheriges Profil und deine Einstellungen bleiben erhalten.",
+                    "Fenix setup was interrupted. You can retry; your existing profile and settings are retained.",
+                )
+            } else {
+                self.tr(
+                    "Die Fenix-Einrichtung wurde unterbrochen und muss unter Mods wiederhergestellt werden.",
+                    "Fenix setup was interrupted and needs recovery under Mods.",
+                )
+            }));
+            if yes(data, "can_retry") {
+                manage = manage.push(
+                    self.control(
+                        self.tr("Fenix-Einrichtung erneut versuchen", "Retry Fenix setup"),
+                        self.request(&Fenix("install"))
+                            .map(|_| Message::Action(Fenix("install"))),
+                        true,
+                    ),
+                );
+            }
+        }
+        let installed = s(data, "installed_version");
+        if !installed.is_empty() {
+            manage = manage.push(self.paragraph(format!(
+                "{}: {installed}",
+                self.tr("Patch-Version", "Patch version")
+            )));
+        } else if data["state"] == "legacy" {
+            manage = manage.push(self.paragraph(self.tr(
+                "Installierter Patch: lokale Einrichtung, Version nicht bestätigt.",
+                "Installed patch: local setup, version unverified.",
+            )));
+        }
+        if installed.is_empty() && !s(data, "version").is_empty() {
+            manage = manage.push(self.paragraph(format!(
+                "{}: {}",
+                self.tr("Verfügbarer Patch", "Available patch"),
+                s(data, "version")
+            )));
+        }
+        if yes(data, "migration_required") {
+            if yes(data, "automatic_adoption_paused") {
+                manage=manage.push(self.paragraph(self.tr(
+                    "Nach der Wiederherstellung ist die automatische Übernahme pausiert. Du kannst sie hier erneut starten.",
+                    "Automatic adoption is paused after restoration. You can start it again here.",
+                )));
+            }
+            manage = manage.push(self.paragraph(self.tr(
+                "Vorhandene Einrichtung übernehmen und auf den aktuellen Patch aktualisieren. Flightdeck prüft die Dateien und sichert den bisherigen Stand.",
+                "Adopt the existing setup and update to the current patch. Flightdeck verifies the files and backs up the previous state.",
+            ))).push(self.action("Einrichtung übernehmen & aktualisieren", Fenix("migrate")));
+        }
+        if data["patch_update"]["state"] == "checking" {
+            manage = manage.push(self.paragraph(self.tr(
+                "Fenix-Updates werden geprüft …",
+                "Checking for Fenix updates …",
+            )));
+        } else if yes(&data["patch_update"], "requires_launcher_update") {
+            manage = manage.push(self.paragraph(self.tr(
+                "Für den neuesten Fenix-Patch ist zuerst ein Flightdeck-Update erforderlich.",
+                "Update Flightdeck first to use the latest Fenix patch.",
+            )));
+        } else if data["patch_update"]["state"] == "failed" {
+            manage = manage.push(self.paragraph(self.tr("Die Fenix-Updateprüfung ist fehlgeschlagen. Der installierte Patch bleibt nutzbar. Versuche es später erneut.", "The Fenix update check failed. Your installed patch remains available. Try again later.")));
+        } else if data["patch_update"]["state"] == "complete"
+            && yes(data, "installed")
+            && !yes(data, "update_available")
+        {
+            manage = manage.push(self.paragraph(self.tr(
+                "Der Fenix-Patch ist aktuell.",
+                "The Fenix patch is up to date.",
+            )));
+        }
+        if yes(data, "update_available") {
+            let note = if self.is_steam() {
+                self.tr(
+                    "Beende Steam, MSFS und Fenix und wähle „Patch aktualisieren“.",
+                    "Close Steam, MSFS and Fenix, then choose Update patch.",
+                )
+            } else {
+                self.tr("Wird vor dem nächsten MSFS- oder Fenix-Start automatisch installiert. MSFS und Fenix vorher schließen.", "Installs automatically before the next MSFS or Fenix launch. Close MSFS and Fenix first.")
+            };
+            manage = manage.push(self.paragraph(format!(
+                "{}: {}. {note}",
+                self.tr("Neuer Fenix-Patch", "New Fenix patch"),
+                s(data, "version")
+            )));
+        }
+        manage = manage.push(
+            self.control(
+                self.tr("Fenix-Updates prüfen", "Check Fenix updates"),
+                self.request(&Fenix("check-update"))
+                    .map(|_| Message::Action(Fenix("check-update"))),
+                false,
+            ),
+        );
+        if yes(data, "update_available") {
+            manage = manage.push(self.action("Patch aktualisieren", Fenix("install")));
+        }
+        manage.into()
+    }
+
     fn addon_action<'a>(&self, title: &str, action: model::Action) -> Element<'a, Message> {
         let message = self.request(&action).map(|_| Message::Action(action));
         self.control(title, message, true)
@@ -34,7 +164,7 @@ impl App {
     // Only the current runtime's validated snapshot may supply feedback. Keep
     // the last error and live progress beside the next action; full checks are
     // available in the management section below.
-    fn addon_feedback<'a>(&self, data: &Value) -> Element<'a, Message> {
+    pub(crate) fn addon_feedback<'a>(&self, data: &Value) -> Element<'a, Message> {
         let mut content = column![].spacing(8);
         for key in ["message", "unavailable_reason", "error", "startup_error"] {
             if !s(data, key).is_empty() && !(key == "message" && data["state"] == "legacy") {
@@ -117,13 +247,21 @@ impl App {
         let progress = presentation::fenix(data, self.status());
         let manager = yes(data, "manager_installed");
         let active = model::active(&data["job"]);
-        let failed_hook = data["job"]["state"] == "failed"
-            && ["installer", "repair"].contains(&s(&data["job"], "operation"))
-            && yes(data, "can_repair_installer");
+        let failure = fenix_hook_failure(data);
+        let failed_repair = failure == Some("repair");
+        let offer_repair = failure == Some("installer") && yes(data, "can_repair_installer");
         let supported = !progress.steps.is_empty() || data["state"] == "legacy";
         let mut content = column![].spacing(14);
         if current {
             content = content.push(self.addon_feedback(data));
+            if failure.is_some() && data["job"]["state"] != "failed" {
+                content = content.push(label(
+                    self.tr("Letzter Vorgang fehlgeschlagen", "Last operation failed"),
+                    13.0,
+                    Weight::Semibold,
+                    iced::color!(0xff9199),
+                ));
+            }
             if !progress.busy.is_empty() {
                 content = content.push(self.paragraph(self.t(progress.busy).to_string()));
             }
@@ -137,12 +275,12 @@ impl App {
             } else if supported {
                 content = content.push(label(
                     self.tr(
-                        if progress.ready && !failed_hook {
+                        if progress.ready && failure.is_none() {
                             "Einrichtung abgeschlossen"
                         } else {
                             "Als Nächstes"
                         },
-                        if progress.ready && !failed_hook {
+                        if progress.ready && failure.is_none() {
                             "Setup complete"
                         } else {
                             "Next step"
@@ -152,7 +290,18 @@ impl App {
                     Weight::Semibold,
                     self.edition.accent(),
                 ));
-                if failed_hook {
+                if failed_repair {
+                    content = content
+                        .push(self.paragraph(self.tr(
+                            "Die letzte Reparatur ist fehlgeschlagen. Prüfe den Diagnosebericht, bevor du einen weiteren Versuch startest.",
+                            "The last repair failed. Review the diagnostics before trying again.",
+                        )))
+                        .push(self.control(
+                            "Diagnose öffnen",
+                            Some(Message::Navigate(Page::Diagnostics)),
+                            true,
+                        ));
+                } else if offer_repair {
                     content = content
                         .push(self.paragraph(self.t("Führt den Einrichtungsschritt der vorhandenen Fenix-App erneut aus. Dein Flugzeug wird dabei nicht installiert.").to_string()))
                         .push(self.addon_action("Fenix-App reparieren", Fenix("repair")));
@@ -164,7 +313,20 @@ impl App {
                             Some(Message::Navigate(Page::Overview)),
                             true,
                         ));
+                        if data["readouts"] == false && !yes(data, "readouts_preference_retained") {
+                            // Otherwise only reachable in the collapsed management section.
+                            let action = Fenix("configure");
+                            let message = self.request(&action).map(|_| Message::Action(action));
+                            content = content.push(self.control(
+                                "Einstellungen erneut anwenden",
+                                message,
+                                false,
+                            ));
+                        }
                     } else if data["state"] == "legacy" {
+                        content = content.push(
+                            self.action("Einrichtung übernehmen & aktualisieren", Fenix("migrate")),
+                        );
                         if yes(data, "fenix_installed") {
                             content =
                                 content.push(self.addon_action("Fenix öffnen", Fenix("open")));
@@ -212,32 +374,50 @@ impl App {
                         self.tr("Anzeigen & Autostart", "Displays & auto-start"),
                         yes(data, "configured"),
                     ),
+                    (
+                        self.tr("Legacy-FCU-Anzeigen", "Legacy FCU readouts"),
+                        yes(data, "configured") && data["readouts"] != false,
+                    ),
                 ]));
             }
-            content = content.push(self.paragraph(self.tr("MSFS 2024 · CPU-Anzeigen ohne Wetterradar. Eine eigene Fenix-Lizenz ist erforderlich.", "MSFS 2024 · CPU displays without weather radar. Requires your own Fenix license.")));
+            let display_note = match data["display_renderer"].as_str() {
+                Some("CPU") => self.tr(
+                    "MSFS 2024 · CPU-Renderer · Legacy-FCU, ohne Wetterradar. Eigene Fenix-Lizenz nötig.",
+                    "MSFS 2024 · CPU renderer · Legacy FCU, no weather radar. Own Fenix license required.",
+                ),
+                Some("GPU") => self.tr(
+                    "MSFS 2024 · GPU-Renderer · Legacy-FCU. Eigene Fenix-Lizenz nötig.",
+                    "MSFS 2024 · GPU renderer · Legacy FCU readouts. Own Fenix license required.",
+                ),
+                _ => self.tr(
+                    "MSFS 2024 · Anzeigen & Legacy-FCU. Eigene Fenix-Lizenz nötig.",
+                    "MSFS 2024 · Displays & Legacy FCU readouts. Own Fenix license required.",
+                ),
+            };
+            content = content.push(self.paragraph(display_note));
             let mut manage = column![].spacing(14);
             let mut actions = vec![];
-            if manager && !(progress.next == 2 && !failed_hook && !active) {
+            if manager && !(progress.next == 2 && !offer_repair && !failed_repair && !active) {
                 actions.push(("Installer & Liveries", Fenix("manager")));
             }
             if yes(data, "fenix_installed") && progress.ready {
                 actions.push(("Fenix öffnen", Fenix("open")));
             }
-            if yes(data, "can_repair_installer") && !failed_hook {
+            if yes(data, "can_repair_installer") && !offer_repair {
                 actions.push(("Fenix-App reparieren", Fenix("repair")));
             }
             if yes(data, "configured") {
                 actions.push(("Einstellungen erneut anwenden", Fenix("configure")));
             }
-            if yes(data, "update_available") {
-                actions.push(("Patch aktualisieren", Fenix("install")));
-            }
             for (title, action) in actions {
                 let message = self.request(&action).map(|_| Message::Action(action));
                 manage = manage.push(self.control(title, message, false));
             }
-            let installer_is_next =
-                progress.next == 2 && !manager && !active && !yes(data, "fenix_running");
+            let installer_is_next = progress.next == 2
+                && !manager
+                && !active
+                && !failed_repair
+                && !yes(data, "fenix_running");
             if yes(data, "installed") && !installer_is_next {
                 manage = manage
                     .push(self.paragraph(
@@ -245,7 +425,7 @@ impl App {
                     ))
                     .push(self.fenix_installer(true));
             }
-            manage = manage.push(self.job("fenix"))
+            manage = manage.push(self.fenix_update_controls(data)).push(self.job("fenix"))
                 .push(self.disclosure(Disclosure::FenixAdvanced, "Lokales Patch-Paket und Wiederherstellung", "", column![
                     self.input("Entpacktes Release (leer = geprüfter Download)", "bundle_path", self.tr("Automatisch herunterladen", "Download automatically"), Some(FenixPick("bundle"))),
                     self.paragraph(self.t("Die Wiederherstellung verwendet das Profil von vor dem Patch. Das neuere Profil bleibt als Sicherung erhalten.").to_string()),
@@ -262,7 +442,16 @@ impl App {
             content = content.push(self.paragraph(self.tr("Der Status dieser Installation ist noch nicht verfügbar. Lade ihn erneut, bevor du die Einrichtung fortsetzt.", "The status of this installation is not available yet. Refresh before continuing setup.")));
         }
         content = content.push(self.refresh_button());
-        self.disclosure(Disclosure::Fenix, "Fenix A320", progress.title, content)
+        self.disclosure(
+            Disclosure::Fenix,
+            "Fenix A320",
+            if failed_repair {
+                "Fenix-Reparatur fehlgeschlagen"
+            } else {
+                progress.title
+            },
+            content,
+        )
     }
 
     fn gsx_card(&self) -> Element<'_, Message> {
@@ -361,7 +550,7 @@ impl App {
         self.disclosure(Disclosure::Gsx, "GSX Pro", progress.title, content)
     }
 
-    pub(crate) fn mods_page(&self) -> Element<'_, Message> {
+    pub(crate) fn community_card(&self) -> Element<'_, Message> {
         let mods = self.data("mods");
         let mut inventory = column![
             row![
@@ -426,11 +615,13 @@ impl App {
                         ("id", "Ordner"),
                         ("status", "Status"),
                     ],
-                ))
-                .push(self.action(
+                ));
+            if yes(mods, "can_remove") {
+                inventory = inventory.push(self.action(
                     "Deinstallation prüfen",
                     ModsPreview(s(item, "id").to_string()),
                 ));
+            }
         }
         if yes(mods, "limited") {
             inventory = inventory.push(
@@ -440,9 +631,12 @@ impl App {
                 ),
             );
         }
+        self.card("Community-Ordner", inventory)
+    }
+    pub(crate) fn mods_page(&self) -> Element<'_, Message> {
         column![self.heading(self.t("Deine Add-ons").to_string()),
             self.paragraph(self.t("Öffne die Einrichtung eines Add-ons oder verwalte unten deinen Community-Ordner.").to_string()),
-            self.fenix_card(),self.gsx_card(),self.card("Community-Ordner", inventory),
+            self.fenix_card(),self.gsx_card(),self.community_card(),
             self.paragraph(self.tr("Fenix und GSX vollständig deinstallieren: Öffne den jeweiligen offiziellen Installer oben. Das Entfernen eines Community-Eintrags entfernt keine Windows-Begleitprogramme.","To fully uninstall Fenix or GSX, open its official installer above. Removing a Community entry does not uninstall Windows companion applications.")),
             self.paragraph(self.t("Diese Liste zeigt Dateien im Community-Ordner. Sie bestätigt weder eine Lizenz noch die Kompatibilität eines Add-ons mit MSFS oder Linux.").to_string())].spacing(16).into()
     }

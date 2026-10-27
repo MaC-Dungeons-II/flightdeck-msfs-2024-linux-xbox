@@ -2,12 +2,14 @@
 mod addons;
 mod client;
 mod controller;
+mod credits;
 mod model;
 mod pages;
 pub mod platform;
 mod presentation;
 mod release_notes;
 mod setup_page;
+mod steam;
 pub use client::{Client, Request, Snapshot};
 use iced::{Subscription, Task};
 pub use model::Action;
@@ -109,6 +111,7 @@ pub enum Page {
     Saves,
     Mods,
     Diagnostics,
+    Credits,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -128,6 +131,7 @@ pub enum Disclosure {
     Report,
     Diagnostics,
     LauncherRollback,
+    Installations,
 }
 impl Disclosure {
     fn group(self) -> Option<u8> {
@@ -141,6 +145,14 @@ impl Disclosure {
 
 #[derive(Debug, Clone, Copy)]
 pub enum HelpLink {
+    Discord,
+    Project(&'static str),
+    LauncherLicenses,
+    RustLicenses,
+    RuntimeLicenses,
+    GraphicsLicenses,
+    DependencyInventory,
+    ReleaseSources,
     FenixInstaller,
     FenixProject,
     Gsx,
@@ -148,8 +160,44 @@ pub enum HelpLink {
     Install,
 }
 impl HelpLink {
+    fn document(self) -> Option<&'static str> {
+        match self {
+            Self::LauncherLicenses => Some("THIRD-PARTY-NOTICES.txt"),
+            Self::RustLicenses => Some("RUST-STANDARD-LIBRARY-NOTICES.html"),
+            Self::RuntimeLicenses => Some("resources/native/THIRD-PARTY-NOTICES.txt"),
+            Self::GraphicsLicenses => Some("resources/graphics/LICENSE"),
+            _ => None,
+        }
+    }
     fn url(self) -> &'static str {
         match self {
+            Self::Discord => "https://discord.gg/fAhHR2DkqN",
+            Self::Project(url) => url,
+            Self::LauncherLicenses => concat!(
+                "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/download/v",
+                env!("FLIGHTDECK_UI_VERSION"),
+                "/THIRD-PARTY-NOTICES.txt"
+            ),
+            Self::RustLicenses => "https://rust-lang.org/policies/licenses/",
+            Self::RuntimeLicenses => concat!(
+                "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/blob/v",
+                env!("FLIGHTDECK_UI_VERSION"),
+                "/compat/THIRD_PARTY_NOTICES.md"
+            ),
+            Self::GraphicsLicenses => concat!(
+                "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/blob/v",
+                env!("FLIGHTDECK_UI_VERSION"),
+                "/docs/nvidia-renderer.md"
+            ),
+            Self::DependencyInventory => concat!(
+                "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/download/v",
+                env!("FLIGHTDECK_UI_VERSION"),
+                "/launcher-dependencies.json"
+            ),
+            Self::ReleaseSources => concat!(
+                "https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v",
+                env!("FLIGHTDECK_UI_VERSION")
+            ),
             Self::FenixInstaller => "https://fenixsim.com/dashboard/",
             Self::FenixProject => "https://github.com/marselnenaj/fenix-a320-linux-patch",
             Self::Gsx => "https://www.fsdreamteam.com/products_gsxpro.html",
@@ -285,6 +333,7 @@ impl App {
             Page::Saves => self.tr("Spielstände", "Saves"),
             Page::Mods => "Mods",
             Page::Diagnostics => self.tr("Diagnose", "Diagnostics"),
+            Page::Credits => "Credits",
         }
     }
 
@@ -335,9 +384,22 @@ impl App {
                 )
                 .push(Space::new().height(15));
         }
+        if self.page != Page::Setup
+            && self.data("installations")["installations"]
+                .as_array()
+                .is_some_and(|items| items.iter().any(|i| i["source"] == "steam"))
+        {
+            main = main
+                .push(self.installation_picker())
+                .push(Space::new().height(15));
+        }
         if self.page == Page::Overview {
             main = main
-                .push(self.edition_picker())
+                .push(if self.is_steam() {
+                    Space::new().height(0).into()
+                } else {
+                    self.edition_picker()
+                })
                 .push(Space::new().height(15))
                 .push(self.hero(content_width, compact, hero_height))
                 .push(Space::new().height(20))
@@ -396,6 +458,15 @@ impl App {
         }
     }
 
+    fn has_update_notice(&self) -> bool {
+        ["launcher-update", "game-update"]
+            .iter()
+            .any(|key| self.fresh(key) && yes(self.data(key), "update_available"))
+            || self.fresh("fenix")
+                && s(self.data("fenix"), "runtime_path") == self.runtime()
+                && (yes(self.data("fenix"), "update_available")
+                    || yes(self.data("fenix"), "migration_required"))
+    }
     fn sidebar_rail(&self) -> Element<'_, Message> {
         let mut content = column![
             container(svg(MARK.clone()).width(38).height(38)).center_x(Length::Fill),
@@ -411,8 +482,22 @@ impl App {
             (Page::Diagnostics, "pulse"),
         ] {
             let active = page == self.page;
-            let color = if active { self.edition.accent() } else { MUTED };
-            let control = button(container(icon(name, 24.0, color)).center(Length::Fill))
+            let notice = page == Page::Updates && self.has_update_notice();
+            let color = if active || notice {
+                self.edition.accent()
+            } else {
+                MUTED
+            };
+            let mut symbol = stack![container(icon(name, 24.0, color)).center(Length::Fill)];
+            if notice {
+                symbol = symbol.push(
+                    container(label("●", 10.0, Weight::Semibold, color))
+                        .width(Length::Fill)
+                        .align_x(alignment::Horizontal::Right)
+                        .padding([3, 6]),
+                );
+            }
+            let control = button(symbol)
                 .width(60)
                 .height(50)
                 .padding(0)
@@ -442,7 +527,7 @@ impl App {
         }
         content = content
             .push(Space::new().height(Length::Fill))
-            .push(container(icon("monitor", 24.0, MUTED)).center_x(Length::Fill));
+            .push(self.credits_navigation(true));
         container(content)
             .padding([28, 8])
             .width(76)
@@ -485,12 +570,13 @@ impl App {
             (Page::Diagnostics, "pulse"),
         ] {
             let active = page == self.page;
-            let color = if active {
+            let notice = page == Page::Updates && self.has_update_notice();
+            let color = if active || notice {
                 accent
             } else {
                 iced::color!(0xb7c9dc)
             };
-            let item = row![
+            let mut item = row![
                 container(Space::new()).width(3).height(56).style(move |_| {
                     container::Style::default().background(if active {
                         accent
@@ -520,6 +606,11 @@ impl App {
                 .height(56)
                 .align_y(alignment::Vertical::Center)
             ];
+            if notice {
+                item = item
+                    .push(Space::new().width(Length::Fill))
+                    .push(container(label("●", 11.0, Weight::Semibold, accent)).padding([0, 12]));
+            }
             navigation = navigation.push(
                 button(item)
                     .on_press(Message::Navigate(page))
@@ -569,21 +660,8 @@ impl App {
                 left: 0.0
             }),
             separator(),
-            container(
-                row![
-                    icon("monitor", 24.0, MUTED),
-                    label(
-                        self.tr("Lokal auf deinem Rechner", "Local on your computer"),
-                        12.0,
-                        Weight::Normal,
-                        MUTED
-                    )
-                ]
-                .spacing(18)
-                .align_y(alignment::Vertical::Center)
-            )
-            .padding(Padding {
-                top: 23.0,
+            container(self.credits_navigation(false)).padding(Padding {
+                top: 12.0,
                 right: 0.0,
                 bottom: 0.0,
                 left: 0.0
@@ -950,7 +1028,11 @@ impl App {
                 ),
             Space::new().height(7),
             label(
-                self.tr("Xbox-PC-Version · Linux", "Xbox PC version · Linux"),
+                if self.is_steam() {
+                    self.tr("Steam-Version · Linux", "Steam version · Linux")
+                } else {
+                    self.tr("Xbox-PC-Version · Linux", "Xbox PC version · Linux")
+                },
                 18.0,
                 Weight::Normal,
                 iced::color!(0xbdd1e5)

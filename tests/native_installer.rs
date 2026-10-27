@@ -8,10 +8,15 @@ use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
     fs,
-    os::unix::fs::symlink,
+    os::unix::fs::{PermissionsExt, symlink},
     path::{Path, PathBuf},
     process::Command,
+    sync::{Mutex, MutexGuard},
 };
+// flock leases can be inherited by another test's fork until that child execs.
+// Keep real-binary spawning and synchronous install/rollback fixtures apart;
+// otherwise a released lease can briefly appear busy in the next assertion.
+static INSTALLER_TESTS: Mutex<()> = Mutex::new(());
 fn write(path: &Path, data: &[u8]) {
     files::private_dir(path.parent().unwrap()).unwrap();
     files::atomic(path, data).unwrap();
@@ -48,9 +53,11 @@ struct F {
     root: PathBuf,
     bin: PathBuf,
     apps: PathBuf,
+    _serial: MutexGuard<'static, ()>,
 }
 impl F {
     fn new() -> Self {
+        let serial = INSTALLER_TESTS.lock().unwrap_or_else(|e| e.into_inner());
         let t = tempfile::tempdir().unwrap();
         let result = Self {
             source: t.path().join("source"),
@@ -58,6 +65,7 @@ impl F {
             bin: t.path().join("bin"),
             apps: t.path().join("applications"),
             _temp: t,
+            _serial: serial,
         };
         source(&result.source, "one");
         result
@@ -191,18 +199,63 @@ fn uninstall_keeps_modified_and_unknown_files_and_never_touches_runtime() {
         b"progress"
     );
 }
+/// An installation as the Python release 0.1.21 left it, in that release's
+/// own encoding: sorted keys, two spaces of indentation and a final newline.
+/// Its release identity is the hash of the file list in that encoding.
+fn legacy_installation(f: &F) {
+    fn encoded(value: &Value) -> Vec<u8> {
+        let mut bytes = serde_json::to_vec_pretty(value).unwrap();
+        bytes.push(b'\n');
+        bytes
+    }
+    let private = |path: &Path| fs::set_permissions(path, fs::Permissions::from_mode(0o700));
+    let sources: [(&str, &[u8]); 3] = [
+        ("flightdeck/__init__.py", b"__version__ = \"0.1.21\"\n"),
+        ("flightdeck/__main__.py", b"pass\n"),
+        ("ui/mark.svg", b"<svg/>"),
+    ];
+    let hashes: BTreeMap<&str, String> = sources
+        .iter()
+        .map(|(name, data)| (*name, files::sha256(data)))
+        .collect();
+    let identity = files::sha256(&encoded(&json!(hashes)));
+    let folder = f.root.join("releases").join(&identity);
+    for (name, data) in sources {
+        let path = folder.join(name);
+        let parent = path.parent().unwrap();
+        fs::create_dir_all(parent).unwrap();
+        private(parent).unwrap();
+        fs::write(path, data).unwrap();
+    }
+    private(&f.root).unwrap();
+    fs::write(
+        folder.join("release.json"),
+        encoded(
+            &json!({"app": "flightdeck-source-launcher", "files": hashes, "format": 1,
+            "release": identity}),
+        ),
+    )
+    .unwrap();
+    fs::create_dir(&f.bin).unwrap();
+    private(&f.bin).unwrap();
+    let entry = f.bin.join("flightdeck");
+    fs::write(&entry, "legacy wrapper").unwrap();
+    private(&entry).unwrap();
+    fs::write(
+        f.root.join("installation.json"),
+        encoded(
+            &json!({"app": "flightdeck-source-launcher", "current": identity,
+            "data_dir": f.root, "entries": {"launcher": {"path": entry,
+            "sha256": files::sha256(b"legacy wrapper")}}, "format": 1, "language": "en",
+            "previous": null}),
+        ),
+    )
+    .unwrap();
+}
 #[test]
 fn legacy_installation_can_upgrade_then_select_its_preserved_python_release() {
     let f = F::new();
-    let script = "import json,hashlib,sys,os\nfrom pathlib import Path\nroot,bin,apps=map(Path,sys.argv[1:])\ndef encoded(v):return (json.dumps(v,indent=2,sort_keys=True,ensure_ascii=False)+'\\n').encode()\nfiles={'flightdeck/__init__.py':b'__version__ = \"0.1.21\"\\n','flightdeck/__main__.py':b'pass\\n','ui/mark.svg':b'<svg/>'}\nhashes={k:hashlib.sha256(v).hexdigest() for k,v in files.items()};identity=hashlib.sha256(encoded(hashes)).hexdigest();folder=root/'releases'/identity\nfor name,data in files.items():\n p=folder/name;p.parent.mkdir(parents=True,exist_ok=True,mode=0o700);p.write_bytes(data)\nroot.chmod(0o700)\n(folder/'release.json').write_bytes(encoded({'app':'flightdeck-source-launcher','format':1,'release':identity,'files':hashes}))\nbin.mkdir(mode=0o700);entry=bin/'flightdeck';entry.write_bytes(b'legacy wrapper');entry.chmod(0o700)\n(root/'installation.json').write_bytes(encoded({'app':'flightdeck-source-launcher','format':1,'data_dir':str(root),'current':identity,'previous':None,'language':'en','entries':{'launcher':{'path':str(entry),'sha256':hashlib.sha256(entry.read_bytes()).hexdigest()}}}))\n";
-    assert!(
-        Command::new("python3")
-            .args(["-c", script])
-            .args([&f.root, &f.bin, &f.apps])
-            .status()
-            .unwrap()
-            .success()
-    );
+    legacy_installation(&f);
     let legacy = installer::load(&f.root).unwrap().unwrap();
     let installed = f.install();
     assert_eq!(installed["previous"], legacy["current"]);

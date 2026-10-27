@@ -8,6 +8,16 @@ use std::{path::PathBuf, sync::atomic::AtomicBool, time::Duration};
 #[test]
 #[ignore = "requires cached official FenixApp and .NET Desktop files; uses a new synthetic prefix"]
 fn official_fenix_hook_with_persisted_wine_environment() {
+    official_hook(false);
+}
+
+#[test]
+#[ignore = "requires cached official FenixApp and .NET Desktop files; creates a new synthetic prefix"]
+fn official_fenix_hook_with_persisted_loading_overrides() {
+    official_hook(true);
+}
+
+fn official_hook(persisted_loading_override: bool) {
     let input = |key| PathBuf::from(std::env::var_os(key).expect("explicit fixture input"));
     let runner = input("FLIGHTDECK_TEST_RUNNER").canonicalize().unwrap();
     let application = input("FLIGHTDECK_TEST_FENIX_APP").canonicalize().unwrap();
@@ -50,6 +60,23 @@ fn official_fenix_hook_with_persisted_wine_environment() {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         // No main application launch, activation, login, or account data: only
         // the Velopack hook which exits before Fenix starts its normal UI.
+        if persisted_loading_override {
+            wine.reg(
+                r"HKCU\Environment",
+                "DOTNET_STARTUP_HOOKS",
+                r"C:\flightdeck-missing-startup-hook.dll",
+                "REG_SZ",
+            )
+            .unwrap();
+            wine.reg(
+                r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+                "DOTNET_STARTUP_HOOKS",
+                r"C:\flightdeck-missing-machine-hook.dll",
+                "REG_SZ",
+            )
+            .unwrap();
+            wine.stop_staged().unwrap();
+        }
         fenix_installer::prepare(&wine).unwrap();
         wine.stop_staged().unwrap();
         let offset = wine.log.metadata().unwrap().len();
@@ -67,6 +94,12 @@ fn official_fenix_hook_with_persisted_wine_environment() {
             String::from_utf8(files::read(&prefix.join("user.reg"), 64 * 1024 * 1024).unwrap())
                 .unwrap();
         assert!(registry.contains("\"DOTNET_SYSTEM_GLOBALIZATION_USENLS\"=\"1\""));
+        if persisted_loading_override {
+            let backup: serde_json::Value =
+                files::json(&prefix.join(".flightdeck-fenix-environment.json"), 65536).unwrap();
+            assert_eq!(backup["changes"].as_array().unwrap().len(), 2);
+            assert!(!registry.contains("flightdeck-missing-startup-hook"));
+        }
         files::atomic_json(&output.join("result.json"),&json!({"passed":true,"fenix_version":version,"application_sha256":flightdeck::transaction::digest(&current.join("FenixApp.exe")).unwrap(),"hook":"--veloapp-install","exit_code":code.code(),"unix_dotnet_overrides_removed":true,"persisted_prefix_environment":true,"account_calls":false,"existing_prefixes_modified":false})).unwrap();
     }));
     wine.stop_staged().unwrap();

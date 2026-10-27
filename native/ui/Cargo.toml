@@ -1,6 +1,6 @@
 [package]
 name = "flightdeck-ui"
-version = "0.2.7"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.98"
 publish = false
@@ -15,8 +15,11 @@ serde_json = "1"
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "time", "fs", "process"] }
 
 [dev-dependencies]
+iced_runtime = "=0.14.0"
 iced_test = "=0.14.0"
+iced_tiny_skia = "=0.14.1"
 tempfile = "3.27.0"
+tiny-skia = "=0.11.4"
 
 [lints.rust]
 unsafe_code = "forbid"

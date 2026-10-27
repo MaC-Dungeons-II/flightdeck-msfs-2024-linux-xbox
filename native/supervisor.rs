@@ -56,17 +56,25 @@ pub fn environment(root: &Path) -> Result<(Environment, PathBuf)> {
     }
     env.insert("RUST_LOG".into(), "warn".into());
     env.insert("XODUS_LOG".into(), "warn".into());
+    // The Xodus service opens the in-game Store purchase window from this session.
+    if let Some((key, value)) = crate::game_install::webkit() {
+        env.insert(key.into(), value.into());
+    }
     Ok((env, socket_dir))
 }
 pub fn game_environment(root: &Path, mut env: Environment) -> Result<Environment> {
     proton::check(root)?;
+    proton::prepare_game_runtime(root)?;
     require(
         gsx::complete(root),
         "GSX setup is incomplete. Recover it under Mods in Flightdeck before starting MSFS.",
     )?;
     let prefix = root.join("local/msfs-prefix");
     for (key,value) in [("WINEPREFIX",prefix.to_string_lossy().into_owned()),("WINEARCH","win64".into()),("WINEESYNC","0".into()),("WINEFSYNC","0".into()),("WINEDEBUG","-all,err+all,warn+gdkc,fixme+gdkc,warn+mmdevapi,warn+pulse,warn+alsa,warn+xaudio2,warn+dsound,warn+winegstreamer".into()),("XODUS_USER_RUNTIME","1".into())]{env.insert(key.into(),value);}
-    env.entry("DXVK_LOG_LEVEL".into()).or_insert("warn".into());
+    // At this level the renderer names its version, the device it created
+    // and each swapchain: a few lines per session. Without them the log of a
+    // Direct3D 11 game cannot show whether anything was ever drawn.
+    env.entry("DXVK_LOG_LEVEL".into()).or_insert("info".into());
     env.entry("VKD3D_DEBUG".into()).or_insert("warn".into());
     let old = env
         .get("WINEDLLOVERRIDES")
@@ -99,6 +107,8 @@ pub fn game_environment(root: &Path, mut env: Environment) -> Result<Environment
             "WINE_DWRITE_UNHINTED_OUTLINES",
             "DOTNET_SYSTEM_GLOBALIZATION_USENLS",
             "DOTNET_ReadyToRun",
+            "PROTON_NO_NTSYNC",
+            "WINE_DISABLE_FAST_SYNC",
             "WINE_FENIX_HELPER_WINDOWS",
         ] {
             if let Some(value) = crate::wine::environment(&prefix, &root.join("runner")).remove(key)
@@ -135,40 +145,6 @@ pub fn game_environment(root: &Path, mut env: Environment) -> Result<Environment
                 .into_owned(),
         );
     }
-    for (key, name) in [
-        ("MEDIACONV_BLANK_VIDEO_FILE", "blank.mkv"),
-        ("MEDIACONV_BLANK_AUDIO_FILE", "blank.ptna"),
-    ] {
-        env.insert(
-            key.into(),
-            runner
-                .join("files/share/media")
-                .join(name)
-                .to_string_lossy()
-                .into_owned(),
-        );
-    }
-    if root.join("local/media-plugins").is_dir() {
-        let old = env
-            .get("GST_PLUGIN_PATH_1_0")
-            .filter(|v| !v.is_empty())
-            .map(|v| format!(":{v}"))
-            .unwrap_or_default();
-        env.insert(
-            "GST_PLUGIN_PATH_1_0".into(),
-            format!("{}{old}", root.join("local/media-plugins").display()),
-        );
-    }
-    let gst = root.join("private/gstreamer");
-    files::private_dir(&gst)?;
-    env.insert(
-        "WINE_GST_REGISTRY_DIR".into(),
-        gst.to_string_lossy().into_owned(),
-    );
-    env.insert(
-        "GST_REGISTRY_1_0".into(),
-        gst.join("registry.bin").to_string_lossy().into_owned(),
-    );
     if root.join("private/local-saves.enabled").is_file()
         && root.join("private/local-saves").is_dir()
     {
@@ -190,6 +166,7 @@ pub fn game_environment(root: &Path, mut env: Environment) -> Result<Environment
     );
     Ok(env)
 }
+
 pub fn socket_ready(path: &Path) -> bool {
     (|| -> std::io::Result<bool> {
         let mut stream = UnixStream::connect(path)?;
@@ -330,11 +307,9 @@ impl Drop for Session<'_> {
     fn drop(&mut self) {
         if let Some(game) = &mut self.game {
             let _ = stop_group(game);
-            let mut companions = wine_processes::FENIX
-                .iter()
-                .copied()
-                .filter(|v| !["fenixapp.exe", "fenix-webview2"].contains(v))
-                .collect::<Vec<_>>();
+            // Fenix belongs to the simulator session: end all of it, including
+            // the app and its WebView, rather than fencing the next launch.
+            let mut companions = wine_processes::FENIX.to_vec();
             if runtime::value(&self.root.join(gsx::STARTUP))
                 .is_ok_and(|v| v["format"].as_u64() == Some(1) && v["enabled"] == true)
             {
@@ -391,6 +366,9 @@ pub fn run(root: &Path, lease: Option<i32>) -> Result<u8> {
             && game_dir.join(".xodus-streaming.msixvc").is_file(),
         "The configured game package is incomplete.",
     )?;
+    // Older sessions make room first. A log that cannot be removed safely is
+    // no reason to refuse the start.
+    let _ = crate::run_logs::prune(&root.join("private"), crate::run_logs::KEPT);
     let run = tx::new_directory(
         &root.join("private"),
         &format!("run-{}-", chrono::Utc::now().format("%Y%m%d-%H%M%S")),
@@ -400,18 +378,23 @@ pub fn run(root: &Path, lease: Option<i32>) -> Result<u8> {
         service: None,
         game: None,
     };
+    let mut logs = Vec::new();
     executor.block_on(async{
         let service_ready=prepare_service_socket(&root,&socket_dir,&_lease)?;
         if let Some(code)=pending_stop(&mut term,&mut interrupt).await{return Ok(code);}
-        if !service_ready{let log=process::log(&run.join("service.log"))?;let mut command=Command::new(root.join("bin/xodus-service"));command.env_clear().envs(&env).env("XDG_RUNTIME_DIR",&socket_dir).stdin(Stdio::null()).stdout(log.try_clone()?).stderr(log).process_group(0);session.service=Some(process::spawn(&mut command,None)?);
+        if !service_ready{let log=process::log(&run.join("service.log"))?;let mut command=Command::new(root.join("bin/xodus-service"));command.env_clear().envs(&env).env("XDG_RUNTIME_DIR",&socket_dir).stdin(Stdio::null()).stdout(log.try_clone()?).stderr(log.try_clone()?).process_group(0);session.service=Some(process::spawn(&mut command,None)?);logs.push(crate::run_logs::Bounded::new(&log,crate::run_logs::LIMIT)?);
             let end=Instant::now()+Duration::from_secs(60);loop{if socket_ready(&socket_dir.join("xodus.sock")){break;}require(Instant::now()<end&&session.service.as_mut().is_some_and(|v|v.try_wait().is_ok_and(|v|v.is_none())),"Xodus service did not start. See the private service log.")?;tokio::select!{_ = term.recv()=>return Ok(143),_ = interrupt.recv()=>return Ok(130),_ = tokio::time::sleep(Duration::from_millis(200))=>{}}}
         }
         if let Some(code)=pending_stop(&mut term,&mut interrupt).await{return Ok(code);}
         // The self-contained native launcher acts as the Xodus exec target. Its
         // executable-name dispatch supplies the runtime without a shell script.
         let helper=run.join("xodus-wine-launch");std::os::unix::fs::symlink(std::env::current_exe()?,&helper)?;
-        let log=process::log(&run.join("game.log"))?;let mut command=Command::new(root.join("bin/xodus-cli"));command.arg("run").arg(&game_dir).arg(&helper).args(["--exe",game.executable(),"--market",env.get("XODUS_STORE_MARKET").ok_or(Error::Invalid("Invalid Store market."))?]).env_clear().envs(&env).env("FLIGHTDECK_HELPER_RUNTIME",&root).current_dir(&game_dir).stdin(Stdio::null()).stdout(log.try_clone()?).stderr(log).process_group(0);session.game=Some(process::spawn(&mut command,None)?);
-        println!("Starting MSFS. Private logs: {}",run.display());let status=loop{let game=session.game.as_mut().ok_or(Error::Invalid("Missing game process."))?;if let Some(status)=game.try_wait()?{break status;}let stop=tokio::select!{_ = term.recv()=>true,_ = interrupt.recv()=>true,_ = tokio::time::sleep(Duration::from_millis(50))=>false};if stop{stop_group(game)?;break game.wait()?;}};
+        let log=process::log(&run.join("game.log"))?;let mut command=Command::new(root.join("bin/xodus-cli"));command.arg("run").arg(&game_dir).arg(&helper).args(["--exe",game.executable(),"--market",env.get("XODUS_STORE_MARKET").ok_or(Error::Invalid("Invalid Store market."))?]).env_clear().envs(&env).env("FLIGHTDECK_HELPER_RUNTIME",&root).current_dir(&game_dir).stdin(Stdio::null()).stdout(log.try_clone()?).stderr(log.try_clone()?).process_group(0);session.game=Some(process::spawn(&mut command,None)?);logs.push(crate::run_logs::Bounded::new(&log,crate::run_logs::LIMIT)?);let mut checked=Instant::now();
+        println!("Starting MSFS. Private logs: {}",run.display());let status=loop{let game=session.game.as_mut().ok_or(Error::Invalid("Missing game process."))?;if let Some(status)=game.try_wait()?{break status;}
+            // The game and the service keep their logs open. What they write
+            // beyond the kept start and end is given back every few seconds.
+            if checked.elapsed()>=Duration::from_secs(10){checked=Instant::now();for log in &mut logs{log.enforce();}}
+            let stop=tokio::select!{_ = term.recv()=>true,_ = interrupt.recv()=>true,_ = tokio::time::sleep(Duration::from_millis(50))=>false};if stop{stop_group(game)?;break game.wait()?;}};
         let code=status.code().unwrap_or_else(||128+status.signal().unwrap_or(1));println!("MSFS process ended with status {code}. Log: {}/game.log",run.display());Ok(code.clamp(0,255) as u8)
     })
 }
@@ -422,6 +405,7 @@ pub fn spawn_reserved(ctx: &Context) -> Result<Value> {
         "Die Runtime ist nicht startbereit oder das Spiel läuft bereits.",
     )?;
     wine_processes::idle(&root.join("local/msfs-prefix"))?;
+    crate::fenix_update::ensure(ctx)?;
     crate::framework_maintenance::ensure(ctx)?;
     ctx.launcher.lock().graphics_report = Value::Null;
     let at = files::now();
@@ -503,4 +487,38 @@ pub fn spawn_reserved(ctx: &Context) -> Result<Value> {
     record["state"] = json!("spawned");
     graphics_diagnostics::save_launch(root, &record);
     Ok(json!({"ok":true}))
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod fenix_environment_tests {
+    use super::*;
+
+    #[test]
+    fn fenix_game_and_helpers_select_the_same_server_synchronization() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        files::private_dir(&root.join("private")).unwrap();
+        files::atomic_json(
+            &root.join("private/runtime.json"),
+            &serde_json::json!({"market": "AT"}),
+        )
+        .unwrap();
+        let input = Environment::from([("DXVK_HUD".into(), "fps".into())]);
+        let plain = game_environment(root, input.clone()).unwrap();
+        assert!(!plain.contains_key("PROTON_NO_NTSYNC"));
+        files::atomic_json(
+            &root.join(fenix::MARKER),
+            &serde_json::json!({"state": "installed"}),
+        )
+        .unwrap();
+        let game = game_environment(root, input).unwrap();
+        let helper =
+            crate::wine::environment(&root.join("local/msfs-prefix"), &root.join("runner"));
+        for key in ["PROTON_NO_NTSYNC", "WINE_DISABLE_FAST_SYNC"] {
+            assert_eq!(game[key], "1", "{key}");
+            assert_eq!(game[key], helper[key], "{key}");
+        }
+        assert_eq!(game["DXVK_HUD"], "fps");
+    }
 }

@@ -45,6 +45,41 @@ pub fn host() -> Value {
         .collect();
     json!({"schema":1,"libraries":libraries})
 }
+
+/// A decoder factory is evidence that the plugin and its ABI dependencies
+/// loaded. This runs only in a disposable probe child, never in the service.
+pub fn media() -> Value {
+    let available = (|| -> Option<bool> {
+        // SAFETY: GStreamer 1.0's stable C ABI, null optional arguments, and a
+        // factory handle released through GObject. Keep GStreamer loaded until
+        // this child exits: its registry can retain callbacks and global types.
+        unsafe {
+            let library = std::mem::ManuallyDrop::new(Library::new("libgstreamer-1.0.so.0").ok()?);
+            let init = library
+                .get::<unsafe extern "C" fn(*mut i32, *mut *mut *mut c_char, *mut Handle) -> i32>(
+                    b"gst_init_check\0",
+                )
+                .ok()?;
+            let find = library
+                .get::<unsafe extern "C" fn(*const c_char) -> Handle>(b"gst_element_factory_find\0")
+                .ok()?;
+            let unref = library
+                .get::<unsafe extern "C" fn(Handle)>(b"g_object_unref\0")
+                .ok()?;
+            if init(ptr::null_mut(), ptr::null_mut(), ptr::null_mut()) == 0 {
+                return Some(false);
+            }
+            let factory = find(c"avdec_h264".as_ptr());
+            if factory.is_null() {
+                return Some(false);
+            }
+            unref(factory);
+            Some(true)
+        }
+    })()
+    .unwrap_or(false);
+    json!({"schema":1,"h264":available})
+}
 #[repr(C)]
 struct VkApp {
     kind: u32,

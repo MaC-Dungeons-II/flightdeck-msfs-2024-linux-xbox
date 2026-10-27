@@ -252,8 +252,60 @@ impl Prefix {
             && valid(&self.work_fd, &self.libraries).is_ok()
         {
             let _ = store(&self.work_fd, binding, boot, "ready");
+            prune(&self.private, binding, boot);
         }
     }
+}
+/// Removes the prefixes of other bindings that nothing uses. The binding
+/// changes with the runner, the helper and its libraries, so every update
+/// would otherwise leave one more complete Wine prefix behind. A prefix is
+/// recreated when its binding is used again. This never fails the operation
+/// that has just completed.
+fn prune(private: &File, current: &str, boot: &str) {
+    let Ok(cache) = fs::child(private, "cloud-helper-prefixes", false) else {
+        return;
+    };
+    let Ok(entries) = rfs::Dir::read_from(&cache) else {
+        return;
+    };
+    let mut budget = 2_000_000;
+    for entry in entries.flatten() {
+        if let Ok(name) = entry.file_name().to_str()
+            && name != current
+            && files::hex_digest(name)
+        {
+            let _ = remove_idle(&cache, name, boot, &mut budget);
+        }
+    }
+    let _ = cache.sync_all();
+}
+fn remove_idle(cache: &File, name: &str, boot: &str, budget: &mut usize) -> Result<()> {
+    let work = fs::child(cache, name, false)?;
+    // The lock every user of a prefix holds for as long as it runs.
+    let lock = File::from(rfs::openat(
+        &work,
+        "use.lock",
+        OFlags::RDWR | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
+        Mode::empty(),
+    )?);
+    let m = lock.metadata()?;
+    require(
+        m.is_file() && m.uid() == files::uid() && m.nlink() == 1,
+        "local_storage",
+    )?;
+    rfs::flock(&lock, FlockOperation::NonBlockingLockExclusive)?;
+    // A prefix left in use since this boot may still have its Wine server.
+    // Without a readable record nothing is known about it; it stays.
+    let record: Record = cloud::decode(
+        &fs::optional(&work, STATE, 512)?.ok_or_else(|| Failure::new("local_storage"))?,
+    )?;
+    require(
+        record.schema == 1
+            && record.binding == name
+            && (record.phase == "ready" || (record.phase == "in_use" && record.boot != boot)),
+        "local_storage",
+    )?;
+    remove_tree(cache, name, budget, 0)
 }
 impl Drop for Prefix {
     fn drop(&mut self) {

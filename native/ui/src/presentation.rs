@@ -29,6 +29,10 @@ pub(crate) fn fenix(data: &Value, status: &Value) -> AddonProgress {
     let companion = patched && yes(data, "fenix_installed");
     let settings = companion && yes(data, "settings_ready");
     let ready = settings && yes(data, "configured");
+    // Fenix can create the file for this setting only once the aircraft has
+    // been loaded. Displays and auto-start do not wait for it.
+    let readouts_pending =
+        ready && data["readouts"] == false && !yes(data, "readouts_preference_retained");
     let supported =
         ["available", "installed"].contains(&s(data, "state")) || yes(data, "can_retry");
     let next = if ready {
@@ -60,6 +64,9 @@ pub(crate) fn fenix(data: &Value, status: &Value) -> AddonProgress {
             "Einrichtung noch nicht abgeschlossen"
         };
         progress.detail = match next {
+            0 if readouts_pending => {
+                "Anzeigen und Autostart sind eingerichtet. Fenix hat die Datei für die Legacy-FCU-Anzeigen noch nicht angelegt: Lade das Flugzeug einmal im Simulator, beende MSFS und wähle danach „Einstellungen erneut anwenden“."
+            }
             0 => {
                 "Die lokale Einrichtung ist abgeschlossen. Anmeldung und Lizenz prüft Fenix selbst."
             }
@@ -67,9 +74,11 @@ pub(crate) fn fenix(data: &Value, status: &Value) -> AddonProgress {
                 "Richte zuerst den Linux-Patch ein. Flightdeck lädt das geprüfte Paket automatisch herunter."
             }
             2 if yes(data, "manager_installed") => {
-                "Öffne die vorhandene Fenix-App und vervollständige dort die Installation. Schließe die App danach."
+                "Installiere in der Fenix-App den A320 für deinen Simulator. Warte auf den Abschluss der Flugzeuginstallation und schließe die App danach."
             }
-            2 => "Lade den offiziellen Fenix-Installer herunter und wähle die EXE aus.",
+            2 => {
+                "Wähle den offiziellen Fenix-Installer aus und installiere darin den A320 für deinen Simulator. Schließe ihn erst nach Abschluss der Flugzeuginstallation."
+            }
             3 => "Öffne Fenix, melde dich dort an und schließe das Programm danach.",
             _ => {
                 "Schließe Fenix und übernimm die Einstellungen für Anzeigen und automatischen Start."
@@ -83,7 +92,7 @@ pub(crate) fn fenix(data: &Value, status: &Value) -> AddonProgress {
         }
     } else if data["state"] == "legacy" {
         progress.title = "Vorhandene Fenix-Einrichtung";
-        progress.detail = "Dein lokaler Fenix-Patch bleibt aktiv. Eine erneute Installation über diesen Assistenten ist nicht erforderlich.";
+        progress.detail = "Übernimm die vorhandene Einrichtung, damit Flightdeck den Patch prüfen und automatisch aktualisieren kann. Flugzeug und Einstellungen bleiben erhalten.";
     } else if yes(data, "can_restore") {
         progress.title = "Einrichtung unterbrochen · Wiederherstellung verfügbar";
         progress.detail =
@@ -291,6 +300,19 @@ mod addon_tests {
         assert_eq!(complete.title, "Fenix lokal eingerichtet");
         assert!(complete.detail.contains("Lizenz prüft Fenix selbst"));
         assert_eq!(complete.steps, [true, true, true, true]);
+        // Displays and auto-start are complete; only the readout setting waits
+        // for the file Fenix creates on the first aircraft load.
+        data["readouts"] = json!(false);
+        let pending = fenix(&data, &status);
+        assert!(pending.ready);
+        assert_eq!(pending.steps, [true, true, true, true]);
+        assert!(pending.detail.contains("Lade das Flugzeug einmal"));
+        data["readouts"] = json!(true);
+        assert!(
+            fenix(&data, &status)
+                .detail
+                .contains("Lizenz prüft Fenix selbst")
+        );
         data["fenix_installed"] = json!(false);
         let manager = fenix(&data, &status);
         assert!(!manager.ready);

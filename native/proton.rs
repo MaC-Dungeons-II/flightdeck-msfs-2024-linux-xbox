@@ -16,11 +16,11 @@ use std::{
     fs,
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, atomic::AtomicBool},
 };
 const SETTINGS: &str = "private/proton-selection.json";
 const JOURNAL: &str = "private/proton-switch.json";
-const BACKUP: &str = r"^local/proton-tests/[0-9a-f]{32}/previous-prefix$";
+const BACKUP: &str = r"^local/proton-tests/[0-9a-f]{32}/(?:previous-prefix|next-prefix)$";
 const RUNNER: &str =
     r"^local/(?:proton-tests/[0-9a-f]{32}|fenix-patch-[0-9T]+-[0-9a-f]{8})/runner$";
 pub const BRIDGE: [&str; 3] = [
@@ -28,6 +28,217 @@ pub const BRIDGE: [&str; 3] = [
     "xgameruntime_original.dll",
     "xodus_store_test.dll",
 ];
+pub const JSON_LIBRARIES: [&str; 2] = ["windows.web.dll", "wintypes.dll"];
+const JSON_BINDINGS: [(&str, &str); 4] = [
+    ("Windows.Data.Json.JsonValue", "fd-json.dll"),
+    ("Windows.Data.Json.JsonObject", "fd-json.dll"),
+    ("Windows.Data.Json.JsonArray", "fd-json.dll"),
+    ("Windows.Foundation.Collections.PropertySet", "fd-types.dll"),
+];
+
+/// Wine 11 searches builtins by the PE export-directory name, even when the
+/// file has a different basename. Rename that name too, or Wine substitutes
+/// its stock JSON stubs for our private copy. Both names fit in the original
+/// null-terminated slot; code, imports and section layout stay untouched.
+fn private_json_library(data: &[u8], source: &str, target: &str) -> Option<Vec<u8>> {
+    fn word(data: &[u8], at: usize) -> Option<u16> {
+        Some(u16::from_le_bytes(
+            data.get(at..at.checked_add(2)?)?.try_into().ok()?,
+        ))
+    }
+    fn dword(data: &[u8], at: usize) -> Option<usize> {
+        Some(u32::from_le_bytes(data.get(at..at.checked_add(4)?)?.try_into().ok()?) as usize)
+    }
+    if target.len() > source.len()
+        || !target.is_ascii()
+        || target.as_bytes().contains(&0)
+        || !crate::neural_assets::exports(data, b"DllGetActivationFactory")
+    {
+        return None;
+    }
+    // exports() already validated the AMD64 PE header and section count.
+    let pe = dword(data, 60)?;
+    let sections = pe + 24 + word(data, pe + 20)? as usize;
+    let offset = |rva: usize| -> Option<usize> {
+        for i in 0..word(data, pe + 6)? as usize {
+            let section = sections + i * 40;
+            let start = dword(data, section + 12)?;
+            let size = dword(data, section + 16)?;
+            if rva >= start && rva - start < size {
+                let at = dword(data, section + 20)?.checked_add(rva - start)?;
+                return (at < data.len()).then_some(at);
+            }
+        }
+        None
+    };
+    let exports = offset(dword(data, pe + 24 + 112)?)?;
+    let name = offset(dword(data, exports + 12)?)?;
+    let end = name.checked_add(source.len())?;
+    if data.get(name..end)? != source.as_bytes() || data.get(end) != Some(&0) {
+        return None;
+    }
+    let mut renamed = data.to_vec();
+    renamed.get_mut(name..=end)?.fill(0);
+    renamed
+        .get_mut(name..name + target.len())?
+        .copy_from_slice(target.as_bytes());
+    Some(renamed)
+}
+
+fn json_library(runner: &Path, name: &str) -> Result<PathBuf> {
+    for directory in ["lib/wine", "lib64/wine", "lib/x86_64-linux-gnu/wine"] {
+        let path = runner
+            .join("files")
+            .join(directory)
+            .join("x86_64-windows")
+            .join(name);
+        if path.is_file() {
+            return Ok(path);
+        }
+    }
+    Err(Error::Invalid(
+        "Die Store-Komponenten passen nicht zur Installation. Aktualisiere Flightdeck zuerst.",
+    ))
+}
+
+fn json_bindings_ready(prefix: &Path) -> Result<bool> {
+    let bytes = files::read(&prefix.join("system.reg"), 64 * 1024 * 1024)?;
+    let text = String::from_utf8_lossy(&bytes);
+    let mut section = None;
+    let mut ready = BTreeSet::new();
+    for line in text.lines() {
+        if let Some(key) = line.strip_prefix('[').and_then(|s| s.split(']').next()) {
+            section = JSON_BINDINGS.iter().position(|(class, _)| {
+                key.eq_ignore_ascii_case(&format!(
+                    r"Software\\Microsoft\\WindowsRuntime\\ActivatableClassId\\{class}"
+                ))
+            });
+            if let Some(index) = section {
+                ready.remove(&index);
+            }
+        } else if let Some(index) = section
+            && line
+                .split('=')
+                .next()
+                .is_some_and(|key| key.eq_ignore_ascii_case("\"DllPath\""))
+        {
+            if line.eq_ignore_ascii_case(&format!(
+                "\"DllPath\"=\"C:\\\\windows\\\\system32\\\\{}\"",
+                JSON_BINDINGS[index].1
+            )) {
+                ready.insert(index);
+            } else {
+                ready.remove(&index);
+            }
+        }
+    }
+    Ok(ready.len() == JSON_BINDINGS.len())
+}
+
+/// Stock Proton exposes JSON factories while Parse or GetObject is E_NOTIMPL.
+/// Bind only JSON and its PropertySet to private, uniquely named copies of the
+/// matching Flightdeck libraries. Keep the selected runner's system DLLs and
+/// all other WinRT classes intact.
+fn install_json_runtime(
+    root: &Path,
+    prefix: &Path,
+    runner: &Path,
+    base: &Path,
+    cancel: &AtomicBool,
+) -> Result<Value> {
+    managed(root, prefix)?;
+    let base = base.canonicalize()?;
+    let system = tx::prefix_system32(prefix)?;
+    managed(root, &system)?;
+    let mut copies = Vec::new();
+    let mut hashes = serde_json::Map::new();
+    for (name, target) in JSON_LIBRARIES
+        .into_iter()
+        .zip(["fd-json.dll", "fd-types.dll"])
+    {
+        let source = json_library(&base, name)?.canonicalize()?;
+        require(
+            source.starts_with(&base),
+            "Invalid managed Proton directory.",
+        )?;
+        let source = files::read_public(&source, 16 * 1024 * 1024)?;
+        let bytes = private_json_library(&source, name, target).ok_or(Error::Invalid(
+            "Die Store-Komponenten passen nicht zur Installation. Aktualisiere Flightdeck zuerst.",
+        ))?;
+        let hash = files::sha256(&bytes);
+        let destination = system.join(target);
+        if !files::exists(&destination) || tx::digest(&destination)? != hash {
+            copies.push((bytes, destination));
+        }
+        hashes.insert(
+            name.into(),
+            json!({"source_sha256":files::sha256(&source),"private_sha256":hash}),
+        );
+    }
+    let marker = prefix.join(".flightdeck-json.json");
+    let expected = json!({"schema":2,"runner":runner.strip_prefix(root).map_err(|_|Error::Invalid("Invalid managed Proton directory."))?,"files":hashes});
+    if copies.is_empty()
+        && files::exists(&marker)
+        && runtime::value(&marker)? == expected
+        && json_bindings_ready(prefix)?
+    {
+        return Ok(hashes.into());
+    }
+    wine_processes::idle(prefix)?;
+    for (bytes, destination) in copies {
+        tx::interrupted(cancel)?;
+        files::atomic(&destination, &bytes)?;
+    }
+    let work = tx::new_directory(prefix, ".flightdeck-json-")?;
+    let result = (|| {
+        let mut reg = String::from("Windows Registry Editor Version 5.00\r\n\r\n");
+        for (class, module) in JSON_BINDINGS {
+            reg.push_str(&format!("[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\WindowsRuntime\\ActivatableClassId\\{class}]\r\n\"DllPath\"=\"C:\\\\windows\\\\system32\\\\{module}\"\r\n\r\n"));
+        }
+        let path = work.join("bindings.reg");
+        let bytes: Vec<u8> = std::iter::once(0xfeff_u16)
+            .chain(reg.encode_utf16())
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        files::atomic(&path, &bytes)?;
+        let mut command = bootstrap::wine_command(runner, prefix);
+        command.env("WINEDLLOVERRIDES", "winemenubuilder.exe,mscoree,mshtml=d");
+        for category in ["CONFIG", "DATA", "CACHE", "STATE"] {
+            let path = work.join(category.to_lowercase());
+            files::private_dir(&path)?;
+            command.env(format!("XDG_{category}_HOME"), path);
+        }
+        let path = format!(
+            "Z:{}",
+            path.to_str()
+                .ok_or(Error::Invalid("Invalid managed Proton directory."))?
+                .replace('/', "\\")
+        );
+        bootstrap::command(command.args(["reg", "import", &path, "/reg:64"]), cancel)
+    })();
+    let stopped = bootstrap::stop_wine(runner, prefix);
+    let _ = fs::remove_dir_all(work);
+    result.and(stopped)?;
+    files::atomic_json(&marker, &expected)?;
+    Ok(hashes.into())
+}
+
+/// Upgrade an already-selected private profile before its next game process.
+/// Interrupted copies and registrations are completed by the next launch.
+pub fn prepare_game_runtime(root: &Path) -> Result<()> {
+    let Some(selected) = selection(root)? else {
+        return Ok(());
+    };
+    check(root)?;
+    install_json_runtime(
+        root,
+        &root.join("local/msfs-prefix"),
+        &root.join(string(&selected, "runner")?),
+        Path::new(string(&selected, "base_runner")?),
+        &AtomicBool::new(false),
+    )?;
+    Ok(())
+}
 fn matches(pattern: &str, value: &Value) -> bool {
     value
         .as_str()
@@ -261,11 +472,23 @@ pub fn prepare(
     let prefix = root.join("local/msfs-prefix");
     managed(root, &prefix)?;
     wine_processes::idle(&prefix)?;
-    let original_runner = previous
-        .as_ref()
-        .and_then(|v| v["base_runner"].as_str())
-        .map(PathBuf::from)
-        .unwrap_or(root.join("runner").canonicalize()?);
+    let original_runner = match previous.as_ref().and_then(|v| v["base_runner"].as_str()) {
+        Some(path) => PathBuf::from(path),
+        None => {
+            let record =
+                runtime::value(&root.join("private/proton-storage.json")).unwrap_or(Value::Null);
+            if record["schema"] == 1
+                && record["active_runner"].as_str() == runner_target(root)?.to_str()
+                && let Some(path) = record["base_runner"]
+                    .as_str()
+                    .filter(|p| Path::new(p).is_absolute())
+            {
+                PathBuf::from(path)
+            } else {
+                root.join("runner").canonicalize()?
+            }
+        }
+    };
     let (source, hashes) = match bridge(root) {
         Ok(value) => value,
         Err(error) => {
@@ -310,23 +533,30 @@ pub fn prepare(
             fenix_state = json!({"format":1,"state":"installed","migrated":true,"configured":true,"proton_before":null});
         }
         let runner = Path::new(string(candidate, "path")?);
-        variant = bundle::runner_variant(runner, false).or_else(|e| {
+        let manifest = bundle::payload_manifest(
+            payload.ok_or(Error::Invalid("Missing Fenix bundle."))?,
+            None,
+        )?;
+        variant = bundle::runner_variant_with(runner, false, &manifest).or_else(|e| {
             if restoring {
-                bundle::runner_variant(runner, true)
+                bundle::runner_variant_with(runner, true, &manifest)
             } else {
                 Err(e)
             }
         })?;
     }
-    let tests = root.join("local/proton-tests");
-    if !files::exists(&tests) {
-        files::private_dir(&tests)?;
-    }
-    managed(root, &tests)?;
-    let work = tx::new_directory(&tests, "")?;
+    let _ = crate::proton_storage::cleanup_for(ctx);
+    let slot = crate::proton_storage::Slot::open(ctx, candidate, payload)?;
+    let work = slot.work.clone();
     let runner = work.join("runner");
-    files::private_dir(&runner)?;
-    let fresh = work.join("previous-prefix");
+    if slot.reused
+        && !restoring
+        && root.join("runner").canonicalize().ok().as_ref() == Some(&runner)
+        && let Some(previous) = previous
+    {
+        return Ok((prefix, previous));
+    }
+    let fresh = slot.profile()?;
     let mut scripts = json!({});
     let result = (|| {
         if !fenix_state.is_null() {
@@ -363,23 +593,27 @@ pub fn prepare(
             }
         }
         ctx.progress("Proton und Windows-Umgebung werden unabhängig kopiert …");
-        process::copy_tree(
-            Path::new(string(candidate, "files")?),
-            &runner.join("files"),
-            &ctx.cancel,
-        )?;
-        bundle::write(
-            &runner.join("version"),
-            format!("{}\n", string(candidate, "version")?).as_bytes(),
-            0o600,
-        )?;
+        if !slot.reused {
+            files::private_dir(&runner)?;
+            process::copy_tree(
+                Path::new(string(candidate, "files")?),
+                &runner.join("files"),
+                &ctx.cancel,
+            )?;
+            bundle::write(
+                &runner.join("version"),
+                format!("{}\n", string(candidate, "version")?).as_bytes(),
+                0o600,
+            )?;
+        }
         require(
-            inspect(
-                runner
-                    .to_str()
-                    .ok_or(Error::Invalid("Invalid Proton path."))?,
-            )?["hashes"]
-                == candidate["hashes"]
+            (slot.reused
+                || inspect(
+                    runner
+                        .to_str()
+                        .ok_or(Error::Invalid("Invalid Proton path."))?,
+                )?["hashes"]
+                    == candidate["hashes"])
                 && inspect(string(candidate, "path")?)?["hashes"] == candidate["hashes"],
             "Proton wurde während der Vorbereitung aktualisiert. Bitte erneut auswählen.",
         )?;
@@ -387,6 +621,13 @@ pub fn prepare(
         tx::relocate_prefix_links(&prefix, &fresh, &ctx.cancel)?;
         ctx.progress("Die neue Proton-Umgebung wird eingerichtet …");
         let mut command = bootstrap::wine_command(&runner, &fresh);
+        let mut media_env = std::env::vars_os().collect();
+        crate::media::runner_libraries(&runner, &mut media_env)?;
+        for key in ["LD_LIBRARY_PATH", "ORIG_LD_LIBRARY_PATH"] {
+            if let Some(path) = media_env.get(std::ffi::OsStr::new(key)) {
+                command.env(key, path);
+            }
+        }
         command.env("WINEDLLOVERRIDES", "winemenubuilder.exe,mscoree,mshtml=d");
         for category in ["CONFIG", "DATA", "CACHE", "STATE"] {
             let path = work.join("xdg").join(category.to_lowercase());
@@ -407,6 +648,8 @@ pub fn prepare(
         }
         bootstrap::wait_wine(&runner, &fresh, &ctx.cancel)?;
         bootstrap::stop_wine(&runner, &fresh)?;
+        let json_runtime =
+            install_json_runtime(root, &fresh, &runner, &original_runner, &ctx.cancel)?;
         if !fenix_state.is_null() {
             ctx.progress("Fenix wird an die gewählte Proton-Version angepasst …");
             let wine = StagedWine::new(root, &fresh, &runner, &work.join("fenix-setup.log"), ctx)?;
@@ -425,8 +668,31 @@ pub fn prepare(
                 variant.as_deref(),
                 ctx,
             )?;
+            let lock = bundle::payload_manifest(
+                payload.ok_or(Error::Invalid("Missing Fenix bundle."))?,
+                variant.as_deref(),
+            )?;
+            let renderer = fenix_setup::DisplayRenderer::for_state(&lock, &fenix_state)?;
+            fenix_setup::migrate_renderer(
+                &mut fenix_state,
+                &fresh,
+                &work.join("fenix-settings-before-switch"),
+                renderer,
+                &ctx.cancel,
+            )?;
             fenix_state["variant"] = json!(variant);
-            fenix_state["version"] = bundle::manifest(None)?["version"].clone();
+            fenix_state["version"] = lock["version"].clone();
+            let selected = crate::fenix_update::selected(ctx)?;
+            require(
+                selected["bundle"]
+                    == bundle::payload_manifest(
+                        payload.ok_or(Error::Invalid("Missing Fenix bundle."))?,
+                        None,
+                    )?,
+                "The selected Fenix release changed. Please retry.",
+            )?;
+            fenix_state["bundle_manifest"] = selected["bundle"].clone();
+            fenix_state["bundle_release"] = selected["release"].clone();
             fenix_state["work"] = json!(
                 work.strip_prefix(root)
                     .map_err(|_| Error::Invalid("Invalid Fenix staging path."))?
@@ -435,11 +701,12 @@ pub fn prepare(
                 fenix_state["backup"] = fenix_state["work"].clone();
             }
         }
-        let selected = json!({"schema":if fenix_state.is_null(){1}else{2},"version":candidate["version"],"source":candidate["path"],"runner":runner.strip_prefix(root).map_err(|_|Error::Invalid("Invalid Proton runner path."))?,"base_runner":original_runner,"base_prefix":previous.as_ref().map(|v|v["base_prefix"].clone()).unwrap_or(json!(fresh.strip_prefix(root).map_err(|_|Error::Invalid("Invalid Proton backup path."))?)),"base_hashes":previous.as_ref().map(|v|v["base_hashes"].clone()).unwrap_or(hashes),"fenix_state":fenix_state,"scripts":scripts});
+        let selected = json!({"schema":if fenix_state.is_null(){1}else{2},"version":candidate["version"],"source":candidate["path"],"runner":runner.strip_prefix(root).map_err(|_|Error::Invalid("Invalid Proton runner path."))?,"base_runner":original_runner,"base_prefix":fresh.strip_prefix(root).map_err(|_|Error::Invalid("Invalid Proton backup path."))?,"base_hashes":hashes,"fenix_state":fenix_state,"scripts":scripts});
         files::atomic_json(
             &work.join("provenance.json"),
-            &json!({"source":candidate["path"],"version":candidate["version"],"files":candidate["hashes"],"previous_runner":root.join("runner").canonicalize()?}),
+            &json!({"source":candidate["path"],"version":candidate["version"],"files":candidate["hashes"],"compatibility_libraries":json_runtime,"previous_runner":runner_target(root)?}),
         )?;
+        slot.seal(candidate, &ctx.cancel)?;
         ctx.interrupted()?;
         Ok((fresh.clone(), selected))
     })();
@@ -448,7 +715,17 @@ pub fn prepare(
     if result.is_err() && fresh.is_dir() {
         let _ = bootstrap::stop_wine(&runner, &fresh);
     }
+    slot.record_profile(&fresh)?;
     result
+}
+fn runner_target(root: &Path) -> Result<PathBuf> {
+    let link = fs::read_link(root.join("runner"))?;
+    let path = if link.is_absolute() {
+        link
+    } else {
+        root.join(link)
+    };
+    Ok(path.canonicalize().unwrap_or(path))
 }
 pub fn recover(root: &Path) -> Result<()> {
     let journal = root.join(JOURNAL);
@@ -481,7 +758,7 @@ pub fn recover(root: &Path) -> Result<()> {
                 && root.join(string(fenix_state, "work")?).join("runner") == runner,
             "Invalid Fenix recovery record.",
         )?;
-        bundle::manifest(fenix_state["variant"].as_str())?;
+        crate::fenix_update::installed_manifest(fenix_state, fenix_state["variant"].as_str())?;
     }
     let relative = runner
         .strip_prefix(root)
@@ -541,16 +818,11 @@ pub fn recover(root: &Path) -> Result<()> {
             "Invalid Proton prefix identity.",
         )?;
     }
-    let prefix = root.join("local/msfs-prefix");
     let backup = root.join(string(&data, "backup")?);
-    for folder in [&prefix, &backup] {
-        managed(root, folder)?;
-        wine_processes::idle(folder)?;
-    }
     require(
         root.join("runner").symlink_metadata()?.is_symlink()
             && [data["previous_runner"].as_str(), data["runner"].as_str()]
-                .contains(&root.join("runner").canonicalize()?.to_str()),
+                .contains(&runner_target(root)?.to_str()),
         "Proton runner link changed.",
     )?;
     let mut imported = if scripts.is_empty() {
@@ -558,15 +830,7 @@ pub fn recover(root: &Path) -> Result<()> {
     } else {
         runtime::value(&root.join("private/import-manifest.json"))?
     };
-    if fenix::identity(&prefix)? == data["before"] && fenix::identity(&backup)? == data["after"] {
-        tx::exchange(&prefix, &backup)?;
-    } else {
-        require(
-            fenix::identity(&prefix)? == data["after"]
-                && fenix::identity(&backup)? == data["before"],
-            "Proton prefix identity changed.",
-        )?;
-    }
+    crate::proton_exchange::exchange(root, &backup, &data["before"], &data["after"])?;
     fenix::replace_link(&root.join("runner"), &runner)?;
     if data["selection"].is_null() {
         if files::exists(&root.join(SETTINGS)) {
@@ -587,6 +851,15 @@ pub fn recover(root: &Path) -> Result<()> {
     if !scripts.is_empty() {
         files::atomic_json(&root.join("private/import-manifest.json"), &imported)?;
     }
+    crate::proton_storage::retain_backup(
+        root,
+        &backup,
+        string(&data, "previous_runner")?,
+        data["base_runner"]
+            .as_str()
+            .or_else(|| data["selection"]["base_runner"].as_str()),
+        &runner,
+    )?;
     files::directory(&root.join("private"), false)?.sync_all()?;
     fs::remove_file(journal)?;
     files::directory(&root.join("private"), false)?.sync_all()?;
@@ -594,12 +867,31 @@ pub fn recover(root: &Path) -> Result<()> {
 }
 pub fn switch(ctx: &Context, backup: &Path, prepared: &Value, restore: bool) -> Result<()> {
     let root = ctx.root()?;
+    if backup == root.join("local/msfs-prefix") {
+        require(
+            selection(root)?.as_ref() == Some(prepared)
+                && runner_target(root)? == root.join(string(prepared, "runner")?)
+                && !files::exists(&root.join(JOURNAL)),
+            "Invalid unchanged Proton selection.",
+        )?;
+        return Ok(());
+    }
     ctx.begin_commit("publish_runtime", "Proton-Umgebung wird aktiviert …")?;
     files::atomic_json(
         &root.join(JOURNAL),
-        &json!({"schema":1,"backup":backup.strip_prefix(root).map_err(|_|Error::Invalid("Invalid Proton backup."))?,"runner":root.join(string(prepared,"runner")?),"previous_runner":root.join("runner").canonicalize()?,"before":fenix::identity(&root.join("local/msfs-prefix"))?,"after":fenix::identity(backup)?,"selection":if restore{Value::Null}else{prepared.clone()},"fenix_state":prepared["fenix_state"],"scripts":prepared["scripts"]}),
+        &json!({"schema":1,"backup":backup.strip_prefix(root).map_err(|_|Error::Invalid("Invalid Proton backup."))?,"runner":root.join(string(prepared,"runner")?),"previous_runner":runner_target(root)?,"base_runner":prepared["base_runner"],"before":fenix::identity(&root.join("local/msfs-prefix"))?,"after":fenix::identity(backup)?,"selection":if restore{Value::Null}else{prepared.clone()},"fenix_state":prepared["fenix_state"],"scripts":prepared["scripts"]}),
     )?;
     recover(root)
+}
+/// The native wrapper delegates to the current helper. The older shell
+/// launcher configured the portable loader itself. Neither needs an update
+/// merely because the native implementation moved that setting into Rust.
+pub fn supports_switch(root: &Path) -> Result<bool> {
+    let script = files::read(&root.join("tools/launch-msfs.sh"), 65536)?;
+    Ok(
+        crate::resources::asset("scripts/runtime/launch-msfs.sh") == Some(script.as_slice())
+            || String::from_utf8_lossy(&script).contains("FLIGHTDECK_PROTON_LOADER"),
+    )
 }
 pub fn snapshot(app: &Launcher) -> Value {
     let (root, job) = {
@@ -657,13 +949,49 @@ pub fn start(app: &Arc<Launcher>, data: &Value) -> Result<Value> {
         let root=ctx.root()?;require(root==Path::new(string(&data,"runtime_path")?),"Die ausgewählte Installation hat sich geändert. Bitte erneut auswählen.")?;ctx.update(json!({"state":"preparing","error":""}));wine_processes::idle(&root.join("local/msfs-prefix"))?;recover(root)?;
         if mode=="proton"&&files::exists(&root.join(fenix::MARKER)){require(runtime::value(&root.join(fenix::MARKER))?["state"]=="installed","Beende oder repariere zuerst die Fenix-Einrichtung.")?;}
         let mut candidate=if mode=="proton"{Some(inspect(string(&data,"path")?)?)}else{None};let has_fenix=[fenix::MARKER,"private/fenix-compat.json"].iter().any(|v|files::exists(&root.join(v)));let payload=if has_fenix{if let Some(c)=&candidate{bundle::runner_variant(Path::new(string(c,"path")?),false)?;}Some(bundle::obtain(&ctx.launcher.state_dir.join("fenix-bundles"),None,ctx)?)}else{None};
-        if mode=="default"{if let Some(selected)=selection(root)?{let backup=root.join(string(&selected,"base_prefix")?);managed(root,&backup)?;let hashes=bridge_hashes(root)?;let system=tx::prefix_system32(&backup)?;
-            for name in BRIDGE{let actual=tx::digest(&system.join(name))?;require(selected["base_hashes"][name]==actual||hashes[name]==actual,"Die gesicherte Flightdeck-Umgebung wurde verändert. Sie wurde nicht überschrieben.")?;}
-            for name in BRIDGE{if tx::digest(&system.join(name))?!=hashes[name]{let(source,_)=bridge(root)?;tx::copy_path(&source.join(name),&system.join(name),Some(string(&hashes,name)?),&ctx.cancel)?;}}
+        if mode=="default"{if let Some(selected)=selection(root)?{
             candidate=Some(inspect(string(&selected,"base_runner")?)?);
-        }}else{require(root.join("runner").symlink_metadata()?.is_symlink(),"Diese Installation unterstützt keinen Proton-Wechsel.")?;require(has_fenix||String::from_utf8_lossy(&files::read(&root.join("tools/launch-msfs.sh"),65536)?).contains("FLIGHTDECK_PROTON_LOADER"),"Aktualisiere zuerst die Flightdeck-Runtime-Komponenten und öffne Flightdeck erneut.")?;}
+        }}else{require(root.join("runner").symlink_metadata()?.is_symlink(),"Diese Installation unterstützt keinen Proton-Wechsel.")?;require(has_fenix||supports_switch(root)?,"Aktualisiere zuerst die Flightdeck-Runtime-Komponenten und öffne Flightdeck erneut.")?;}
         if let Some(candidate)=candidate{let(fresh,prepared)=prepare(ctx,&candidate,payload.as_deref(),mode=="default")?;switch(ctx,&fresh,&prepared,mode=="default")?;}
-        ctx.launcher.lock().graphics_report=Value::Null;Ok(json!({"state":"complete","message":"Proton-Auswahl bereit. Du kannst den Simulator starten."}))
+        let cleanup=crate::proton_storage::cleanup_for(ctx).unwrap_or_else(|error|{json!({"skipped":true,"reason":error.to_string()})});
+        ctx.launcher.lock().graphics_report=Value::Null;Ok(json!({"state":"complete","message":"Proton-Auswahl bereit. Du kannst den Simulator starten.","cleanup":cleanup}))
     })?;
     Ok(json!({"ok":true,"job":response["job"],"runtime_path":root}))
+}
+
+#[cfg(test)]
+mod json_tests {
+    use super::*;
+
+    #[test]
+    fn registrations_must_match_all_four_64_bit_classes_after_wine_updates() {
+        let temp = tempfile::tempdir().expect("prefix");
+        let registry = temp.path().join("system.reg");
+        let current: String = JSON_BINDINGS
+            .iter()
+            .map(|(class, module)| format!(
+                "[Software\\\\Microsoft\\\\WindowsRuntime\\\\ActivatableClassId\\\\{class}] 1\n\"DllPath\"=\"C:\\\\windows\\\\system32\\\\{module}\"\n\n"
+            ))
+            .collect();
+        for text in [&current, &current.to_uppercase()] {
+            fs::write(&registry, text).expect("registry");
+            assert!(json_bindings_ready(temp.path()).expect("bindings"));
+        }
+        let wrong_view = current.replace("Software\\\\", "Software\\\\Wow6432Node\\\\");
+        let reset = current.replace("fd-json.dll", "windows.web.dll");
+        let missing = current
+            .split("\n\n")
+            .take(3)
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let stale = format!("{current}{reset}");
+        let extra_value = current.replace(
+            "\"DllPath\"=\"C:\\\\windows\\\\system32\\\\fd-types.dll\"",
+            "\"DllPath\"=\"C:\\\\windows\\\\system32\\\\fd-types.dll\"\n\"DllPath\"=\"wrong.dll\"",
+        );
+        for text in [wrong_view, reset, missing, stale, extra_value] {
+            fs::write(&registry, text).expect("registry");
+            assert!(!json_bindings_ready(temp.path()).expect("reset bindings"));
+        }
+    }
 }

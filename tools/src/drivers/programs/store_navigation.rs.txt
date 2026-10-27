@@ -1,0 +1,59 @@
+
+#[allow(dead_code)]
+#[path = "../store_purchase.rs"] mod store_purchase;
+use serde_json::{Value,json};
+use std::time::{Duration,Instant};
+use tao::{dpi::LogicalSize,event::Event,event_loop::{ControlFlow,EventLoopBuilder},
+    platform::run_return::EventLoopExtRunReturn,window::WindowBuilder};
+use wry::{WebViewBuilder,NewWindowResponse,
+    raw_window_handle::{HasWindowHandle,RawWindowHandle}};
+fn main(){
+    let origin=std::env::var("FIXTURE_ORIGIN").unwrap();
+    assert!(origin.starts_with("http://127.0.0.1:"));
+    let mode=std::env::args().nth(1).unwrap();
+    let url=format!("{origin}/store/purchase/buynowui/prefetch/buynow");
+    let nonce="a".repeat(32);
+    let config=json!({"productId":"ABCD1234EFGH","skuId":"0001","availabilityId":"AVAIL1234567",
+        "market":"AT","locale":"en-US","xToken":"SYNTHETIC-NOT-A-CREDENTIAL","expiresAt":4102444800_i64});
+    let content=store_purchase::html(&config,&nonce).replace("https://www.microsoft.com",&origin);
+    // Reproduce the previous about:blank host without the newly added guard.
+    let initial=if mode=="legacy" {content.replace(&format!("location.origin !== '{origin}'"),"false").replace("content=\"same-origin\"","content=\"no-referrer\"")}
+        else {store_purchase::render(&config,&nonce,"bootstrap").replace("https://www.microsoft.com",&origin)};
+    let mut events=EventLoopBuilder::<Value>::with_user_event().build();
+    let window=WindowBuilder::new().with_title("Flightdeck offline Store navigation")
+        .with_inner_size(LogicalSize::new(720.,820.)).build(&events).unwrap();
+    let raw=match window.window_handle().unwrap().as_raw(){RawWindowHandle::Xlib(w)=>Some(w.window),_=>None};
+    println!("{}",json!({"window":raw,"pid":std::process::id()}));
+    let proxy=events.create_proxy(); let loaded=events.create_proxy(); let expected=url.clone();
+    let allowed=origin.clone()+"/";
+    let builder=WebViewBuilder::new().with_incognito(true).with_html(initial).with_devtools(false)
+        .with_navigation_handler(move|u|u=="about:blank"||u.starts_with(&allowed))
+        .with_new_window_req_handler(|_,_|NewWindowResponse::Deny)
+        .with_on_page_load_handler(store_purchase::bootstrap_listener(expected,move||{
+            let _=loaded.send_event(json!({"loaded":true}));
+        }))
+        .with_ipc_handler(move|request|{if let Ok(value)=serde_json::from_str::<Value>(request.body()){let _=proxy.send_event(value);}});
+    let webview=store_purchase::attach_webview(&window,builder).unwrap();
+    let started=Instant::now(); let mut checked=false; let mut attached=false; let mut cancelled=false;
+    events.run_return(|event,_,flow|{
+        *flow=ControlFlow::WaitUntil(Instant::now()+Duration::from_millis(50));
+        if let Event::UserEvent(value)=event {
+            if value["phase"]=="bootstrap_started" && mode!="cancel" {webview.load_url(&url).unwrap();}
+            if value["loaded"]==true && !attached {
+                attached=true;
+                let target=if mode=="wrong-document" {format!("{url}?unexpected=1")}else{url.clone()};
+                webview.evaluate_script(&store_purchase::bootstrap_script(&content,&nonce,&target)).unwrap();
+            }
+            println!("{}",value);
+            if value["status"].is_string(){cancelled=true;*flow=ControlFlow::Exit;}
+        }
+        if !checked&&started.elapsed()>Duration::from_secs(2){
+            checked=true;
+            webview.evaluate_script("window.ipc.postMessage(JSON.stringify({probe:'render',heading:document.getElementById('status')?.textContent,forms:document.forms.length,origin:location.origin}))").unwrap();
+        }
+        if started.elapsed()>Duration::from_secs(4){webview.evaluate_script("document.getElementById('cancel')?.click()").unwrap();}
+        if started.elapsed()>Duration::from_secs(8){*flow=ControlFlow::Exit;}
+    });
+    // A rejected document is not replaced by the host and has no host button.
+    assert!(cancelled || mode=="wrong-document");
+}

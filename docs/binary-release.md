@@ -1,18 +1,26 @@
 # Native package provenance
 
+Full releases starting with **0.2.25** additionally embed the separately loaded Wine GStreamer
+system-memory module described in [media provenance](../compat/media/README.md).
+Its exact original Wine/xgameruntime source archives are included under
+`media-sources/` in the matching Flightdeck source archive, alongside the
+adapted LGPL patch, license and reproducible build tooling. The runner is not
+modified; a verified small per-content game loader view selects the module.
+
+
 Flightdeck's full Linux installer contains six free compatibility components,
 their exact artifact manifest and an aggregate `THIRD-PARTY-NOTICES.txt`. It does
 not contain Microsoft game files, a Wine prefix, account data, Linux system
 libraries or the upstream Proton runner. The Git repository and source-only
 archive still exclude compiled runtime binaries.
 
-The stable **0.2.7 native launcher package** additionally contains the Rust
+The stable **0.2.14 native launcher package** additionally contains the Rust
 Flightdeck executable, its locked dependency notices and inventory, and the
 Rust standard-library notices. The native Rust UI and fixed launcher scripts are embedded
 in the executable. No Python or JavaScript application code is installed. Its component and
 graphics payloads retain the 0.1.16/0.1.11/0.1.17 pins below. This
-[release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.7)
-can be installed by the 0.1.22 and native 0.2.1–0.2.6 updaters.
+[release](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/releases/tag/v0.2.14)
+can be installed by the 0.1.22 and native 0.2.1–0.2.13 updaters.
 Users of 0.1.21 or earlier need the full installer or an explicit 0.1.22 bridge
 installation; GitHub Latest no longer routes those clients to the bridge.
 
@@ -67,8 +75,8 @@ use HTTPS with checksums checked before use. Build/test archive readers also enf
 ## Build and sources
 
 The launcher source archive contains `native/`, `Cargo.toml`, `Cargo.lock`,
-embedded UI/scripts and the build/test tools. `scripts/build-native.py` remaps
-local checkout/cache/toolchain paths. `scripts/native-release.py` assembles
+embedded UI/scripts and the build/test tools in `tools/`. Its `build-native`
+command remaps local checkout/cache/toolchain paths. Its `package` command assembles
 deterministic tar/ZIP packages, validates the Linux x86-64 executable and records
 the locked Cargo graph and each included license file. The launcher build and
 full-package commands are in [BUILDING.md](../BUILDING.md#native-packages).
@@ -81,7 +89,7 @@ The distributable build removes Wine DLL debug paths and remaps Rust source
 locations so personal checkout/Cargo-cache paths are not embedded in the package.
 The checked source manifest connects each patched source to its build artifacts.
 
-`scripts/binary-release.py` creates both the native archive and its matching
+The `compat-release` command of `tools/` creates both the native archive and its matching
 `flightdeck-native-sources-<version>.tar.gz`. The source archive contains full patched
 WineGDK and Xodus sources, proxy and cloud-helper sources, all 686 locked Cargo vendor packages,
 the source manifest, original notices and an offline Cargo configuration. The
@@ -130,7 +138,9 @@ The optional Wine overlay is downloaded from
 only when requested, with its ZIP hash checked against `compat/fenix/release.json`
 and its payload files checked against `compat/fenix/bundle.json`.
 
-Patch **0.1.0-preview.3** contains eleven replacement Wine modules, MIT window, MCDU refresh
+Patch **0.1.0-preview.10** contains twenty replacement Wine/graphics modules
+for Xodus and each pinned Proton 11 build, or sixteen for the CPU-only CachyOS
+Proton 10 build. It also contains MIT window, MCDU refresh
 and dependency-extraction helpers and launch integration, plus complete Wine sources, patches and build
 instructions. The derived Wine components retain LGPL-2.1-or-later. That ZIP and
 its corresponding-source archive are separate from Flightdeck's six native
@@ -153,12 +163,14 @@ that pin with a newly validated available upstream build before expiry; the
 installer fails clearly if the download is no longer available. It never silently
 switches to an untested latest runner. Already installed runners keep working.
 
-The native binary currently requires glibc 2.39+ and compatible GTK 3,
+The full native package requires Linux x86-64 with glibc 2.39+, compatible GTK 3,
 WebKitGTK 4.1 and OpenSSL 3 libraries. Vulkan drivers and a Secret Service provider
 must be present in the graphical session. GStreamer must supply `qtdemux`,
 `h264parse` and `avdec_h264`; the setup probes these without reading game data.
-Distribution-wide portability is not
-established by the successful Arch Linux test. The first-install flow has a
+The launcher passed isolated installation/API and software X11/Wayland checks
+on Ubuntu 24.04, Debian 13, Fedora 44, Arch Linux and openSUSE Tumbleweed.
+These checks do not validate the simulator, hardware graphics or licensed add-ons;
+see the [test scope](install.md#linux-test-matrix). The first-install flow has a
 100 GiB free-space floor. Download pause/resume retains verified complete files
 within the current background installation session; up to four incomplete files
 restart. Recovery after a service or system restart is not supported.

@@ -169,12 +169,23 @@ impl<Message> Widget<Message, Theme, Renderer> for Label<'_> {
             && let Some(clip_bounds) = layout.bounds().intersection(viewport)
         {
             use iced::advanced::Renderer as _;
+            // The software renderer never clips raw text by these bounds; it
+            // only repaints them after a change, without applying the scroll
+            // translation. Labels in a scrolled panel then kept stale pixels.
+            // Declaring everything changed repaints the window in one region,
+            // which is also several times faster than many masked regions.
+            const EVERYTHING: Rectangle = Rectangle {
+                x: -1.0e6,
+                y: -1.0e6,
+                width: 2.0e6,
+                height: 2.0e6,
+            };
             let draw = |renderer: &mut Renderer| {
                 renderer.fill_raw(graphics_text::Raw {
                     buffer: Arc::downgrade(buffer),
                     position: layout.bounds().position(),
                     color: self.color,
-                    clip_bounds,
+                    clip_bounds: EVERYTHING,
                 });
             };
             let (width, height) = buffer.size();

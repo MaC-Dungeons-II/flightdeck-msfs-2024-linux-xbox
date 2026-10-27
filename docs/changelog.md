@@ -1,7 +1,483 @@
 # Changes and release status
 
-## Unreleased
+## 0.3.0 — 26 October 2026
 
+- Detect MSFS 2020 and 2024 in native, Flatpak and Snap Steam libraries. Select
+  Xbox and Steam installations separately, preserving the existing Xbox config
+  for rollback. Bind actions to the selected installation and profile generation.
+- Launch through the matching Steam client and observe the actual simulator,
+  including external starts. Keep Xbox setup, Store updates and Xbox cloud sync
+  out of Steam profiles. Steam retains game downloads, updates and synchronization.
+- Use the pinned shared Fenix Rust engine for Steam setup, patch updates,
+  compatibility-tool selection, display configuration and restoration. Reuse
+  tools across supported profiles and keep cleanup confined to the selected game.
+- Add Steam pages, installation selection, Community-folder discovery and typed
+  Fenix setup diagnostics in English and German. Retain independent patch release
+  metadata and show current failures and cancellation controls.
+- Forward Steam's Windows-version requirement during .NET preparation. Preserve
+  JSON report hashes, strict decoding and canonical maintainer output after
+  enabling the shared engine's dependency features.
+- Validate synthetic profile lifecycles, HTTP source boundaries, both-language
+  rendering and an offline real-Wine setup → patch update → official Fenix hook →
+  restore sequence. Real Steam simulator flights still require tester validation.
+
+## 0.2.29 — 26 October 2026
+
+- Recover interrupted Fenix update preparation by validating the preceding
+  installation and reinstating its marker before a fresh staged update. Retain
+  installed aircraft, settings and the original restore chain. Refuse recovery
+  after publication starts, or when runners, patch modules or scripts changed.
+- Keep failed and interrupted Fenix setup visible in Updates and on the overview,
+  including after a service restart. Offer an idle, runtime-bound retry action.
+  Clear completed download progress when profile preparation starts.
+- Stop and wait for the staging Wine server before rebooting after a failed .NET
+  health check; avoid aborting through the same unreachable server connection.
+- Add recovery and UI regressions, plus an explicit real-Wine update probe using
+  public old/new payloads, retained user data and rejection of changed modules.
+
+## 0.2.28 — 25 October 2026
+
+- Materialize readable Tahoma font symlinks as private files during Fenix setup
+  and registration. Repair broken profile links from the runner, accept linked
+  runner fonts and existing hard-linked fonts, and keep shared sources unchanged.
+  Preserve the font-directory containment check and bounded regular-file reads.
+- Integrate Fenix patch 0.1.1 as the verified fallback, with exact 0.1.0 upgrade
+  snapshots for all four supported runners.
+- Extend the explicit fresh-patch test with linked fonts, real Wine registration
+  and shared-source hash checks before the complete patch setup.
+
+## 0.2.27 — 25 October 2026
+
+- Copy new private Wine profiles and runners without restoring foreign ownership,
+  POSIX ACLs or extended attributes. Preserve contents, executable files,
+  symbolic links, hard-link topology and timestamps. GNU cp archive mode could
+  copy all files but still fail on unsupported permission metadata, leaving
+  Fenix setup in its preparing stage (issue #7).
+- Translate the profile/runner copy failure in the English launcher.
+- Add a native copy regression test and explicit account-free tests for a full
+  profile/runner copy on a chosen filesystem and fresh Fenix patch setup.
+
+## 0.2.26 — 25 October 2026
+
+- Add a dedicated Credits page in German and English, reachable from the sidebar
+  and compact icon rail without a game installation or service connection. Name
+  OnlyCrayZ-Labs’ media fix and taskqueue test contributions, gut-engel’s
+  NVIDIA/Wayland sign-in correction, upstream projects, the UI stack, font
+  and artwork.
+- Open installed launcher, Rust, compatibility and graphics license documents
+  from Credits. Link the complete dependency inventory and corresponding source
+  releases for the running version.
+
+## 0.2.25 — 25 October 2026
+
+- Link the Discord community from the launcher diagnostics, English/German
+  project pages and documentation.
+- Integrate OnlyCrayZ-Labs’ Wine GStreamer system-memory negotiation fix for
+  the matching Xodus runner. Reuse a small verified game-only loader view;
+  preserve installed runners, prefixes and Fenix loader changes. Unknown Proton
+  builds retain their own modules. Ship pinned corresponding sources and LGPL
+  notices; require the matching payload in complete release packages.
+- Configure media using the actual selected runner, including alternate Proton
+  versions, and report media overlay selection in isolated decode probes.
+- Add concurrent task-queue, active shutdown, duplicate-handle, composite-port
+  and delayed-callback checks adapted from OnlyCrayZ-Labs.
+
+
+## 0.2.24 — 25 October 2026
+
+- Reuse one private runner per unchanged Proton build/overlay. Carry the latest
+  profile forward, keep the last rollback profile, and automatically reclaim
+  obsolete generated profiles and recognized legacy copies while idle. Protect
+  active runners, other configured runtimes, Fenix restore references, modified
+  backups, unknown content and running processes. Quarantine deletions without
+  following links; defer cleanup when the audit is incomplete.
+- Resume Proton profile switches on filesystems without `RENAME_EXCHANGE`,
+  including ntfs3, using the durable journal and checked directory identities.
+  Return to the default environment even if an old trial runner was deleted.
+  Keep session recovery available when cloud transport prerequisites are broken.
+- Remove missing persisted absolute .NET startup-hook paths before Fenix install
+  and repair, retaining original values locally. Official FenixApp 1.0.359
+  reproduced exit 82/FileNotFoundException before the fix and exit 0 after it.
+- Verify bundled H.264 decoder loading in an isolated child; use a separately
+  verified host codec environment when the bundled stack fails. Retain explicit
+  media settings and keep 32-bit plugins out of the 64-bit registry.
+- Accept root-managed system directory aliases when launching the desktop app,
+  including Bazzite's `/home` alias. User-controlled state links remain rejected.
+
+## 0.2.23 — 25 October 2026
+
+- Include existing local Fenix installations in automatic update discovery.
+  Previously they were skipped, while the UI could label the embedded available
+  version as though it were installed. Show verified installed versions and
+  available releases separately.
+- Adopt known local patches through the existing staged profile/runner
+  transaction, automatically before MSFS/Fenix launch or through **Adopt setup
+  & update**. Check known native modules and launch scripts before copying and
+  again before publication. Preserve aircraft, renderer/FCU preferences and a
+  restore point. Unknown customizations remain protected. Restoring the local
+  profile pauses automatic adoption until an explicit adoption succeeds, so the
+  next launch preserves the user's rollback.
+- Show Fenix updates and pending adoption on the overview, in the Updates page
+  and with an update navigation indicator. Keep checks available during a game;
+  adoption and installation require an idle selected runtime.
+
+## 0.2.22 — 25 October 2026
+
+- Integrate [Fenix patch 0.1.0](https://github.com/marselnenaj/fenix-a320-linux-patch/releases/tag/v0.1.0)
+  as the verified fallback. Deploy its native Rust runtime with executable
+  permissions, alongside the existing Windows window/display helpers.
+- Support installer contract 2 for the new helper layout. Earlier launchers must
+  update to 0.2.22 before adopting this patch; compatible future patch releases
+  continue to update independently. Preserve all four pinned runner identities,
+  archive checks, aircraft, renderer preferences and restore points.
+- The Wine/DXVK fixes are unchanged from preview.11. This release does not
+  resolve FenixSystem memory growth or establish Fenix v3 full-flight stability.
+
+## 0.2.21 — 24 October 2026
+
+Documentation follow-up: add a Bazzite/Fedora Atomic installation workaround
+for the symbolic-link path error, checked with a synthetic home-directory
+layout. The published installer binaries are unchanged; installation and
+simulator operation on an actual Bazzite desktop remain unverified.
+
+- Offer **Retry download** after a failed game download or Microsoft sign-in
+  when the verified components support file reuse. Keep the original private
+  workspace and job reserved; retry checks completed files through the existing
+  resume protocol. Cancellation releases the reservation and retains files.
+- Show retry, cancellation and numeric failure codes before the first runtime
+  is configured. Retain bounded sign-in retries and package-revision checks;
+  a changed pinned revision requires checking the update again.
+- Include the latest setup phase, edition, attempt count and numeric sign-in/
+  download exit codes in diagnostics and support drafts, surviving a service
+  restart. Capture no raw child output, paths or credentials. An old report
+  cannot recover missing historical error codes.
+- Keep the existing limit that interrupted jobs cannot be resumed after a
+  background-service or Linux restart. Closing the desktop window keeps the
+  background service running. This release improves recovery and evidence; it
+  does not establish the cause of an earlier generic download failure.
+
+## 0.2.20 — 23 October 2026
+
+Documentation follow-up, 24 October: record the issue #4 reporter's MSFS 2024
+menu/scene startup with 0.2.20 and CachyOS 11.0-20261015 after a black loading
+screen. Video playback, the one-third-rate VSync limit and complete flights
+remain unverified. This follow-up did not change the published 0.2.20 binaries.
+
+- Discover Fenix patch releases independently of Flightdeck releases, using the
+  existing automatic startup checks and a manual check under **Updates** and
+  **Mods → Fenix A320**. Retry failed checks after five minutes; successful
+  checks are throttled to 30 minutes.
+- Apply a discovered compatible patch before the next MSFS or Fenix launch,
+  while both are closed, through the existing recoverable profile/runner
+  transaction. Preserve aircraft, graphics preferences and restore points.
+- Retain the installed manifest across service restarts and Proton switches.
+  Prefer stable releases when leaving previews and prevent automatic downgrades
+  or re-entry into previews after a stable installation.
+- Verify repository-bound release metadata, archive size and SHA-256, every
+  extracted payload and the supported installer contract. Incompatible runner
+  or setup changes require a Flightdeck update. Keep preview.11 as the embedded
+  fallback; official aircraft updates remain in the Fenix app.
+
+## 0.2.19 — 23 October 2026
+
+- Adopt [Fenix patch 0.1.0-preview.11](https://github.com/marselnenaj/fenix-a320-linux-patch/releases/tag/v0.1.0-preview.11),
+  including @malik05051's Gateway loader-name correction and matching PE NTDLL
+  for all four pinned runners. The reporter confirms a working Gateway/EFB and
+  GPU displays with **USE DISPLAY SAFE MODE off** on the affected NVIDIA setup.
+  Aircraft files, saved renderer preferences and restore points survive updates.
+- Make Fenix game launches and helper commands explicitly select the tested
+  server-synchronization backend on Wine 11 with `PROTON_NO_NTSYNC=1`, retaining
+  CachyOS 10's separate fast-sync switch. Synchronization alone did not fix #7;
+  the Gateway correction is the separate loader-name change above.
+- Retain the official v3 installer/startup and Direct2D Display-memory fixes.
+  Fenix v3 full-flight stability, an earlier Wine assertion and the separate
+  Fenix 2 System-memory growth remain open. The regular Fenix 0.1.0 release
+  remains in preparation.
+
+## 0.2.18 — 23 October 2026
+
+Stable launcher release with the experimental Fenix patch preview.10.
+Existing native launchers can use the in-app updater. Close MSFS and Fenix,
+update Flightdeck, then open Fenix under **Mods** to update an earlier patch.
+Installing Flightdeck itself does not install the aircraft.
+
+- Adopt [Fenix patch 0.1.0-preview.10](https://github.com/marselnenaj/fenix-a320-linux-patch/releases/tag/v0.1.0-preview.10).
+  Fix Wine compatibility paths used by the new official installer, image
+  validation, volume/current-directory lookup and scoped cryptographic APIs.
+  Original vendor executables and authentication are unchanged. Verified
+  preview.9 installations retain the aircraft, renderer preferences and restore
+  point when updating; the earlier Direct2D memory-leak fix is retained.
+- Check official Installer 1.0.359, login and working cockpit displays with Fenix
+  3.0.0.7454, MSFS 2024 1.8.16.0 and Xodus 11.0 / 7c0b4354, using GPU displays
+  and Legacy readouts. **Fenix v3 remains experimental:** one startup hit
+  Wine's `create_view` assertion. A later fresh production-payload start and
+  five warm backend restarts did not reproduce it; its cause remains unknown.
+  Full flights, long-session stability, NVIDIA and real v3 cockpits on other
+  runners remain unvalidated. See the [test sequence and limits](https://github.com/marselnenaj/fenix-a320-linux-patch/blob/v0.1.0-preview.10/docs/fenix-v3.md).
+- Document the [Nobara/RTX 5080 workaround from issue #3](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/3#issuecomment-6348916712):
+  the reporter can launch with an alternate Proton such as Proton-GE. This is
+  a user-confirmed workaround; the default Xodus exit-84 crash remains
+  unresolved and its working alternate version has not yet been specified.
+
+## 0.2.17 — 22 October 2026
+
+Stable launcher release with Fenix patch preview.9. Existing native launchers
+can use the in-app updater; update the Fenix patch separately under Mods.
+
+- Adopt the Direct2D per-figure memory-leak fix contributed by M3rocto in
+  [Fenix PR #10](https://github.com/marselnenaj/fenix-a320-linux-patch/pull/10).
+  The rebuilt Xodus, Proton Experimental 11 and CachyOS 10/11 overlays passed
+  geometry, rendering and heap-lifetime probes. Additional guards terminate
+  synthetic degenerate paths; these do not establish a fix for displays
+  freezing in the simulator. Long-flight memory behaviour remains unvalidated.
+- Prepare the pinned Microsoft .NET 10.0.13 x64 Desktop Runtime when installing
+  or updating Fenix, and check it before opening an official Fenix application.
+  This addresses the missing Windows Desktop Runtime error from the v3
+  installer. The runtime host and an isolated WPF window were tested; a full
+  Fenix v3 flight has not been independently verified.
+- Make the aircraft-installation step explicit: sign in to the official Fenix
+  installer, install the A320 for the selected simulator, wait for completion
+  and then close the installer.
+
+## 0.2.16 — 22 October 2026
+
+Security update with rebuilt native compatibility components and corresponding
+sources. Existing native launchers can use the in-app updater.
+
+- Migrate XAL authentication, OAuth and the Store policy client off Reqwest 0.11
+  and h2 0.3, removing the HTTP/2 memory-exhaustion path in
+  [RUSTSEC-2026-0258](https://rustsec.org/advisories/RUSTSEC-2026-0258.html).
+  Preserve OAuth request-body authentication, PKCE and redirect rejection.
+- Update EAPPX's XML stack to xmlserde 0.14 and quick-xml 0.41, addressing the
+  quadratic attribute processing in
+  [RUSTSEC-2026-0194](https://rustsec.org/advisories/RUSTSEC-2026-0194.html).
+  Test all three package XML readers, escaped filenames, encrypted extraction
+  and rejection of XML-encoded unsafe paths.
+- Retain the exact upstream library revisions and MIT notices in the exported
+  source patch and native source archive. These dependency fixes do not claim
+  that every transitive advisory is resolved.
+
+## 0.2.15 — 22 October 2026
+
+Stable security update with rebuilt native compatibility components and full
+corresponding source archives. Existing native launchers can use the in-app updater.
+
+- Update Rustls and WebPKI in the launcher and native broker, including the
+  certificate-distrust fix for [CVE-2026-111943](https://rustsec.org/advisories/RUSTSEC-2026-0382.html).
+  Also update the broker's PKCS#11 dependency to its corrected patch release.
+- Protect manual MSIXVC and EAPPX extraction against unsafe package paths,
+  normalized aliases, symlinks, hardlinks and special-file targets. Validate
+  the full output plan and anchor payload and metadata writes to the chosen
+  destination. Preserve ordinary extraction permissions and resume behavior.
+- Dependency review still identifies advisories in the legacy XAL/Reqwest stack
+  and local EAPPX XML parser. This release does not claim that all dependencies
+  are advisory-free; those components need further modernization.
+
+## 0.2.14 — 21 October 2026
+
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.13 launchers can use the in-app updater.
+
+- Fix Xbox sign-in error `000-2000-0x80004001` after selecting another Proton
+  build ([issue #4](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/4)).
+  Retain Flightdeck's working JSON and PropertySet implementations with private
+  names and scoped WinRT registrations; repair already-selected profiles before
+  launch. Wine 11 also needs unique internal DLL names to prevent substitution
+  by its JSON stubs. Real MSFS 2024 sign-in, profile loading and token/signature
+  requests passed with Proton Experimental 11. Safe diagnostics now preserve
+  startup and authentication-stage results. The account-free Proton probe
+  checks runtime initialization, JSON response parsing and shutdown with a
+  ping-only local broker. An isolated CachyOS 10 start still exited with code 84
+  before authentication completed; that crash and the VSync report remain open.
+- Adopt Fenix patch 0.1.0-preview.8 with GPU display sharing on the pinned Xodus
+  and Proton 11 runners. Deploy the matched DXGI into the profile, migrate
+  earlier automatic CPU settings and preserve explicit CPU fallbacks. CachyOS
+  Proton 10 remains CPU-only. Xodus PFD, ND, ECAM and a moving airspeed tape
+  were checked in the live cockpit; NVIDIA, GPU weather radar and full flights
+  remain unvalidated. Readout setup can still complete after the first load.
+
+## 0.2.13 — 20 October 2026
+
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.12 launchers can use the in-app updater.
+
+- Fix Proton selection for native installations without Fenix. Its compatibility
+  check still expected an environment setting in the old shell launcher; the
+  shipped wrapper delegates to Rust and no longer contains it. The actual native
+  wrapper is now accepted, and the public selection path is tested with those
+  shipped bytes instead of a synthetic marker.
+- Configure media inside the game's Wine child. Selected Proton builds that
+  bundle FFmpeg receive their libraries and GStreamer plugins; the default
+  Xodus runner and stock Steam runners retain the system-codec path. NVIDIA
+  starts prefer the available software H.264 decoder, preserving explicit
+  decoder choices and hardware fallback. Bundled runners have separate media
+  registries. Safe diagnostics distinguish a placeholder video from H.264
+  decode failures. See [issue #3](https://github.com/marselnenaj/flightdeck-msfs-2024-linux-xbox/issues/3); the reported
+  RTX 5080 game crash still requires confirmation on that machine.
+- Add `probe media`: decode and rewind a local video through Media Foundation
+  in an isolated Wine prefix. The expected dimensions, frame count and decoded
+  byte count must match on both passes; a small fallback video cannot pass.
+  The pinned Xodus runner with system codecs passed with the actual 4K MSFS
+  loading video, including seeking, end of stream and clean shutdown.
+- Bound the history kept around saves. Local backups before and after each
+  session, downloaded cloud snapshots and the local states saved before each
+  import gained an entry with every session and were never removed; one
+  runtime held 436 of them, 2.7 GiB, after three weeks. Before a start, each
+  kind now keeps its newest 20 entries, everything younger than 30 days and
+  whatever the snapshot cache, a pending transfer, the comparison baseline or
+  the running launcher still refers to. With the clock set 60 days ahead, a
+  copy of that runtime's history went from 2.7 GiB to 366 MiB with every
+  referenced entry in place. If a stored record cannot be read, nothing is
+  removed.
+
+## 0.2.12 — 13 October 2026
+
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.11 launchers can use the in-app updater.
+
+- Fix a profile staying locked after the first game session on desktops whose
+  own services hide their environment, such as KDE Plasma's authentication
+  agent. After a session ends, Flightdeck makes sure nothing of it still runs
+  before it backs up and synchronizes saves. It counted every process of the
+  user that it could not inspect as a possible leftover, apart from six known
+  names, so `polkit-kde-authentication-agent-1` held the profile until the
+  next boot: cloud saves reported "unsafe session", the simulator could not be
+  started again and the recovery could not help, because such a process is
+  never ended. A process that cannot be inspected now counts only if its
+  command line refers to the runtime or if it is by its name a Wine, Xodus or
+  Flightdeck process. After updating, a profile that is still locked is
+  released by the recovery offered there, or by a reboot.
+- Bound what Flightdeck leaves on disk. Session logs are kept for the newest
+  ten sessions besides the current one; until now every session's directory
+  stayed, and a single `game.log` reached 162 MiB. A log that a running game
+  keeps filling keeps its first and newest 16 MiB and gives the middle back to
+  the file system. Logs that runs append to start anew beyond 8 MiB. The cloud
+  helper's Wine prefix, about 630 MiB, exists once per combination of runner
+  and components, and the ones of earlier versions were never removed; they
+  are now removed after a completed cloud run, unless a process still uses one
+  or one was left in use since the last boot. Save backups, cloud snapshots
+  and import backups are not limited by this change.
+- Record whether a game ever set up its renderer. Until now only NVIDIA
+  starts logged the renderer at its informative level; on other hardware the
+  log of a Direct3D 11 game such as MSFS 2020 held warnings only, and a report
+  of a black screen looked exactly like a healthy session. Every start now
+  uses that level, and diagnostics count the created Direct3D 11 device, the
+  created swapchains and their failures. For a small test program the
+  renderer writes about 530 lines at this level.
+- Move the checks, packaging and release steps, the developer probes and the
+  compatibility test drivers from Python scripts to the Rust maintainer tool in
+  `tools/`. Launcher and full packages built by both implementations from the
+  same inputs are identical member for member, and the distribution checks run
+  the same tool inside their containers, so the test images no longer install
+  an interpreter. The native component build script needs no Python either.
+  The installed launcher is not affected. The probes and drivers that need a
+  GPU, a Wine runner or a display were translated and tested against stand-ins,
+  not yet run on real hardware.
+- Replace the last Python scripts and the Python stand-ins inside the Rust
+  tests. The rendering check is `probe graphics-rendering`; the loader test and
+  the test peers (a stand-in Xodus service, Wine, cloud helper and others) are
+  Rust, in `tests/native_loader.rs` and `examples/test-programs.rs`; the whole
+  test suite passes with no interpreter available. The transition check is
+  `probe transition-update`. It gives the same result as the script for a
+  0.2.3 candidate. For candidates from 0.2.8 on the script could no longer
+  pass: those launchers end without a session before they start their
+  service, so the check now starts the installed service itself. An
+  interpreter is needed only where a Python release is the subject: the
+  transition check, `probe benchmark-launchers` and a rollback to a retained
+  0.1.x release.
+- Store runtime sources, not yet in the shipped components: log each distinct
+  user interface and each distinct query result once instead of on every
+  call. These two lines made up 98 % of a 162 MiB session log. The rebuilt
+  Store module writes 2 lines where the published one writes 50 for 50 calls;
+  the thirteen synthetic component suites and the broker timeout checks pass
+  with the rebuilt modules under the pinned runner. The pinned 0.1.16
+  component archive is unchanged, so installations keep the old behaviour
+  until a component release. The idea of logging per call only on request is
+  from the macOS fork by ssyuk.
+
+## 0.2.11 — 12 October 2026
+
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.10 launchers can use the in-app updater.
+
+- Use Fenix patch **0.1.0-preview.6**. Its patched `ntdll.so` no longer needs
+  the host library `libunwind.so.8`, which the patch build had linked by
+  accident. Without that library a patched runtime cannot load `ntdll.so` and
+  no Windows program starts; hosts with GStreamer usually have it installed, so
+  this mainly affected the patch's Steam installation. Every other overlay file
+  is identical to preview.5, and verified preview.5 installations update
+  without reinstalling Fenix.
+- Let **Finish setup** for Fenix proceed once `fenixConfig.xml` exists. It
+  required `persistancy.xml` as well; a user of the patch's Steam installation
+  reported that Fenix creates that file only when the aircraft is first loaded,
+  which would leave the setup waiting at sign-in. CPU displays and auto-start
+  are now applied without it, and the panel asks to reapply the settings after
+  the first load for the Legacy FCU readouts. Not reproduced in Flightdeck;
+  installations that already have both files behave as before.
+
+## 0.2.10 — 12 October 2026
+
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.9 launchers can use the in-app updater.
+
+- Keep Xodus windows open on systems with an NVIDIA GPU. WebKitGTK's DMA-BUF
+  renderer aborted the Microsoft sign-in window right after it opened with
+  “Error 71 (Protocol error) dispatching to Wayland display”. Flightdeck now
+  starts sign-in, the in-game Store purchase window and the Store window check
+  with `WEBKIT_DISABLE_DMABUF_RENDERER=1` when an NVIDIA GPU is present. A value
+  set in the launcher's environment is kept. Reported and fixed for sign-in by
+  @gut-engel on nvidia-open 615 with KDE Plasma Wayland. The other two windows
+  use the same webview and setting but are not yet confirmed on an affected
+  system.
+- Repaint the whole window after a change. Scrolled panels such as
+  **What's new?** showed stale or overlapping text when the pointer moved over
+  them, because the software renderer repainted text regions without their
+  scroll offset. In a local measurement of a 1280×900 window, one complete
+  repaint took about 6 ms instead of 40–90 ms for the region-wise repaint.
+- Keep hard-wrapped list items in release notes together. Continuation lines of
+  a list item were shown as separate paragraphs.
+
+## 0.2.9 — 12 October 2026
+
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.8 launchers can use the in-app updater.
+
+- End the remaining processes of an interrupted or stopped session instead of
+  fencing the launch until a reboot. **Check session** and the automatic
+  post-exit release send SIGTERM, then SIGKILL, to processes bound to the runtime,
+  verify they are gone and back up local saves. Since 0.2.6 such a straggler
+  blocked every launch until reboot.
+- End all Fenix processes with the simulator, including the Fenix app and its
+  WebView. An open Fenix app previously kept the next launch blocked.
+- Leave another Windows application in the profile, such as an installer,
+  running when the simulator exits and name it as the reason for the block;
+  **Check session** ends it on request. Processes that cannot be attributed to
+  the runtime are never signalled.
+- Name a surviving process with its PID in the launch note and in diagnostics
+  (`cloud_sync.error_details`). A process stuck in the kernel after a GPU device
+  loss still requires a restart, and the message now says so.
+- Ignore processes bound to a Wine prefix that no longer exists; they previously
+  blocked the launch without a stated reason.
+- Use Fenix patch **0.1.0-preview.5**. Its Flightdeck and earlier Proton
+  overlays are identical to preview.4; verified preview.4 installations update
+  without reinstalling Fenix. The patch adds an overlay for CachyOS Proton
+  `cachyos-11.0-20261005-slr`, which the Proton menu now marks as compatible.
+
+## 0.2.8 — 8 October 2026
+
+Stable release with full installer and corresponding source archives.
+Existing 0.1.22 and native 0.2.1–0.2.7 launchers can use the in-app updater.
+
+- Prevent inherited Linux .NET loading/runtime overrides from reaching Windows
+  installer and repair commands. A controlled startup-hook override reproduced
+  Fenix App 1.0.286 exit 82; the same hook succeeds without that override. This
+  addresses that failure path, not every possible cause of exit 82.
+- Retain the latest recorded Fenix hook failure in the interface after reopening
+  the launcher. A failed repair points to diagnostics instead of prioritizing
+  another identical retry. Label the Linux-patch check separately from app setup.
+- Include recognized managed exception types and an explicitly logged CLR
+  exception code in Fenix diagnostics, without raw third-party messages or paths.
+  An exit code by itself remains an unknown hook failure.
 - Explain installer startup failures caused by an unsupported architecture,
   older glibc, a missing loader or unavailable libraries before invoking the
   native installer. Keep the optional probe bounded and show German or English
@@ -21,7 +497,7 @@
   candidate on 8 October 2026, including 84 API checks and the actual Wayland
   application surface. These tests do not validate MSFS, hardware graphics,
   sign-in or licensed add-ons. See the
-  [scope and current status](install.md#linux-test-matrix-unreleased).
+  [scope and current status](install.md#linux-test-matrix).
 
 ## 0.2.7 — 8 October 2026
 

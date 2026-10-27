@@ -1,8 +1,8 @@
 # Flightdeck documentation
 
-[Overview and quick start](../README.md) · [Deutsch](readme.de.md)
+[Overview and quick start](../README.md) · [Deutsch](readme.de.md) · [Discord community](https://discord.gg/fAhHR2DkqN)
 
-This documentation covers the current stable release, **0.2.7**. The
+This documentation covers the current stable release, **0.3.0**. The
 [changelog](changelog.md) records its changes and earlier releases.
 Hardware reports describe the tested setup, not universal compatibility.
 
@@ -26,6 +26,9 @@ Hardware reports describe the tested setup, not universal compatibility.
 
 ## Development and releases
 
+- [Steam beta in 0.3.0](steam.md) · [Deutsch](steam.de.md): installation selection,
+  Fenix, storefront boundaries and the remaining real-simulator test scope.
+
 - [Build and test](../BUILDING.md): toolchains, native UI checks, compatibility
   components and release packaging.
 - [Contribute](contributing.md): code ownership, isolated tests, review and
@@ -33,6 +36,8 @@ Hardware reports describe the tested setup, not universal compatibility.
 - [Native desktop](native-ui.md): UI behavior, interaction checks and validation.
 - [Binary package provenance](binary-release.md): pinned inputs, notices and
   corresponding-source obligations.
+- [Credits and acknowledgements](credits.md): contributors, upstream projects,
+  artwork and complete per-release dependency/license records.
 - [Third-party notices](../compat/THIRD_PARTY_NOTICES.md), [license](../LICENSE)
   and [artwork provenance](artwork.md).
 - [Release history](changelog.md): version-specific changes.
