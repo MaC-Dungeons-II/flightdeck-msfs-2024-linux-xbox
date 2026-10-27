@@ -19,6 +19,10 @@ void genuine_XTaskQueueCloseHandle(XTaskQueueHandle q);
 HRESULT genuine_XTaskQueueSubmitCallback(XTaskQueueHandle q, XTaskQueuePort port, void *ctx, XTaskQueueCallback *cb);
 bool genuine_XTaskQueueGetCurrentProcessTaskQueue(XTaskQueueHandle *out);
 
+/* The genuine runtime's threading, for modules that run async work on the
+ * game's behalf (the Xodus user runtime); nullptr until it can be queried. */
+IXThreadingImpl *GenuineThreading();
+
 #define XAsyncBegin genuine_XAsyncBegin
 #define XAsyncSchedule genuine_XAsyncSchedule
 #define XAsyncComplete genuine_XAsyncComplete

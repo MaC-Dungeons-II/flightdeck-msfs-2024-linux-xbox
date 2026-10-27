@@ -23,6 +23,8 @@ IXThreadingImpl *genuine() {
 }
 }
 
+IXThreadingImpl *GenuineThreading() { return genuine(); }
+
 HRESULT genuine_XAsyncBegin(XAsyncBlock *a, void *c, const void *i, const char *n, XAsyncProvider *p) { auto t = genuine(); return t ? t->XAsyncBegin(a, c, i, n, p) : E_UNEXPECTED; }
 HRESULT genuine_XAsyncSchedule(XAsyncBlock *a, UINT32 d) { auto t = genuine(); return t ? t->XAsyncSchedule(a, d) : E_UNEXPECTED; }
 void genuine_XAsyncComplete(XAsyncBlock *a, HRESULT hr, SIZE_T n) { if (auto t = genuine()) t->XAsyncComplete(a, hr, n); }

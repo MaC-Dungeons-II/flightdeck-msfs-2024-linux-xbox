@@ -13,6 +13,8 @@
 #include <map>
 #include <vector>
 #include <limits>
+/* mac chain: hint registrations run on the game's (genuine) task queues */
+#include "GenuineAsync.h"
 
 // Only local adapter/route state is queried. No external endpoint or fabricated
 // online result is used. InternetAccess is a routing hint, not a reachability test.

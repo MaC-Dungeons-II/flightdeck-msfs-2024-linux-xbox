@@ -6,6 +6,7 @@
 #include <atomic>
 #include <string>
 #include <cstdio>
+#include "GenuineAsync.h"
 
 namespace {
 using BindFn = HRESULT (WINAPI *)(IXThreadingImpl *);
@@ -86,7 +87,10 @@ HRESULT InitializeUserRuntime(ULONG gdk, ULONG services, char mode, const void *
     if (user.active) return S_OK;
     HRESULT hr = load(user);
     if (SUCCEEDED(hr)) {
-        hr = user.bind(x_threading_impl);
+        /* mac chain: the game's queues and async blocks belong to the genuine
+         * runtime, so the user runtime must run its async work there too */
+        IXThreadingImpl *threading = GenuineThreading();
+        hr = threading ? user.bind(threading) : E_UNEXPECTED;
         if (SUCCEEDED(hr)) user.needs_cleanup = true;
     }
     if (SUCCEEDED(hr)) hr = user.initialize(gdk, services, mode, options);
