@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 // Local-only opt-in adapter. It never reads, uploads, or claims cloud saves.
 #define __WINESRC__
+#include "MacUser.h"
 #include "GameSaveBridge.h"
 #include "GameSaveAsync.h"
 #include "UserBridge.h"
@@ -27,9 +28,13 @@ HRESULT user_api(IXUserImpl** out) {
     std::lock_guard<std::mutex> guard(user_api_mutex);
     if(!retained_user_api) {
         const GUID id=__uuidof(IXUserImpl);
-        /* the game's XUser handles come from the user runtime (proxy.cpp) */
-        if(HRESULT ready=EnsureStoreModule();FAILED(ready))return ready;
-        HRESULT hr=QueryUserRuntime(&id,id,reinterpret_cast<void**>(&retained_user_api));
+        /* the game's XUser handles come from the same XUser as proxy.cpp's */
+        HRESULT hr;
+        if(MacUserEnabled())hr=QueryMacUser(id,reinterpret_cast<void**>(&retained_user_api));
+        else {
+            if(HRESULT ready=EnsureStoreModule();FAILED(ready))return ready;
+            hr=QueryUserRuntime(&id,id,reinterpret_cast<void**>(&retained_user_api));
+        }
         if(FAILED(hr))return hr;
         if(!retained_user_api)return E_UNEXPECTED;
     }

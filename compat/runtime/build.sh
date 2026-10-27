@@ -4,7 +4,7 @@ cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 sources=(
     src/proxy.cpp
     src/GameSaveLocalCore.cpp src/GameSaveBridge.cpp src/GameSaveAsync.cpp
-    src/RuntimeDiagnostics.cpp src/UserBridge.cpp src/GenuineAsync.cpp
+    src/RuntimeDiagnostics.cpp src/UserBridge.cpp src/GenuineAsync.cpp src/MacUser.cpp
     src/StoreBridge.cpp src/StoreContext.cpp src/StoreQueries.cpp
     src/StoreLicenseEvents.cpp src/StoreDurableLicense.cpp src/StoreCatalog.cpp src/StoreCatalogBatch.cpp
     src/StoreCatalogCoinMapper.cpp src/StoreCatalogProvider.cpp

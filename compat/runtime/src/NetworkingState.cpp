@@ -4,6 +4,7 @@
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <netioapi.h>
+#include <winhttp.h>
 #include "NetworkingState.h"
 #include "NetworkSecurity.h"
 #include <atomic>
@@ -15,6 +16,33 @@
 #include <limits>
 /* mac chain: hint registrations run on the game's (genuine) task queues */
 #include "GenuineAsync.h"
+
+/* HEAD https://login.live.com answered at all (any status): the Internet is
+ * reachable. Cached for 10 s; a failed probe is cached as well. */
+static bool internet_reachable() {
+    static std::mutex lock;
+    static ULONGLONG checked=0;
+    static bool reachable=false;
+    std::lock_guard<std::mutex> guard(lock);
+    const ULONGLONG now=GetTickCount64();
+    if(checked && now-checked<10000) return reachable;
+    bool ok=false;
+    if(HINTERNET session=WinHttpOpen(L"M(a)C Dungeons II",WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0)) {
+        WinHttpSetTimeouts(session,3000,3000,3000,3000);
+        if(HINTERNET connect=WinHttpConnect(session,L"login.live.com",INTERNET_DEFAULT_HTTPS_PORT,0)) {
+            if(HINTERNET request=WinHttpOpenRequest(connect,L"HEAD",L"/",nullptr,WINHTTP_NO_REFERER,WINHTTP_DEFAULT_ACCEPT_TYPES,WINHTTP_FLAG_SECURE)) {
+                ok=WinHttpSendRequest(request,WINHTTP_NO_ADDITIONAL_HEADERS,0,WINHTTP_NO_REQUEST_DATA,0,0,0) &&
+                   WinHttpReceiveResponse(request,nullptr);
+                WinHttpCloseHandle(request);
+            }
+            WinHttpCloseHandle(connect);
+        }
+        WinHttpCloseHandle(session);
+    }
+    checked=now; reachable=ok;
+    std::fprintf(stderr,"xodus-network: internet probe reachable=%u\n",ok?1u:0u);
+    return ok;
+}
 
 // Only local adapter/route state is queried. No external endpoint or fabricated
 // online result is used. InternetAccess is a routing hint, not a reachability test.
@@ -73,7 +101,17 @@ static HRESULT read_platform_hint(XNetworkingConnectivityHint *hint) {
             }
         }
     }
+    /* mac chain: Wine on macOS reports no default routes, so an up adapter
+     * never reached InternetAccess and the game offered offline play only.
+     * Without any default route in the table, a live HTTPS request decides
+     * (as mcd2-crossover's adapter did), cached for a few seconds. */
+    bool any_default=false;
+    if(route_error==NO_ERROR && routes)
+        for(ULONG i=0;i<routes->NumEntries;++i)
+            if(routes->Table[i].DestinationPrefix.PrefixLength==0 && !routes->Table[i].Loopback) any_default=true;
     if(routes) FreeMibTable(routes);
+    if(hint->connectivityLevel==XNetworkingConnectivityLevelHint::LocalAccess && !any_default && internet_reachable())
+        hint->connectivityLevel=XNetworkingConnectivityLevelHint::InternetAccess;
     return S_OK;
 }
 #ifdef NETWORKING_TESTING

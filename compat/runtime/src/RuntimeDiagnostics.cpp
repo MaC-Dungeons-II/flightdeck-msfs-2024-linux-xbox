@@ -4,7 +4,9 @@
 #include "NetworkingState.h"
 #include <atomic>
 #include <mutex>
+#include "MacUser.h"
 
+bool GenuineNetworking();
 class FeatureDiagnostics final : public IXGameRuntimeFeatureImpl {
     std::atomic<ULONG> refs{1};
     std::once_flag initialized;
@@ -26,7 +28,7 @@ public:
     BOOLEAN WINAPI XGameRuntimeIsFeatureAvailable(XGameRuntimeFeature feature) override {
         /* mac chain: XNetworking is answered by this runtime (proxy.cpp),
          * whatever the genuine one reports */
-        const BOOLEAN available=static_cast<unsigned>(feature)==10u /* XNetworking */?TRUE:original->XGameRuntimeIsFeatureAvailable(feature);
+        const BOOLEAN available=static_cast<unsigned>(feature)==10u /* XNetworking */&&!GenuineNetworking()?TRUE:original->XGameRuntimeIsFeatureAvailable(feature);
         if(calls.fetch_add(1)<64)std::fprintf(stderr,"xodus-runtime: FeatureAvailable feature=%u original=%u\n",static_cast<unsigned>(feature),static_cast<unsigned>(available));
         return available;
     }
@@ -67,7 +69,8 @@ public:
     HRESULT WINAPI XSystemGetAppSpecificDeviceId(INT32 size,char *buffer,SIZE_T *used) override{return log(2,"GetAppSpecificDeviceId",original->XSystemGetAppSpecificDeviceId(size,buffer,used));}
     HRESULT WINAPI XSystemHandleTrack(XSystemHandleCallback callback,void *context) override{return log(3,"HandleTrack",original->XSystemHandleTrack(callback,context));}
     BOOLEAN WINAPI XSystemIsHandleValid(XSystemHandle handle) override{
-        const BOOLEAN valid=original->XSystemIsHandleValid(handle);
+        /* mac chain: the user handle of MacUser.cpp is not the genuine runtime's */
+        const BOOLEAN valid=MacUserHandle(handle)?TRUE:original->XSystemIsHandleValid(handle);
         if(calls[4].fetch_add(1)<8)std::fprintf(stderr,"xodus-runtime: System.IsHandleValid original=%u\n",static_cast<unsigned>(valid));
         return valid;
     }

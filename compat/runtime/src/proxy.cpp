@@ -10,6 +10,7 @@
 #include "StoreBridge.h"
 #include "GameSaveBridge.h"
 #include "RuntimeDiagnostics.h"
+#include "MacUser.h"
 #include <cstdlib>
 #include <cstring>
 
@@ -84,17 +85,31 @@ extern "C" HRESULT WINAPI QueryApiImpl(const GUID *clsid, REFIID iid, void **out
             clsid->Data4[4], clsid->Data4[5], clsid->Data4[6], clsid->Data4[7], iid.Data1, static_cast<ULONG>(hr));
     return hr;
 }
+/* Diagnostics: XODUS_NETWORKING=genuine leaves XNetworking (and its feature
+ * report) to the genuine runtime underneath, as before this runtime answered it. */
+bool GenuineNetworking() {
+    static const bool on = [] { const char *v = std::getenv("XODUS_NETWORKING"); return v && std::strcmp(v, "genuine") == 0; }();
+    return on;
+}
 static HRESULT QueryApiRoute(const GUID *clsid, REFIID iid, void **out) {
-    /* mac chain: XThreading stays with the genuine runtime underneath (the
-     * game's task queues are its objects); Store, GameSave, XNetworking,
-     * diagnostics and, with XODUS_USER_RUNTIME=1, XUser and XGame are answered
-     * here. Everything else is forwarded. */
+    /* mac chain: XThreading and XGame stay with the genuine runtime underneath
+     * (the game's task queues are its objects); Store, GameSave, XNetworking,
+     * diagnostics and XUser (the launcher's session file with
+     * XODUS_MAC_SESSION, else with XODUS_USER_RUNTIME=1 the Xodus user
+     * runtime) are answered here.
+     * Everything else is forwarded. */
     if (XodusGameSaveLocalEnabled() && IsGameSaveRuntimeClass(clsid))
         return QueryGameSaveRuntime(clsid,iid,out);
     if (IsStoreRuntimeClass(clsid)) return QueryStoreRuntime(clsid,iid,out);
-    if (*clsid == __uuidof(IXNetworkingImpl)) return x_networking_impl->QueryInterface(iid,out);
+    if (*clsid == __uuidof(IXNetworkingImpl) && !GenuineNetworking()) return x_networking_impl->QueryInterface(iid,out);
     if (IsRuntimeDiagnosticsClass(clsid)) return QueryRuntimeDiagnostics(clsid,iid,out);
-    if (UserRuntimeEnabled() && IsUserRuntimeClass(clsid)) {
+    /* only XUser: XGame (title id and the like) stays with the genuine
+     * runtime, which reads the title's config; the game quit on the user
+     * runtime's answers before it got to its saves */
+    static const GUID xuser = {0x01acd177,0x91f9,0x4763,{0xa3,0x8e,0xcc,0xbb,0x55,0xce,0x32,0xe0}};
+    /* the launcher's session file (MacUser.cpp), when it provides one */
+    if (MacUserEnabled() && *clsid == xuser) return QueryMacUser(iid,out);
+    if (UserRuntimeEnabled() && *clsid == xuser) {
         /* the user runtime starts lazily (see initialize_client) */
         if (HRESULT ready = EnsureStoreModule(); FAILED(ready)) return ready;
         return QueryUserRuntime(clsid,iid,out);
